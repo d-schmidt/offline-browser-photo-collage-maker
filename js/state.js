@@ -57,6 +57,13 @@ const State = (() => {
 
   const findRow = (rowId) => rows.find((row) => row.id === rowId) || null;
 
+  /** Reset the photo framing without touching the image or its rotation. */
+  const resetZoomPan = (box) => {
+    box.zoom = 1;
+    box.offsetX = 0;
+    box.offsetY = 0;
+  };
+
   const limitLocks = (row) => {
     // A row with several boxes keeps one unlocked box to absorb the remainder.
     if (row.boxes.length <= 1) return;
@@ -117,9 +124,7 @@ const State = (() => {
     found.box.image = image;
     // Zoom and pan belong to the photo that was on screen, so a replacement
     // starts from the plain cover crop again.
-    found.box.zoom = 1;
-    found.box.offsetX = 0;
-    found.box.offsetY = 0;
+    resetZoomPan(found.box);
     found.box.rotation = 0;
     if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
       found.box.ratio = image.width / image.height;
@@ -205,6 +210,9 @@ const State = (() => {
       if (found.box.lock !== 'aspect') found.box.lockSeq = (lockSequence += 1);
       found.box.lock = 'aspect';
       found.box.ratio = ratio;
+      // The lock is only meaningful over the untouched cover crop, so start
+      // from it and hide the zoom handle until the lock is released.
+      resetZoomPan(found.box);
       enforceAspectLocks(found.row);
       return true;
     }
@@ -219,7 +227,10 @@ const State = (() => {
   /** Zoom is always at least a cover crop; the scale runs up to METRICS.maxZoom. */
   const setBoxZoom = (boxId, zoom) => {
     const found = findBox(boxId);
-    if (!found || !Number.isFinite(zoom)) return false;
+    // Aspect-locked boxes keep the natural crop, so they ignore zoom changes.
+    if (!found || found.box.lock === 'aspect' || !Number.isFinite(zoom)) {
+      return false;
+    }
     found.box.zoom = Math.min(METRICS.maxZoom, Math.max(1, zoom));
     return true;
   };

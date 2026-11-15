@@ -187,13 +187,18 @@ const Render = (() => {
     const top = layoutRow.y + layoutBox.y;
     const image = box.image;
 
-    refs.zoomHandle.hidden = false;
-    refs.zoomHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
-    refs.zoomHandle.style.top = `${top + layoutBox.h}px`;
-    refs.zoomHandle.setAttribute(
-      'aria-valuenow',
-      String(Math.round(box.zoom * 100) / 100),
-    );
+    if (box.lock === 'aspect') {
+      // An aspect-locked box keeps the natural crop, so zoom is not offered.
+      refs.zoomHandle.hidden = true;
+    } else {
+      refs.zoomHandle.hidden = false;
+      refs.zoomHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
+      refs.zoomHandle.style.top = `${top + layoutBox.h}px`;
+      refs.zoomHandle.setAttribute(
+        'aria-valuenow',
+        String(Math.round(box.zoom * 100) / 100),
+      );
+    }
 
     refs.rotateHandle.hidden = false;
     refs.rotateHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
