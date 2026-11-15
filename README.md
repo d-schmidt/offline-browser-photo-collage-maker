@@ -18,8 +18,11 @@ locally: no install, no build step, no network requests, and no uploads.
 - **+ above/below the canvas** adds a row; **+ on either side of a row** adds a box to it.
 - Drag the white gap between two boxes in a row to trade width; a vertical blue line and column-resize cursor show the handle.
 - Drag the white gap between two rows to trade height between them; a blue line and resize cursor show the handle.
-- Click a box to select it. The action bar offers **Delete box** and
-  **Select image**, plus an always-visible **Save** button.
+- Click a box to select it: blue 3 px border, with the contextual actions in the action bar. A red border means a lock is active.
+- Double-click a box to open the image picker for it.
+- Click the gray background around the canvas or press `Escape` to clear the selection.
+- The action bar offers **Delete box**, **Select image**, and, once the box has an image, exclusive **square** and **aspect ratio** width locks. An active lock turns red; Save is always visible on the right.
+- Locked boxes keep their square or image ratio when the row height changes; width boundaries touching a locked box are disabled. Clicking the active lock releases it and preserves the current width.
 - Photos are cropped to cover the box, centered and clipped to its edges.
 - Deleting every box in a row removes the row; the empty state keeps the
   add-row buttons available.

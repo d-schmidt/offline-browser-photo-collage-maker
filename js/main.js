@@ -65,6 +65,49 @@
     Render.announce(`Photo box ${number} deleted.`);
   };
 
+  const focusAction = (action) => {
+    const button = document.querySelector(
+      `#selection-actions button[data-action="${action}"]`,
+    );
+    if (button) button.focus({ preventScroll: true });
+  };
+
+  const toggleBoxLock = (boxId, mode) => {
+    const found = State.findBox(boxId);
+    if (!found || !found.box.image) return;
+    const { box, row } = found;
+    const action = mode === 'square' ? 'lock-square' : 'lock-aspect';
+
+    if (box.lock === mode) {
+      // Preserve the current widths when the box becomes resizable again.
+      const placedRow = layout.rows.find((candidate) => candidate.id === row.id);
+      const widths = placedRow
+        ? placedRow.boxes.map((candidate) => candidate.w)
+        : [];
+      State.setBoxLock(boxId, null);
+      if (widths.length === row.boxes.length) {
+        State.setRowWeights(row.id, widths);
+      }
+      refresh();
+      focusAction(action);
+      Render.announce('Box lock released.');
+      return;
+    }
+
+    let ratio = 1;
+    if (mode === 'aspect') {
+      if (!box.image.width || !box.image.height) return;
+      ratio = box.image.width / box.image.height;
+    }
+
+    if (!State.setBoxLock(boxId, mode, ratio)) return;
+    refresh();
+    focusAction(action);
+    Render.announce(
+      mode === 'square' ? 'Square lock on.' : 'Aspect ratio lock on.',
+    );
+  };
+
   const handlePickedFile = async (file) => {
     const boxId = pickerBoxId;
     pickerBoxId = null;
@@ -225,6 +268,7 @@
       for (let index = 0; index < row.boxes.length - 1; index += 1) {
         const left = row.boxes[index];
         const right = row.boxes[index + 1];
+        if (left.locked || right.locked) continue;
         const boundary = left.x + left.w + METRICS.gap;
         if (Math.abs(x - boundary) <= BOX_HANDLE_HIT) {
           return { row, left, right, boundary, top: boxTop, height: first.h };
@@ -480,6 +524,8 @@
 
     if (button.dataset.action === 'delete-box') deleteSelected();
     else if (button.dataset.action === 'select-image') openPicker(boxId);
+    else if (button.dataset.action === 'lock-square') toggleBoxLock(boxId, 'square');
+    else if (button.dataset.action === 'lock-aspect') toggleBoxLock(boxId, 'aspect');
   });
 
   rowsLayer.addEventListener('keydown', (event) => {
@@ -489,6 +535,20 @@
     event.preventDefault();
     selectAndFocus(box.dataset.boxId);
     openPicker(box.dataset.boxId);
+  });
+
+  rowsLayer.addEventListener('dblclick', (event) => {
+    const box = event.target.closest('.box');
+    if (!box) return;
+    event.preventDefault();
+    selectAndFocus(box.dataset.boxId);
+    openPicker(box.dataset.boxId);
+  });
+
+  editorArea.addEventListener('click', (event) => {
+    if (performance.now() < ignoreCanvasClickUntil) return;
+    if (event.target.closest('.canvas') || event.target.closest('button')) return;
+    deselect();
   });
 
   fileInput.addEventListener('change', () => {

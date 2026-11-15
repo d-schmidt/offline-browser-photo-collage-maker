@@ -80,14 +80,73 @@ const Layout = (() => {
     });
   };
 
+  const isLocked = (box) =>
+    Boolean(box.lock && Number.isFinite(box.ratio) && box.ratio > 0);
+
+  /**
+   * Widths in pixels. Locked boxes ask for `boxHeight × ratio`; unlocked boxes
+   * share what is left by weight. If the locks cannot all fit, shrink them
+   * proportionally rather than overflowing the canvas.
+   */
+  const boxWidths = (boxes, boxH, total) => {
+    const locked = boxes.map((box) =>
+      isLocked(box) ? Math.max(minBoxW, boxH * box.ratio) : null,
+    );
+    const unlocked = [];
+    let lockedTotal = 0;
+
+    locked.forEach((width, index) => {
+      if (width === null) unlocked.push(index);
+      else lockedTotal += width;
+    });
+
+    if (unlocked.length === boxes.length) {
+      return distribute(
+        total,
+        boxes.map((box) => Math.max(box.weight, 0.0001)),
+        minBoxW,
+      );
+    }
+
+    if (unlocked.length === 0) {
+      if (lockedTotal > total && lockedTotal > 0) {
+        const factor = total / lockedTotal;
+        return locked.map((width) => width * factor);
+      }
+      return locked;
+    }
+
+    const maxLockedTotal = Math.max(0, total - minBoxW * unlocked.length);
+    if (lockedTotal > maxLockedTotal && lockedTotal > 0) {
+      const factor = maxLockedTotal / lockedTotal;
+      for (let index = 0; index < locked.length; index += 1) {
+        if (locked[index] !== null) locked[index] *= factor;
+      }
+      lockedTotal = maxLockedTotal;
+    }
+
+    const remaining = Math.max(0, total - lockedTotal);
+    const unlockedWidths = distribute(
+      remaining,
+      unlocked.map((index) => Math.max(boxes[index].weight, 0.0001)),
+      minBoxW,
+    );
+    const widths = locked.slice();
+    unlocked.forEach((boxIndex, index) => {
+      widths[boxIndex] = unlockedWidths[index];
+    });
+    return widths;
+  };
+
   const placeBoxes = (row, rowH) => {
     const boxH = Math.max(0, rowH - 2 * gap);
-    const weights = row.boxes.map((box) => Math.max(box.weight, 0.0001));
     // Every box contributes a gap on both sides. The canvas padding supplies
     // the outer half of the edge margin; between two boxes the two margins add
     // up to twice the gap, so spacing matches the rows above and below.
     const available = Math.max(0, contentW - 2 * gap * row.boxes.length);
-    const widths = distribute(available, weights, minBoxW);
+    const widths = boxWidths(row.boxes, boxH, available);
+    const used = widths.reduce((sum, width) => sum + width, 0);
+    const fills = Math.abs(used - available) < 0.01;
 
     const start = pad + gap;
     const limit = pad + contentW - gap;
@@ -96,13 +155,16 @@ const Layout = (() => {
     return widths.map((width, index) => {
       exact += width;
       const last = index === widths.length - 1;
-      const end = last ? limit : Math.min(Math.round(exact), limit);
+      // A row whose boxes are all locked can be narrower than the canvas; it
+      // stays left-aligned instead of stretching and breaking the ratio.
+      const end = last && fills ? limit : Math.min(Math.round(exact), limit);
       const x = Math.min(cursor, limit);
       cursor = end + 2 * gap;
       exact += 2 * gap;
       return {
         id: row.boxes[index].id,
         image: row.boxes[index].image,
+        locked: isLocked(row.boxes[index]),
         x,
         // Relative to the row element, which is already positioned in the
         // canvas; the gap is the white margin inside the row.

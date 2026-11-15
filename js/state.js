@@ -15,6 +15,8 @@ const State = (() => {
     id: uid('box'),
     weight,
     image: null,
+    lock: null,
+    ratio: null,
   });
 
   const createRow = (weight) => ({
@@ -94,6 +96,47 @@ const State = (() => {
     }
     Images.release(found.box.image);
     found.box.image = image;
+    if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
+      found.box.ratio = image.width / image.height;
+    }
+    return true;
+  };
+
+  /** Set or release one of the exclusive width locks on a box. */
+  const setBoxLock = (boxId, mode, ratio = null) => {
+    const found = findBox(boxId);
+    if (!found) return false;
+
+    if (mode === null) {
+      found.box.lock = null;
+      found.box.ratio = null;
+      return true;
+    }
+
+    if (mode !== 'square' && mode !== 'aspect') return false;
+    if (!found.box.image || !Number.isFinite(ratio) || ratio <= 0) return false;
+
+    found.box.lock = mode;
+    found.box.ratio = ratio;
+    return true;
+  };
+
+  /** Replace a row's box weights, used to preserve widths when unlocking. */
+  const setRowWeights = (rowId, weights) => {
+    const row = findRow(rowId);
+    if (!row || weights.length !== row.boxes.length) return false;
+
+    let changed = false;
+    row.boxes.forEach((box, index) => {
+      const weight = weights[index];
+      if (Number.isFinite(weight) && weight > 0) {
+        box.weight = weight;
+        changed = true;
+      }
+    });
+    if (!changed) return false;
+
+    normalizeWeights(row.boxes);
     return true;
   };
 
@@ -163,6 +206,8 @@ const State = (() => {
     addBox,
     removeBox,
     setImage,
+    setBoxLock,
+    setRowWeights,
     setRowSplit,
     setBoxSplit,
     select,

@@ -5,6 +5,8 @@ const ICONS = Object.freeze({
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   image: 'assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
 });
 
 const Render = (() => {
@@ -27,6 +29,7 @@ const Render = (() => {
     button.className = 'icon-button';
     button.dataset.action = action;
     button.setAttribute('aria-label', label);
+    button.title = label;
     button.append(iconElement(iconName));
     return button;
   };
@@ -42,13 +45,14 @@ const Render = (() => {
     button.style.height = `${layoutBox.h}px`;
 
     const hasImage = Boolean(layoutBox.image);
+    const locked = Boolean(layoutBox.locked);
     button.classList.toggle('has-image', hasImage);
+    button.classList.toggle('has-lock', locked);
     button.classList.toggle('is-selected', layoutBox.id === selectedId);
     button.setAttribute('aria-pressed', String(layoutBox.id === selectedId));
-    button.setAttribute(
-      'aria-label',
-      hasImage ? `Photo box ${number}` : `Empty photo box ${number}`,
-    );
+    const label = hasImage ? `Photo box ${number}` : `Empty photo box ${number}`;
+    button.setAttribute('aria-label', label);
+    button.title = label;
 
     if (hasImage) {
       const image = document.createElement('img');
@@ -65,9 +69,31 @@ const Render = (() => {
   const paintActions = (state) => {
     refs.selectionActions.replaceChildren();
     if (!state.selectedBoxId) return;
+
+    const found = state.findBox(state.selectedBoxId);
+    const box = found ? found.box : null;
+    const hasImage = Boolean(box && box.image);
+    const lock = box ? box.lock : null;
+
+    const square = toolButton('lock-square', 'Lock square box', 'lockSquare');
+    square.disabled = !hasImage;
+    square.setAttribute('aria-pressed', String(lock === 'square'));
+    square.classList.toggle('is-active', lock === 'square');
+
+    const aspect = toolButton(
+      'lock-aspect',
+      'Lock image aspect ratio',
+      'lockAspect',
+    );
+    aspect.disabled = !hasImage;
+    aspect.setAttribute('aria-pressed', String(lock === 'aspect'));
+    aspect.classList.toggle('is-active', lock === 'aspect');
+
     refs.selectionActions.append(
       toolButton('delete-box', 'Delete box', 'delete'),
       toolButton('select-image', 'Select image', 'image'),
+      square,
+      aspect,
     );
   };
 
@@ -168,6 +194,7 @@ const Render = (() => {
     document.querySelectorAll('[data-icon]').forEach((button) => {
       const name = button.dataset.icon;
       if (ICONS[name]) button.append(iconElement(name));
+      button.title = button.getAttribute('aria-label') || '';
     });
   };
 
