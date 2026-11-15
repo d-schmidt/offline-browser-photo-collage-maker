@@ -281,6 +281,23 @@ const State = (() => {
   };
 
   /**
+   * Replace every row weight with the given pixel heights. Used when a lone
+   * aspect-locked row stops deriving its height from its width, so the layout
+   * keeps its current heights instead of jumping.
+   */
+  const setRowHeights = (heights) => {
+    if (!Array.isArray(heights) || heights.length !== rows.length) return false;
+    if (!heights.every((height) => Number.isFinite(height) && height > 0)) {
+      return false;
+    }
+    rows.forEach((row, index) => {
+      row.weight = heights[index];
+    });
+    normalizeWeights(rows);
+    return true;
+  };
+
+  /**
    * Split the combined weight of two adjacent rows so the upper row gets
    * `upperShare` of their height. The pair's total weight stays the same, so
    * every other row keeps its height.
@@ -363,6 +380,7 @@ const State = (() => {
     setBoxPan,
     setBoxRotation,
     setRowWeights,
+    setRowHeights,
     setRowSplit,
     setBoxSplit,
     select,

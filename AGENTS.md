@@ -11,13 +11,13 @@
 
 ## Current state
 
-The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and PNG save/export.
+The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks with full-width single-image rows, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and PNG save/export.
 
 **Working:**
 
 - `index.html` — two-region shell with the action bar, scaled 9:16 canvas stage, add-row buttons, add-box rails on both sides, hidden file and color inputs, and live region.
 - `css/styles.css` — layout tokens, scaled canvas, boxes, side rails, focus/hover states, toast variants, reduced-motion handling.
-- `js/layout.js` — 9:16 `METRICS`, weight-to-pixel flow math, per-box gaps on both edges, image-ratio width locks, 40 px minimums, whole-pixel rounding, and the cover/zoom/pan/rotate photo rectangle shared with export.
+- `js/layout.js` — 9:16 `METRICS`, weight-to-pixel flow math, per-box gaps on both edges, image-ratio width locks (including full-width fitted rows), 40 px minimums, whole-pixel rounding, and the cover/zoom/pan/rotate photo rectangle shared with export.
 - `js/state.js` — rows, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, canvas margin color, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
 - `js/render.js` — renders rows, boxes, contextual tools including the lock toggles, both rails, row/box boundary overlays, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
@@ -82,11 +82,11 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
   - **Delete** (`delete.svg`) — removes the box. Deleting the last box in a row removes that row. The selection is cleared.
   - **Select image** (`image_search.svg`) — opens the browser file picker (`accept="image/*"`). The chosen file replaces the placeholder, cropped to the box aspect ratio and centered. Invalid or undecodable files show a visible error and leave the box unchanged.
   - **Lock square** (`crop_square.svg`) — enabled only after the box has an image. Sets the box width so it is square and keeps that ratio as the row height changes. The active button is red.
-  - **Lock aspect ratio** (`image_aspect_ratio.svg`) — enabled only after the box has an image, and only when its image ratio matches any existing aspect lock in the row. Uses the image's natural aspect ratio to set the box width and keeps that ratio as the row height changes. Activating it resets the box's zoom and pan to the plain cover crop and hides the zoom circle until the lock is released; zoom changes are ignored while locked. Rotation stays available. The active button is red.
-  - The two locks are exclusive: choosing one releases the other, and clicking the active lock releases it. While locked, width-boundary dragging involving that box is disabled; row height remains adjustable.
+  - **Lock aspect ratio** (`image_aspect_ratio.svg`) — enabled only after the box has an image, and only when its image ratio matches any existing aspect lock in the row. Uses the image's natural aspect ratio to set the box width and keeps that ratio as the row height changes. When this is the row's only box, the row height is instead recalculated from the full width available to a box, so the photo spans the canvas from margin to margin whenever the other rows can still keep their 40 px minimums. Activating it resets the box's zoom and pan to the plain cover crop and hides the zoom circle until the lock is released; zoom changes are ignored while locked. Rotation stays available. The active button is red.
+  - The two locks are exclusive: choosing one releases the other, and clicking the active lock releases it. While locked, width-boundary dragging involving that box is disabled; row height remains adjustable in multi-box rows, while a single-box locked row keeps its row-height handles disabled.
   - A row with multiple boxes can have at most `n − 1` locks. The remaining unlocked box is forced to fill whatever width is left. Deleting the forced box can leave only locked boxes, so the last lock is released automatically to restore the rule.
   - Aspect-ratio locks are further limited to one ratio per row: the first aspect-locked image sets the row's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
-  - A row with a single box may lock that box. Its row-height handles are then disabled as well, since the box width is derived from the row height.
+  - A row with a single box may lock that box. Its row-height handles are then disabled: a square lock keeps its width derived from the row height, while an aspect lock derives the row height from the full width and centres the box if the row minimum makes it shorter.
 - **Margin color** (`dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by the PNG export.
 - **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — composites the fixed 1080 × 1920 canvas offscreen and downloads it as a PNG named `photo-collage.png`. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
 - Only boxes have contextual actions; the margin-color picker and Save are global.
@@ -112,6 +112,7 @@ Boxes flow like flex items with `flex-grow`; the canvas never resizes.
 - Row height = `contentH × weight / Σ rowWeights`, minus `2 × gap` for box height.
 - Box width = `(contentW − 2 × gap × n) × weight / Σ boxWeights` in its row. Each box reserves a gap on both sides, so two adjacent boxes show twice the gap between them and every outer edge keeps one gap beyond the canvas padding.
 - A locked box requests `boxHeight × lockRatio` instead of using its weight. Unlocked boxes share the remaining width by weight. A multi-box row always leaves at least one unlocked box, which absorbs the remainder. If the locked widths cannot fit, they shrink proportionally; if every box in a row is locked and the row is narrower than the canvas, the row stays left-aligned rather than stretching and breaking the ratio.
+- A row's only box with an **aspect** lock is the exception: its height comes from the full width available to a box (`availableWidth ÷ imageRatio`), so the box fills the canvas from margin to margin. Fitted rows claim their height first; the remaining rows share the rest by weight and stay at or above 40 px. When the fitted heights cannot all fit, they are scaled down proportionally and every other row stays at its minimum. A fitted row whose ideal height would be shorter than 40 px keeps the 40 px row and centres the full-width box in it. If every row is fitted and there is height left over, the stack stays top-aligned and the canvas background shows below it.
 - Adding a box gives it the row's mean weight; adding a row gives it the mean row weight and renormalizes the stack.
 - Removing a box or row renormalizes the remaining weights.
 - Resizing redistributes weight only between the dragged element and its siblings/adjacent rows.
@@ -182,6 +183,8 @@ Manual test checklist:
 - Click the gray area around the canvas: the current selection clears.
 - Change the row height with a square or aspect lock active: the locked box keeps its ratio and siblings in the row reflow.
 - Lock aspect ratio: the box ratio matches the image's natural ratio. Replace the image and confirm the ratio updates.
+- Aspect-lock the only box in a row: it expands to the full available width and its row height follows the image ratio; the other rows share the remaining height but stay at least 40 px. Add a row or change the photo and confirm the fitted box still fills the width. Unlock and confirm the row keeps its height instead of jumping.
+- Aspect-lock a very tall image with several rows present: the fitted row takes all the height it can while the other rows stay at 40 px, and its box stays at the image ratio instead of overflowing.
 - Zoom and pan a photo, then activate the aspect lock: zoom returns to 1×, pan recenters, the zoom circle disappears while the rotation circle stays, and further zoom attempts do nothing. Release the lock: the zoom circle returns at 1×. Activate the square lock instead and confirm zoom stays available.
 - Choose the other lock: it replaces the first. Click the active lock: it releases, the current width is preserved, and width dragging works again.
 - Load an image; confirm it covers the box, centered, cropped to the aspect ratio.

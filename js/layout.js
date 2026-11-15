@@ -68,22 +68,6 @@ const Layout = (() => {
     return sizes;
   };
 
-  const placeRows = (rows) => {
-    const rowWeights = rows.map((row) => Math.max(row.weight, 0.0001));
-    const heights = distribute(contentH, rowWeights, minRowH);
-
-    let cursor = pad;
-    let exact = pad;
-    return heights.map((height, index) => {
-      exact += height;
-      const last = index === heights.length - 1;
-      const end = last ? pad + contentH : Math.round(exact);
-      const y = cursor;
-      cursor = end;
-      return { row: rows[index], y, h: end - y };
-    });
-  };
-
   const isLocked = (box) =>
     Boolean(box.lock && Number.isFinite(box.ratio) && box.ratio > 0);
 
@@ -213,8 +197,13 @@ const Layout = (() => {
     };
   };
 
-  const placeBoxes = (row, rowH) => {
-    const boxH = Math.max(0, rowH - 2 * gap);
+  const placeBoxes = (row, rowH, fitBoxH = null) => {
+    const rowBoxH = Math.max(0, rowH - 2 * gap);
+    // A single aspect-locked box derives its height from the full row width,
+    // so it can be shorter than the row minimum (centre it) or a fraction of a
+    // pixel taller than the rounded row (it eats into the next row's gap).
+    const boxH = fitBoxH === null ? rowBoxH : fitBoxH;
+    const boxY = gap + Math.max(0, (rowBoxH - boxH) / 2);
     // Every box contributes a gap on both sides. The canvas padding supplies
     // the outer half of the edge margin; between two boxes the two margins add
     // up to twice the gap, so spacing matches the rows above and below.
@@ -247,9 +236,115 @@ const Layout = (() => {
         x,
         // Relative to the row element, which is already positioned in the
         // canvas; the gap is the white margin inside the row.
-        y: gap,
+        y: boxY,
         w: Math.max(0, end - x),
         h: boxH,
+      };
+    });
+  };
+
+  /**
+   * The box height that makes a lone aspect-locked box span the full row
+   * width. A row with more than one box still derives widths from the height,
+   * because its siblings have to share the width.
+   */
+  const fitBoxHeight = (row) => {
+    if (row.boxes.length !== 1) return null;
+    const box = row.boxes[0];
+    if (box.lock !== 'aspect' || !isLocked(box)) return null;
+    return (contentW - 2 * gap) / box.ratio;
+  };
+
+  const placeRows = (rows) => {
+    if (rows.length === 0) return [];
+
+    const fits = rows.map(fitBoxHeight);
+    const fitIndices = [];
+    fits.forEach((height, index) => {
+      if (height !== null) fitIndices.push(index);
+    });
+
+    let heights;
+    const fitBoxHeights = new Array(rows.length).fill(null);
+
+    if (fitIndices.length === 0) {
+      heights = distribute(
+        contentH,
+        rows.map((row) => Math.max(row.weight, 0.0001)),
+        minRowH,
+      );
+    } else if (contentH <= minRowH * rows.length) {
+      // Not enough room for every row minimum; split evenly instead.
+      heights = new Array(rows.length).fill(contentH / rows.length);
+    } else {
+      const idealRows = fits.map((boxH) =>
+        boxH === null ? null : Math.max(minRowH, boxH + 2 * gap),
+      );
+      const fitBudget =
+        contentH - minRowH * (rows.length - fitIndices.length);
+      const idealTotal = fitIndices.reduce(
+        (sum, index) => sum + idealRows[index],
+        0,
+      );
+
+      heights = new Array(rows.length);
+      if (idealTotal <= fitBudget) {
+        // Every fitted row gets its full-width height; the remaining rows
+        // share what is left by weight, as usual.
+        fitIndices.forEach((index) => {
+          heights[index] = idealRows[index];
+          fitBoxHeights[index] = fits[index];
+        });
+        const restIndices = rows
+          .map((_, index) => index)
+          .filter((index) => fits[index] === null);
+        const rest = distribute(
+          contentH - idealTotal,
+          restIndices.map((index) => Math.max(rows[index].weight, 0.0001)),
+          minRowH,
+        );
+        restIndices.forEach((index, position) => {
+          heights[index] = rest[position];
+        });
+      } else {
+        // Full width cannot fit. Share the available height between the fitted
+        // rows and keep every other row at its minimum.
+        const extras = fitIndices.map((index) =>
+          Math.max(0, idealRows[index] - minRowH),
+        );
+        const extraTotal = extras.reduce((sum, extra) => sum + extra, 0);
+        const availableExtra = Math.max(
+          0,
+          fitBudget - minRowH * fitIndices.length,
+        );
+        heights.fill(minRowH);
+        fitIndices.forEach((index, position) => {
+          heights[index] =
+            minRowH +
+            (extraTotal > 0
+              ? (availableExtra * extras[position]) / extraTotal
+              : availableExtra / fitIndices.length);
+        });
+      }
+    }
+
+    let cursor = pad;
+    let exact = pad;
+    return heights.map((height, index) => {
+      exact += height;
+      const last = index === heights.length - 1;
+      // Rows whose fitted boxes need less than the full canvas stay top
+      // aligned; only the normal weighted layout reaches the bottom edge.
+      const end = last
+        ? Math.min(pad + contentH, Math.round(exact))
+        : Math.round(exact);
+      const y = cursor;
+      cursor = end;
+      return {
+        row: rows[index],
+        y,
+        h: end - y,
+        fitBoxH: fitBoxHeights[index],
       };
     });
   };
@@ -262,11 +357,11 @@ const Layout = (() => {
       contentH,
       pad,
       gap,
-      rows: placed.map(({ row, y, h }) => ({
+      rows: placed.map(({ row, y, h, fitBoxH }) => ({
         id: row.id,
         y,
         h,
-        boxes: placeBoxes(row, h),
+        boxes: placeBoxes(row, h, fitBoxH),
       })),
     };
   };

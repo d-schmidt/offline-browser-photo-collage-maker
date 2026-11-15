@@ -41,6 +41,16 @@
     Render.paint(State, layout);
   };
 
+  /**
+   * Freeze the current row pixel heights into weights. Called before a row
+   * loses its width-fit rule (unlocking or adding a box), so the layout keeps
+   * its heights instead of snapping back to the old weights.
+   */
+  const preserveRowHeights = () => {
+    if (layout.rows.length === 0) return;
+    State.setRowHeights(layout.rows.map((row) => row.h));
+  };
+
   const applyCanvasColor = () => {
     document.documentElement.style.setProperty('--canvas-bg', State.canvasColor);
     marginColorInput.value = State.canvasColor;
@@ -96,6 +106,11 @@
     const action = mode === 'square' ? 'lock-square' : 'lock-aspect';
 
     if (box.lock === mode) {
+      // A lone aspect-locked row is sized by its width; freeze that height
+      // before the rule goes away so unlocking does not make the row jump.
+      if (box.lock === 'aspect' && row.boxes.length === 1) {
+        preserveRowHeights();
+      }
       // Preserve the current widths when the box becomes resizable again.
       const placedRow = layout.rows.find((candidate) => candidate.id === row.id);
       const widths = placedRow
@@ -855,6 +870,10 @@
     const rail = button.closest('.row-rail');
     const rowId = button.dataset.rowId;
     const rowIndex = State.rows.findIndex((row) => row.id === rowId);
+    const row = State.rows.find((candidate) => candidate.id === rowId);
+    if (row && row.boxes.length === 1 && row.boxes[0].lock === 'aspect') {
+      preserveRowHeights();
+    }
     if (!State.addBox(rowId)) return;
     refresh();
     // Keep keyboard focus on the row's add button after the rails re-render.
