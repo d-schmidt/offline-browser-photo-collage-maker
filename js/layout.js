@@ -10,12 +10,16 @@ const METRICS = Object.freeze({
   gap: 5,
   minRowH: 40,
   minBoxW: 40,
+  maxZoom: 6,
 });
 
 const Layout = (() => {
-  const { canvasW, canvasH, pad, gap, minRowH, minBoxW } = METRICS;
+  const { canvasW, canvasH, pad, gap, minRowH, minBoxW, maxZoom } = METRICS;
   const contentW = canvasW - 2 * pad;
   const contentH = canvasH - 2 * pad;
+
+  const clamp = (value, minimum, maximum) =>
+    Math.min(maximum, Math.max(minimum, value));
 
   /**
    * Split `total` between weighted items, clamping each to `minimum` and
@@ -138,6 +142,34 @@ const Layout = (() => {
     return widths;
   };
 
+  /**
+   * Placement of a photo inside its box, relative to the box's top-left corner.
+   * The photo always covers the box (so the collage never shows holes) and the
+   * zoom scales it further. `offsetX`/`offsetY` are −1…1 shares of the slack
+   * along each axis: driving them keeps the framing proportional when the box
+   * changes size. Both the on-screen crop and the PNG export use this rect.
+   */
+  const imageRect = (image, boxW, boxH, zoom = 1, offsetX = 0, offsetY = 0) => {
+    const sourceW = image ? image.width : 0;
+    const sourceH = image ? image.height : 0;
+    if (!sourceW || !sourceH || boxW <= 0 || boxH <= 0) return null;
+
+    const scale =
+      Math.max(boxW / sourceW, boxH / sourceH) *
+      clamp(Number(zoom) || 1, 1, maxZoom);
+    const w = sourceW * scale;
+    const h = sourceH * scale;
+    const slackX = Math.max(0, (w - boxW) / 2);
+    const slackY = Math.max(0, (h - boxH) / 2);
+
+    return {
+      x: (boxW - w) / 2 + clamp(Number(offsetX) || 0, -1, 1) * slackX,
+      y: (boxH - h) / 2 + clamp(Number(offsetY) || 0, -1, 1) * slackY,
+      w,
+      h,
+    };
+  };
+
   const placeBoxes = (row, rowH) => {
     const boxH = Math.max(0, rowH - 2 * gap);
     // Every box contributes a gap on both sides. The canvas padding supplies
@@ -165,6 +197,9 @@ const Layout = (() => {
         id: row.boxes[index].id,
         image: row.boxes[index].image,
         locked: isLocked(row.boxes[index]),
+        zoom: row.boxes[index].zoom,
+        offsetX: row.boxes[index].offsetX,
+        offsetY: row.boxes[index].offsetY,
         x,
         // Relative to the row element, which is already positioned in the
         // canvas; the gap is the white margin inside the row.
@@ -192,5 +227,5 @@ const Layout = (() => {
     };
   };
 
-  return { compute };
+  return { compute, imageRect, maxZoom, minZoom: 1 };
 })();

@@ -269,14 +269,68 @@ button {
 
 .box-image {
   position: absolute;
-  inset: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
   pointer-events: none;
   user-select: none;
+}
+
+/* Ghost of the full photo while its box is selected. It sits below the
+   selected box (whose opaque photo hides the overlap) but above siblings, so
+   the parts of the image outside the crop stay visible for panning. It is
+   editor chrome only and never part of the PNG export. */
+.zoom-overlay {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  max-width: none;
+  opacity: 0.32;
+  pointer-events: none;
+  user-select: none;
+}
+
+.zoom-overlay[hidden] {
+  display: none;
+}
+
+/* The inverse scale keeps the handle the same size on screen while its
+   bottom-right corner sits on the selected box's bottom-right corner. */
+.zoom-handle {
+  position: absolute;
+  z-index: 6;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
+  cursor: nwse-resize;
+  touch-action: none;
+  transform: translate(-100%, -100%) scale(calc(1 / var(--scale, 1)));
+  transform-origin: 100% 100%;
+}
+
+.zoom-handle::after {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.zoom-handle:hover,
+.zoom-handle:focus-visible {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgb(30 136 229 / 35%);
+  outline: none;
+}
+
+.zoom-handle:hover::after,
+.zoom-handle:focus-visible::after {
+  background: #ffffff;
+}
+
+.zoom-handle[hidden] {
+  display: none;
 }
 
 .box-placeholder {

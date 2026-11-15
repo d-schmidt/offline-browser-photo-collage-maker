@@ -15,6 +15,8 @@ const Render = (() => {
   const refs = {};
   let toastTimer = 0;
   let announceToken = 0;
+  let currentState = null;
+  let currentLayout = null;
 
   const iconElement = (name) => {
     const image = new Image(24, 24);
@@ -34,6 +36,16 @@ const Render = (() => {
     button.title = label;
     button.append(iconElement(iconName));
     return button;
+  };
+
+  /** Position the photo inside a box in logical pixels; the box clips it. */
+  const placeImage = (element, image, box, zoom, offsetX, offsetY) => {
+    const rect = Layout.imageRect(image, box.w, box.h, zoom, offsetX, offsetY);
+    if (!rect) return;
+    element.style.left = `${rect.x}px`;
+    element.style.top = `${rect.y}px`;
+    element.style.width = `${rect.w}px`;
+    element.style.height = `${rect.h}px`;
   };
 
   const buildBox = (layoutBox, number, selectedId) => {
@@ -62,6 +74,14 @@ const Render = (() => {
       image.src = layoutBox.image.url;
       image.alt = `Photo ${number}`;
       image.draggable = false;
+      placeImage(
+        image,
+        layoutBox.image,
+        layoutBox,
+        layoutBox.zoom,
+        layoutBox.offsetX,
+        layoutBox.offsetY,
+      );
       button.append(image);
     } else {
       const placeholder = new Image(64, 64);
@@ -118,6 +138,84 @@ const Render = (() => {
       square,
       aspect,
     );
+  };
+
+  const selectedZoomTarget = () => {
+    if (!currentLayout || !currentState || !currentState.selectedBoxId) return null;
+    const found = currentState.findBox(currentState.selectedBoxId);
+    if (!found || !found.box.image) return null;
+    const layoutRow = currentLayout.rows.find((row) => row.id === found.row.id);
+    if (!layoutRow) return null;
+    const layoutBox = layoutRow.boxes.find((box) => box.id === found.box.id);
+    if (!layoutBox) return null;
+    return { layoutRow, layoutBox, box: found.box };
+  };
+
+  /**
+   * The zoom handle and the ghost of the full photo are editor-only chrome;
+   * they follow the selection and never reach the exported PNG.
+   */
+  const paintImageChrome = (target = selectedZoomTarget()) => {
+    if (!target) {
+      refs.zoomHandle.hidden = true;
+      refs.zoomOverlay.hidden = true;
+      return;
+    }
+
+    const { layoutRow, layoutBox, box } = target;
+    const top = layoutRow.y + layoutBox.y;
+    const image = box.image;
+
+    refs.zoomHandle.hidden = false;
+    refs.zoomHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
+    refs.zoomHandle.style.top = `${top + layoutBox.h}px`;
+    refs.zoomHandle.setAttribute(
+      'aria-valuenow',
+      String(Math.round(box.zoom * 100) / 100),
+    );
+
+    const rect = Layout.imageRect(
+      image,
+      layoutBox.w,
+      layoutBox.h,
+      box.zoom,
+      box.offsetX,
+      box.offsetY,
+    );
+    if (!rect) {
+      refs.zoomOverlay.hidden = true;
+      return;
+    }
+
+    if (refs.zoomOverlay.dataset.src !== image.url) {
+      refs.zoomOverlay.src = image.url;
+      refs.zoomOverlay.dataset.src = image.url;
+    }
+    refs.zoomOverlay.hidden = false;
+    refs.zoomOverlay.style.left = `${layoutBox.x + rect.x}px`;
+    refs.zoomOverlay.style.top = `${top + rect.y}px`;
+    refs.zoomOverlay.style.width = `${rect.w}px`;
+    refs.zoomOverlay.style.height = `${rect.h}px`;
+  };
+
+  /** Repaint only the selected box's photo and its chrome during a zoom/pan. */
+  const updateZoom = () => {
+    const target = selectedZoomTarget();
+    if (!target) return;
+    const image = refs.rows.querySelector(
+      `[data-box-id="${target.layoutBox.id}"] .box-image`,
+    );
+    if (image) {
+      placeImage(
+        image,
+        target.box.image,
+        target.layoutBox,
+        target.box.zoom,
+        target.box.offsetX,
+        target.box.offsetY,
+      );
+    }
+    paintImageChrome(target);
   };
 
   const paintRail = (layout, rail, side) => {
@@ -180,6 +278,7 @@ const Render = (() => {
 
   /** Cheapest possible update while dragging a row boundary. */
   const updateGeometry = (layout) => {
+    currentLayout = layout;
     const rowElements = refs.rows.querySelectorAll('.row');
     layout.rows.forEach((layoutRow, rowIndex) => {
       const row = rowElements[rowIndex];
@@ -195,9 +294,22 @@ const Render = (() => {
         box.style.top = `${layoutBox.y}px`;
         box.style.width = `${layoutBox.w}px`;
         box.style.height = `${layoutBox.h}px`;
+
+        const image = box.querySelector('.box-image');
+        if (image && layoutBox.image) {
+          placeImage(
+            image,
+            layoutBox.image,
+            layoutBox,
+            layoutBox.zoom,
+            layoutBox.offsetX,
+            layoutBox.offsetY,
+          );
+        }
       });
     });
     updateRailGeometry(layout);
+    paintImageChrome();
   };
 
   const init = () => {
@@ -209,6 +321,10 @@ const Render = (() => {
     refs.empty = document.getElementById('canvas-empty');
     refs.rowBoundary = document.getElementById('row-boundary');
     refs.boxBoundary = document.getElementById('box-boundary');
+    refs.zoomHandle = document.getElementById('zoom-handle');
+    refs.zoomOverlay = document.getElementById('zoom-overlay');
+    refs.zoomHandle.setAttribute('aria-valuemin', String(Layout.minZoom));
+    refs.zoomHandle.setAttribute('aria-valuemax', String(Layout.maxZoom));
     refs.toast = document.getElementById('toast');
     refs.live = document.getElementById('live-region');
 
@@ -222,6 +338,8 @@ const Render = (() => {
   };
 
   const paint = (state, layout) => {
+    currentState = state;
+    currentLayout = layout;
     refs.empty.hidden = state.rows.length > 0;
     hideRowBoundary();
     hideBoxBoundary();
@@ -251,15 +369,18 @@ const Render = (() => {
     paintRail(layout, refs.railLeft, 'left');
     paintRail(layout, refs.railRight, 'right');
     paintActions(state);
+    paintImageChrome();
   };
 
   const paintSelection = (state) => {
+    currentState = state;
     refs.rows.querySelectorAll('.box').forEach((box) => {
       const selected = box.dataset.boxId === state.selectedBoxId;
       box.classList.toggle('is-selected', selected);
       box.setAttribute('aria-pressed', String(selected));
     });
     paintActions(state);
+    paintImageChrome();
   };
 
   const announce = (message) => {
@@ -298,6 +419,7 @@ const Render = (() => {
     paint,
     paintSelection,
     updateGeometry,
+    updateZoom,
     showRowBoundary,
     hideRowBoundary,
     setRowResizeCursor,

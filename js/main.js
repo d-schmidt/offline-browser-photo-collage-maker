@@ -14,12 +14,15 @@
   const marginColorInput = document.getElementById('margin-color-input');
   const rowsLayer = document.getElementById('rows');
   const fileInput = document.getElementById('file-input');
+  const zoomHandle = document.getElementById('zoom-handle');
 
   let pickerBoxId = null;
   let fitFrame = 0;
   let layout = Layout.compute(State.rows);
   let rowDrag = null;
   let boxDrag = null;
+  let panDrag = null;
+  let zoomDrag = null;
   let ignoreCanvasClickUntil = 0;
 
   const ROW_HANDLE_HIT = 6;
@@ -245,11 +248,210 @@
     return width > 0 ? width / METRICS.canvasW : 1;
   };
 
+  /** The selected box's live state plus the geometry it was last laid out at. */
+  const selectedTarget = () => {
+    if (!State.selectedBoxId) return null;
+    const found = State.findBox(State.selectedBoxId);
+    if (!found || !found.box.image) return null;
+    const layoutRow = layout.rows.find((row) => row.id === found.row.id);
+    const layoutBox =
+      layoutRow && layoutRow.boxes.find((box) => box.id === found.box.id);
+    return layoutRow && layoutBox
+      ? { layoutRow, layoutBox, box: found.box }
+      : null;
+  };
+
+  /** How far the photo can move inside its box, in logical pixels. */
+  const panSlack = (box, layoutBox) => {
+    const rect = Layout.imageRect(
+      box.image,
+      layoutBox.w,
+      layoutBox.h,
+      box.zoom,
+      0,
+      0,
+    );
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, (rect.w - layoutBox.w) / 2),
+      y: Math.max(0, (rect.h - layoutBox.h) / 2),
+    };
+  };
+
+  const startPanDrag = (event) => {
+    if (panDrag || zoomDrag || rowDrag || boxDrag || event.button !== 0) return;
+    const element = event.target instanceof Element ? event.target : null;
+    if (!element) return;
+
+    // The selected photo can be grabbed directly, or anywhere on the canvas
+    // background — which is where the ghost of the full photo is visible.
+    const boxElement = element.closest('.box');
+    if (boxElement) {
+      if (boxElement.dataset.boxId !== State.selectedBoxId) return;
+    } else if (!State.selectedBoxId || !element.closest('.canvas')) {
+      return;
+    }
+
+    const found = State.findBox(State.selectedBoxId);
+    if (!found || !found.box.image) return;
+
+    const target = selectedTarget();
+    if (!target) return;
+    const slack = panSlack(found.box, target.layoutBox);
+    if (slack.x <= 0 && slack.y <= 0) return;
+
+    event.preventDefault();
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort; synthetic tests and old browsers may
+      // not have an active pointer to capture.
+    }
+
+    panDrag = {
+      pointerId: event.pointerId,
+      boxId: found.box.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startOffsetX: found.box.offsetX,
+      startOffsetY: found.box.offsetY,
+      slack,
+      moved: false,
+    };
+  };
+
+  const movePanDrag = (event) => {
+    if (!panDrag || event.pointerId !== panDrag.pointerId) return;
+
+    const dx = event.clientX - panDrag.startClientX;
+    const dy = event.clientY - panDrag.startClientY;
+    if (!panDrag.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      panDrag.moved = true;
+    }
+
+    const scale = canvasScale();
+    const offsetX = panDrag.slack.x
+      ? panDrag.startOffsetX + dx / scale / panDrag.slack.x
+      : panDrag.startOffsetX;
+    const offsetY = panDrag.slack.y
+      ? panDrag.startOffsetY + dy / scale / panDrag.slack.y
+      : panDrag.startOffsetY;
+
+    if (!State.setBoxPan(panDrag.boxId, offsetX, offsetY)) return;
+    Render.updateZoom();
+  };
+
+  const finishPanDrag = (event) => {
+    if (!panDrag || event.pointerId !== panDrag.pointerId) return;
+
+    const moved = panDrag.moved;
+    panDrag = null;
+    try {
+      canvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // The pointer may already be released.
+    }
+    if (moved) ignoreCanvasClickUntil = performance.now() + 300;
+  };
+
+  const startZoomDrag = (event) => {
+    if (zoomDrag || rowDrag || boxDrag || panDrag || event.button !== 0) return;
+    const target = selectedTarget();
+    if (!target) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      zoomHandle.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort; synthetic tests and old browsers may
+      // not have an active pointer to capture.
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
+    const centerX =
+      rect.left + (target.layoutBox.x + target.layoutBox.w / 2) * scale;
+    const centerY =
+      rect.top +
+      (target.layoutRow.y + target.layoutBox.y + target.layoutBox.h / 2) * scale;
+
+    zoomDrag = {
+      pointerId: event.pointerId,
+      boxId: target.box.id,
+      centerX,
+      centerY,
+      startDistance: Math.max(
+        1,
+        Math.hypot(event.clientX - centerX, event.clientY - centerY),
+      ),
+      startZoom: target.box.zoom,
+      moved: false,
+    };
+  };
+
+  const moveZoomDrag = (event) => {
+    if (!zoomDrag || event.pointerId !== zoomDrag.pointerId) return;
+    event.stopPropagation();
+
+    // Dragging the corner away from the box centre scales the photo by the
+    // distance ratio, so the gesture feels the same at every zoom level.
+    const distance = Math.hypot(
+      event.clientX - zoomDrag.centerX,
+      event.clientY - zoomDrag.centerY,
+    );
+    const zoom = zoomDrag.startZoom * (distance / zoomDrag.startDistance);
+    if (!zoomDrag.moved) {
+      if (Math.abs(zoom - zoomDrag.startZoom) < 0.02) return;
+      zoomDrag.moved = true;
+    }
+
+    if (!State.setBoxZoom(zoomDrag.boxId, zoom)) return;
+    Render.updateZoom();
+  };
+
+  const finishZoomDrag = (event) => {
+    if (!zoomDrag || event.pointerId !== zoomDrag.pointerId) return;
+
+    const moved = zoomDrag.moved;
+    const found = State.findBox(zoomDrag.boxId);
+    const zoom = found ? found.box.zoom : 1;
+    zoomDrag = null;
+    try {
+      zoomHandle.releasePointerCapture(event.pointerId);
+    } catch {
+      // The pointer may already be released.
+    }
+    if (moved && event.type === 'pointerup') {
+      Render.announce(`Photo zoom ${Math.round(zoom * 100)} percent.`);
+    }
+  };
+
+  const nudgeZoom = (amount) => {
+    const target = selectedTarget();
+    if (!target) return;
+    if (!State.setBoxZoom(target.box.id, target.box.zoom + amount)) return;
+    Render.updateZoom();
+    Render.announce(`Photo zoom ${Math.round(target.box.zoom * 100)} percent.`);
+  };
+
+  const resetZoom = () => {
+    const target = selectedTarget();
+    if (!target) return;
+    if (!State.setBoxZoom(target.box.id, 1)) return;
+    Render.updateZoom();
+    Render.announce('Photo zoom reset.');
+  };
+
   const rowHeightLocked = (layoutRow) =>
     layoutRow.boxes.length === 1 && layoutRow.boxes[0].locked;
 
   const rowBoundaryAt = (event) => {
-    if (event.target instanceof Element && event.target.closest('.box')) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('.box, .zoom-handle')
+    ) {
       return null;
     }
 
@@ -271,7 +473,10 @@
   };
 
   const boxBoundaryAt = (event) => {
-    if (event.target instanceof Element && event.target.closest('.box')) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('.box, .zoom-handle')
+    ) {
       return null;
     }
 
@@ -517,6 +722,7 @@
 
   canvas.addEventListener('click', (event) => {
     if (performance.now() < ignoreCanvasClickUntil) return;
+    if (event.target.closest('.zoom-handle')) return;
 
     const box = event.target.closest('.box');
     if (box) {
@@ -532,20 +738,37 @@
 
   canvas.addEventListener('pointerdown', startRowDrag);
   canvas.addEventListener('pointerdown', startBoxDrag);
+  canvas.addEventListener('pointerdown', startPanDrag);
 
   canvas.addEventListener('pointermove', (event) => {
-    if (rowDrag) moveRowDrag(event);
+    if (panDrag) movePanDrag(event);
+    else if (rowDrag) moveRowDrag(event);
     else if (boxDrag) moveBoxDrag(event);
     else updateHover(event);
   });
 
   canvas.addEventListener('pointerup', finishRowDrag);
   canvas.addEventListener('pointerup', finishBoxDrag);
+  canvas.addEventListener('pointerup', finishPanDrag);
   canvas.addEventListener('pointercancel', finishRowDrag);
   canvas.addEventListener('pointercancel', finishBoxDrag);
+  canvas.addEventListener('pointercancel', finishPanDrag);
+
+  zoomHandle.addEventListener('pointerdown', startZoomDrag);
+  zoomHandle.addEventListener('pointermove', moveZoomDrag);
+  zoomHandle.addEventListener('pointerup', finishZoomDrag);
+  zoomHandle.addEventListener('pointercancel', finishZoomDrag);
+
+  zoomHandle.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowRight') nudgeZoom(0.1);
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') nudgeZoom(-0.1);
+    else if (event.key === 'Home') resetZoom();
+    else return;
+    event.preventDefault();
+  });
 
   canvas.addEventListener('pointerleave', () => {
-    if (rowDrag || boxDrag) return;
+    if (rowDrag || boxDrag || panDrag) return;
     Render.hideRowBoundary();
     Render.hideBoxBoundary();
     Render.setRowResizeCursor(false);

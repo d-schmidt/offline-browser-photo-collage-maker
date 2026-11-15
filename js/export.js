@@ -7,26 +7,28 @@ const Export = (() => {
   const DEFAULT_BACKGROUND = '#ffffff';
   const PLACEHOLDER = '#d9d9d9';
 
-  const drawCover = (ctx, image, box) => {
-    const sourceW = image.naturalWidth || image.width;
-    const sourceH = image.naturalHeight || image.height;
-    if (!sourceW || !sourceH || box.w <= 0 || box.h <= 0) return;
+  const drawPhoto = (ctx, image, box, pageX, pageY) => {
+    const source = {
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+    };
+    const rect = Layout.imageRect(
+      source,
+      box.w,
+      box.h,
+      box.zoom,
+      box.offsetX,
+      box.offsetY,
+    );
+    if (!rect) return;
 
-    const scale = Math.max(box.w / sourceW, box.h / sourceH);
-    const drawW = sourceW * scale;
-    const drawH = sourceH * scale;
-
+    // The ghost overlay used while editing is deliberately absent here: only
+    // the cropped, zoomed photo that shows inside the box reaches the PNG.
     ctx.save();
     ctx.beginPath();
-    ctx.rect(box.x, box.y, box.w, box.h);
+    ctx.rect(pageX, pageY, box.w, box.h);
     ctx.clip();
-    ctx.drawImage(
-      image,
-      box.x + (box.w - drawW) / 2,
-      box.y + (box.h - drawH) / 2,
-      drawW,
-      drawH,
-    );
+    ctx.drawImage(image, pageX + rect.x, pageY + rect.y, rect.w, rect.h);
     ctx.restore();
   };
 
@@ -61,7 +63,7 @@ const Export = (() => {
 
         const image = box.image ? images.get(box.id) : null;
         if (image) {
-          drawCover(ctx, image, { x: box.x, y, w: box.w, h: box.h });
+          drawPhoto(ctx, image, box, box.x, y);
         } else {
           ctx.fillStyle = PLACEHOLDER;
           ctx.fillRect(box.x, y, box.w, box.h);

@@ -20,6 +20,9 @@ const State = (() => {
     lock: null,
     ratio: null,
     lockSeq: 0,
+    zoom: 1,
+    offsetX: 0,
+    offsetY: 0,
   });
 
   const createRow = (weight) => ({
@@ -111,6 +114,11 @@ const State = (() => {
     }
     Images.release(found.box.image);
     found.box.image = image;
+    // Zoom and pan belong to the photo that was on screen, so a replacement
+    // starts from the plain cover crop again.
+    found.box.zoom = 1;
+    found.box.offsetX = 0;
+    found.box.offsetY = 0;
     if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
       found.box.ratio = image.width / image.height;
       enforceAspectLocks(found.row);
@@ -203,6 +211,25 @@ const State = (() => {
     found.box.lock = 'square';
     found.box.ratio = ratio;
     found.box.lockSeq = 0;
+    return true;
+  };
+
+  /** Zoom is always at least a cover crop; the scale runs up to METRICS.maxZoom. */
+  const setBoxZoom = (boxId, zoom) => {
+    const found = findBox(boxId);
+    if (!found || !Number.isFinite(zoom)) return false;
+    found.box.zoom = Math.min(METRICS.maxZoom, Math.max(1, zoom));
+    return true;
+  };
+
+  /** Pan offsets are −1…1 shares of the image slack along each axis. */
+  const setBoxPan = (boxId, offsetX, offsetY) => {
+    const found = findBox(boxId);
+    if (!found || !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) {
+      return false;
+    }
+    found.box.offsetX = Math.min(1, Math.max(-1, offsetX));
+    found.box.offsetY = Math.min(1, Math.max(-1, offsetY));
     return true;
   };
 
@@ -304,6 +331,8 @@ const State = (() => {
     canLockBox,
     canAspectLock,
     setBoxLock,
+    setBoxZoom,
+    setBoxPan,
     setRowWeights,
     setRowSplit,
     setBoxSplit,

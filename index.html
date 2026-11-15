@@ -24,6 +24,19 @@
         <div class="canvas-wrap">
           <section class="canvas" id="canvas" aria-label="Photo collage canvas" tabindex="-1">
             <div class="rows" id="rows"></div>
+            <img class="zoom-overlay" id="zoom-overlay" alt="" draggable="false" hidden>
+            <div
+              class="zoom-handle"
+              id="zoom-handle"
+              role="slider"
+              tabindex="0"
+              aria-label="Photo zoom"
+              aria-valuemin="1"
+              aria-valuemax="6"
+              aria-valuenow="1"
+              title="Drag outwards to zoom the photo"
+              hidden
+            ></div>
             <p class="canvas-empty" id="canvas-empty" hidden>
               No rows yet. Use the + button above or below the canvas to add one.
             </p>
