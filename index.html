@@ -10,6 +10,7 @@
 <body>
   <header class="action-bar" id="action-bar" aria-label="Actions">
     <div class="action-bar-tools" id="selection-actions"></div>
+    <button class="icon-button" id="margin-color-button" type="button" data-icon="dashboard" aria-label="Change margin color"></button>
     <button class="icon-button" id="save-button" type="button" data-icon="download" data-action="save" aria-label="Save collage as PNG"></button>
   </header>
 
@@ -41,6 +42,7 @@
   </main>
 
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
+  <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color">
   <div class="visually-hidden" id="live-region" role="status" aria-live="polite"></div>
 
   <script src="js/layout.js"></script>

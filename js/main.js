@@ -10,6 +10,8 @@
   const addRowBottom = document.getElementById('add-row-bottom');
   const actionBar = document.getElementById('action-bar');
   const saveButton = document.getElementById('save-button');
+  const marginColorButton = document.getElementById('margin-color-button');
+  const marginColorInput = document.getElementById('margin-color-input');
   const rowsLayer = document.getElementById('rows');
   const fileInput = document.getElementById('file-input');
 
@@ -27,6 +29,11 @@
   const refresh = () => {
     layout = Layout.compute(State.rows);
     Render.paint(State, layout);
+  };
+
+  const applyCanvasColor = () => {
+    document.documentElement.style.setProperty('--canvas-bg', State.canvasColor);
+    marginColorInput.value = State.canvasColor;
   };
 
   const boxNumber = (boxId) => {
@@ -91,6 +98,16 @@
       refresh();
       focusAction(action);
       Render.announce('Box lock released.');
+      return;
+    }
+
+    if (!State.canLockBox(boxId)) {
+      Render.announce('At least one box in a row must stay unlocked.');
+      return;
+    }
+
+    if (mode === 'aspect' && !State.canAspectLock(boxId)) {
+      Render.announce('Aspect locks in a row must use the same image ratio.');
       return;
     }
 
@@ -228,6 +245,9 @@
     return width > 0 ? width / METRICS.canvasW : 1;
   };
 
+  const rowHeightLocked = (layoutRow) =>
+    layoutRow.boxes.length === 1 && layoutRow.boxes[0].locked;
+
   const rowBoundaryAt = (event) => {
     if (event.target instanceof Element && event.target.closest('.box')) {
       return null;
@@ -240,6 +260,8 @@
     for (let index = 0; index < layout.rows.length - 1; index += 1) {
       const upper = layout.rows[index];
       const lower = layout.rows[index + 1];
+      if (rowHeightLocked(upper) || rowHeightLocked(lower)) continue;
+
       const boundary = upper.y + upper.h;
       if (Math.abs(y - boundary) <= ROW_HANDLE_HIT) {
         return { upper, lower, boundary };
@@ -453,6 +475,26 @@
 
   // --- wiring -------------------------------------------------------------
 
+  marginColorButton.addEventListener('click', () => {
+    try {
+      if (typeof marginColorInput.showPicker === 'function') {
+        marginColorInput.showPicker();
+      } else {
+        marginColorInput.click();
+      }
+    } catch {
+      marginColorInput.click();
+    }
+  });
+
+  marginColorInput.addEventListener('input', () => {
+    if (State.setCanvasColor(marginColorInput.value)) applyCanvasColor();
+  });
+
+  marginColorInput.addEventListener('change', () => {
+    Render.announce(`Margin color set to ${State.canvasColor}.`);
+  });
+
   addRowTop.addEventListener('click', () => addRow('start'));
   addRowBottom.addEventListener('click', () => addRow('end'));
 
@@ -582,6 +624,7 @@
   window.addEventListener('resize', queueFit);
 
   Render.init();
+  applyCanvasColor();
   refresh();
   fitCanvas();
 })();

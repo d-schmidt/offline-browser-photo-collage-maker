@@ -6,7 +6,8 @@ locally: no install, no build step, no network requests, and no uploads.
 
 ## Open it
 
-- **Quickest:** double-click `index.html`. It works straight from disk
+- **Hosted:** <https://d-schmidt.github.io/offline-browser-photo-collage-maker/>
+- **Quickest locally:** double-click `index.html`. It works straight from disk
   (`file://`).
 - **Dev server:** run `python serve.py` and visit
   <http://localhost:8000>. Use `-p 8080` for another port or `--no-open` to skip
@@ -14,7 +15,7 @@ locally: no install, no build step, no network requests, and no uploads.
 
 ## What it does today
 
-- Starts with two rows, each holding one empty photo box on a 9:16 canvas.
+- Starts with two rows, each holding one empty photo box on a 9:16 canvas. Empty boxes show a centered add-photo icon.
 - **+ above/below the canvas** adds a row; **+ on either side of a row** adds a box to it.
 - Drag the white gap between two boxes in a row to trade width; a vertical blue line and column-resize cursor show the handle.
 - Drag the white gap between two rows to trade height between them; a blue line and resize cursor show the handle.
@@ -22,11 +23,12 @@ locally: no install, no build step, no network requests, and no uploads.
 - Double-click a box to open the image picker for it.
 - Click the gray background around the canvas or press `Escape` to clear the selection.
 - The action bar offers **Delete box**, **Select image**, and, once the box has an image, exclusive **square** and **aspect ratio** width locks. An active lock turns red; Save is always visible on the right.
-- Locked boxes keep their square or image ratio when the row height changes; width boundaries touching a locked box are disabled. Clicking the active lock releases it and preserves the current width.
+- Locked boxes keep their square or image ratio when the row height changes; width boundaries touching a locked box are disabled. In a multi-box row, at most all but one box can be locked; the remaining box fills the space left. Aspect-ratio locks must share the same image ratio within a row—the first one sets the reference. A single-box row with a locked box also locks its row-height handles. Clicking the active lock releases it and preserves the current width.
 - Photos are cropped to cover the box, centered and clipped to its edges.
 - Deleting every box in a row removes the row; the empty state keeps the
   add-row buttons available.
 - The 1080 × 1920 canvas scales to fit the window without changing its layout.
+- **Margin color** in the action bar opens the system color picker and recolors the canvas padding and gaps; the export uses the same color.
 - **Save** downloads the collage as a 1080 × 1920 PNG (`photo-collage.png`).
 
 Keyboard: `Tab` moves through controls, arrow keys move box selection,

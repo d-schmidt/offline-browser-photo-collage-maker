@@ -11,20 +11,20 @@
 
 ## Current state
 
-The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks, and PNG save/export.
+The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks, a configurable margin color, and PNG save/export.
 
 **Working:**
 
-- `index.html` — two-region shell with the action bar, scaled 9:16 canvas stage, add-row buttons, add-box rails on both sides, hidden file input, and live region.
+- `index.html` — two-region shell with the action bar, scaled 9:16 canvas stage, add-row buttons, add-box rails on both sides, hidden file and color inputs, and live region.
 - `css/styles.css` — layout tokens, scaled canvas, boxes, side rails, focus/hover states, toast variants, reduced-motion handling.
 - `js/layout.js` — 9:16 `METRICS`, weight-to-pixel flow math, per-box gaps on both edges, image-ratio width locks, 40 px minimums, and whole-pixel rounding.
-- `js/state.js` — rows, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, and neighbor weight splits for row/box resizing; revokes replaced object URLs.
+- `js/state.js` — rows, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, canvas margin color, and neighbor weight splits; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
 - `js/render.js` — renders rows, boxes, contextual tools including the lock toggles, both rails, row/box boundary overlays, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
-- `js/export.js` — offscreen `1080 × 1920` PNG compositing and download.
-- `js/main.js` — event wiring, file picker, save action, lock toggles, keyboard navigation/deletion, row- and box-boundary dragging with a 3 px threshold, and canvas fit scaling.
+- `js/export.js` — offscreen `1080 × 1920` PNG compositing using the chosen margin color, plus download.
+- `js/main.js` — event wiring, file picker, margin-color picker, save action, lock toggles, keyboard navigation/deletion, row- and box-boundary dragging with a 3 px threshold, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
-- `assets/` — the supplied and locally added Material Symbols SVGs, including the lock icons.
+- `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, and margin-color icons.
 
 **Not built yet:** drag reordering, persistence, and undo/redo. The weight model and layout math already support the remaining drag work.
 
@@ -44,7 +44,7 @@ The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/
 
 Two stacked regions, full viewport height, no page scrolling:
 
-1. **Action bar** — fixed height (~56 px) at the top, dark background. Contextual tool icons sit on the left; the always-visible **Save** button sits on the right. The contextual area is empty when nothing is selected.
+1. **Action bar** — fixed height (~56 px) at the top, dark background. Contextual tool icons sit on the left; the always-visible **margin-color picker** and **Save** button sit on the right. The contextual area is empty when nothing is selected.
 2. **Editor area** — fills the remaining height, dark gray background (`#2b2b2b`). Centered inside it: the collage canvas, with add-row buttons above and below and add-box buttons beside each row on both the left and right sides.
 
 ### Layout metrics
@@ -56,8 +56,8 @@ Define once as CSS custom properties on `:root` and mirror them in JS constants:
 | `--canvas-w` / `--canvas-h` | 1080 × 1920 px | Fixed logical canvas size (9:16). Never changes with content. Matches the PNG export size. |
 | `--canvas-pad` | 5 px | White padding inside the canvas, all sides |
 | `--gap` | 5 px | White margin around every image box; adjacent boxes show 10 px between them, and the canvas edges show 5 px padding plus 5 px margin |
-| `--placeholder` | `#d9d9d9` | Empty image box fill |
-| `--canvas-bg` | `#ffffff` | Canvas background |
+| `--placeholder` | `#d9d9d9` | Empty image box fill; a centered add-photo icon marks the drop target |
+| `--canvas-bg` | `#ffffff` | Canvas background / margin color; configurable with the action-bar color picker |
 | `--page-bg` | `#2b2b2b` | Page background around the canvas |
 | `--accent` | `#1e88e5` | Selection border, row-line highlight |
 
@@ -68,6 +68,7 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 - Initial state: **two rows**, each containing **one empty placeholder box**.
 - A row is a horizontal track inside the canvas; boxes fill it left to right, like a flex row with wrapping disabled.
 - Image boxes are white on the outside (5 px margin) with light gray placeholder fill; once populated, the photo covers the box, cropped to the box aspect ratio and centered (`object-fit: cover`), clipped by the box. Adjacent boxes therefore have 10 px of white between them, and the canvas edges have 5 px padding plus the 5 px box margin.
+- Empty boxes show a centered `add_photo_alternate` icon as a visual hint; loading a photo replaces it.
 - **Add box:** a button beside each row, vertically centered, on both the left and right sides of the canvas, using `add_circle.svg`.
 - **Add row:** buttons above and below the canvas, using `add_circle.svg`. A new row always starts with one empty box. The top button inserts at the top of the stack; the bottom button appends.
 - No minimum number of rows: deleting the last box in the last row leaves an empty editor area, with the add-row buttons still usable.
@@ -75,22 +76,26 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 ### Selection and contextual actions
 
 - Clicking an image box selects it: 3 px border in the accent blue. The border turns red while one of the box's locks is active.
-- Clicking the canvas background, the gray editor background, or pressing `Escape` clears the selection and empties the contextual actions. Save stays visible.
+- Clicking the canvas background, the gray editor background, or pressing `Escape` clears the selection and empties the contextual actions. The margin-color picker and Save stay visible.
 - Double-clicking a box selects it and opens the image picker.
 - Selected-box actions:
   - **Delete** (`delete.svg`) — removes the box. Deleting the last box in a row removes that row. The selection is cleared.
   - **Select image** (`image_search.svg`) — opens the browser file picker (`accept="image/*"`). The chosen file replaces the placeholder, cropped to the box aspect ratio and centered. Invalid or undecodable files show a visible error and leave the box unchanged.
   - **Lock square** (`crop_square.svg`) — enabled only after the box has an image. Sets the box width so it is square and keeps that ratio as the row height changes. The active button is red.
-  - **Lock aspect ratio** (`image_aspect_ratio.svg`) — enabled only after the box has an image. Uses the image's natural aspect ratio to set the box width and keeps that ratio as the row height changes. The active button is red.
+  - **Lock aspect ratio** (`image_aspect_ratio.svg`) — enabled only after the box has an image, and only when its image ratio matches any existing aspect lock in the row. Uses the image's natural aspect ratio to set the box width and keeps that ratio as the row height changes. The active button is red.
   - The two locks are exclusive: choosing one releases the other, and clicking the active lock releases it. While locked, width-boundary dragging involving that box is disabled; row height remains adjustable.
-- **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — composites the fixed 1080 × 1920 canvas offscreen and downloads it as a PNG named `photo-collage.png`. Selection borders are not included; photos are cover-cropped exactly as on screen.
-- Only boxes have contextual actions in v1; Save is global.
+  - A row with multiple boxes can have at most `n − 1` locks. The remaining unlocked box is forced to fill whatever width is left. Deleting the forced box can leave only locked boxes, so the last lock is released automatically to restore the rule.
+  - Aspect-ratio locks are further limited to one ratio per row: the first aspect-locked image sets the row's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
+  - A row with a single box may lock that box. Its row-height handles are then disabled as well, since the box width is derived from the row height.
+- **Margin color** (`dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by the PNG export.
+- **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — composites the fixed 1080 × 1920 canvas offscreen and downloads it as a PNG named `photo-collage.png`. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
+- Only boxes have contextual actions; the margin-color picker and Save are global.
 
 ### Direct manipulation
 
 - **Drag a box** — pointer-drag on a selected box reorders it: within its row, or into another row (insertion indicator at the drop position). Dragging never leaves boxes at arbitrary absolute coordinates; the flow model always wins.
 - **Resize a box** — hovering the white gap between two boxes in the same row highlights it with a 2 px vertical accent line and shows a column-resize cursor. Dragging moves that boundary, trading width between the two boxes while every other box keeps its width. Both boxes are clamped to the 40 px minimum. Height always follows the row. A boundary touching a locked box is not draggable.
-- **Resize a row** — hovering the white gap between two rows highlights it with a 2 px accent line across the canvas and shows a row-resize cursor. Dragging moves that boundary, trading height between the two adjacent rows while the canvas height and every other row stay fixed. Both rows are clamped to the 40 px minimum. Locked boxes recalculate their width from the new height so their ratio is preserved.
+- **Resize a row** — hovering the white gap between two rows highlights it with a 2 px accent line across the canvas and shows a row-resize cursor. Dragging moves that boundary, trading height between the two adjacent rows while the canvas height and every other row stay fixed. Both rows are clamped to the 40 px minimum. Locked boxes recalculate their width from the new height so their ratio is preserved. A boundary adjacent to a single-box locked row is not draggable.
 - **Lock a ratio** — square locks use 1:1; aspect locks use the natural image ratio. The width is derived from the current box height, so row-height changes keep the ratio. Unlocked siblings in the row reflow; other rows are untouched. Releasing a lock preserves the box's current pixel width and makes its boundaries draggable again.
 - Use pointer events with pointer capture and a ~3 px movement threshold, so a click selects (or a boundary click does nothing) without starting a drag until the pointer actually moves.
 
@@ -102,7 +107,7 @@ Boxes flow like flex items with `flex-grow`; the canvas never resizes.
 - Each row has a height **weight**; each box has a width **weight**.
 - Row height = `contentH × weight / Σ rowWeights`, minus `2 × gap` for box height.
 - Box width = `(contentW − 2 × gap × n) × weight / Σ boxWeights` in its row. Each box reserves a gap on both sides, so two adjacent boxes show twice the gap between them and every outer edge keeps one gap beyond the canvas padding.
-- A locked box requests `boxHeight × lockRatio` instead of using its weight. Unlocked boxes share the remaining width by weight. If the locked widths cannot fit, they shrink proportionally; if every box in a row is locked and the row is narrower than the canvas, the row stays left-aligned rather than stretching and breaking the ratio.
+- A locked box requests `boxHeight × lockRatio` instead of using its weight. Unlocked boxes share the remaining width by weight. A multi-box row always leaves at least one unlocked box, which absorbs the remainder. If the locked widths cannot fit, they shrink proportionally; if every box in a row is locked and the row is narrower than the canvas, the row stays left-aligned rather than stretching and breaking the ratio.
 - Adding a box gives it the row's mean weight; adding a row gives it the mean row weight and renormalizes the stack.
 - Removing a box or row renormalizes the remaining weights.
 - Resizing redistributes weight only between the dragged element and its siblings/adjacent rows.
@@ -120,10 +125,12 @@ long names are written once.
 | Purpose | Path |
 | --- | --- |
 | Add row / add box | `assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Empty-box hint | `assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Delete box | `assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Select image | `assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Lock square | `assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Lock aspect ratio | `assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Margin color | `assets/dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Save / download | `assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 
 - The SVGs have a baked-in `fill="#e3e3e3"`, tuned for the dark UI. Do not wrap them in a darker container; if extra contrast is ever needed, override the fill instead of downloading new icons.
@@ -157,11 +164,16 @@ Split by concern, not by line count. This layout is a target, not a mandate — 
 
 Manual test checklist:
 
-- Fresh page shows two rows, one gray box each, with white padding and a 5 px box margin on every canvas edge.
+- Fresh page shows two rows, one gray box each with a centered add-photo icon, white padding, and a 5 px box margin on every canvas edge.
 - Add/remove boxes and rows from both ends and both side rails; confirm reflow and unchanged canvas size.
 - Select a box: blue 3 px border and all four actions appear; deselect clears them while Save stays.
 - Select an empty box: both lock buttons are gray and disabled.
 - Load an image; the lock buttons enable. Lock square: the box becomes square, the button turns red, the selection border turns red, and its width boundaries stop responding.
+- Add a second box to the row: only one of the two can be locked. Select the other box and confirm its lock buttons are disabled while it is forced to fill the remaining width.
+- Aspect-ratio locks: with two boxes, aspect-lock one and confirm the other's aspect button is enabled only when its image has the exact same ratio. A different ratio leaves the aspect button disabled while the square lock remains available.
+- Replace the reference aspect-locked image with a different ratio: confirm other aspect locks that no longer match are released.
+- Single-box row: lock its box and confirm both row-height boundaries stop responding. Unlock and confirm row resizing returns.
+- Delete the forced box from a row with multiple boxes and two locks: confirm a lock is released so one box stays unlocked.
 - Double-click a box: the image picker opens for that box.
 - Click the gray area around the canvas: the current selection clears.
 - Change the row height with a square or aspect lock active: the locked box keeps its ratio and siblings in the row reflow.
@@ -169,6 +181,7 @@ Manual test checklist:
 - Choose the other lock: it replaces the first. Click the active lock: it releases, the current width is preserved, and width dragging works again.
 - Load an image; confirm it covers the box, centered, cropped to the aspect ratio.
 - Click Save; confirm a 1080 × 1920 PNG downloads and matches the canvas without selection borders.
+- Click the margin-color button; pick a color and confirm the canvas padding/gaps change live and the exported PNG uses that color.
 - Hover between two boxes in a row: vertical blue line and column-resize cursor; drag to trade widths down to 40 px.
 - Hover between two rows: horizontal blue line and row-resize cursor; drag to trade heights down to 40 px.
 - Drag a box to reorder within and across rows.

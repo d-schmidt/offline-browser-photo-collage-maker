@@ -7,7 +7,9 @@
 const State = (() => {
   const rows = [];
   let selectedBoxId = null;
+  let canvasColor = '#ffffff';
   let sequence = 0;
+  let lockSequence = 0;
 
   const uid = (kind) => `${kind}-${(sequence += 1)}`;
 
@@ -17,6 +19,7 @@ const State = (() => {
     image: null,
     lock: null,
     ratio: null,
+    lockSeq: 0,
   });
 
   const createRow = (weight) => ({
@@ -50,6 +53,16 @@ const State = (() => {
 
   const findRow = (rowId) => rows.find((row) => row.id === rowId) || null;
 
+  const limitLocks = (row) => {
+    // A row with several boxes keeps one unlocked box to absorb the remainder.
+    if (row.boxes.length <= 1) return;
+    if (!row.boxes.every((box) => box.lock)) return;
+    const last = row.boxes[row.boxes.length - 1];
+    last.lock = null;
+    last.ratio = null;
+    last.lockSeq = 0;
+  };
+
   /** Insert a new row at the top or bottom; a row starts with one empty box. */
   const addRow = (position = 'end') => {
     const row = createRow(Math.max(0.0001, meanWeight(rows)));
@@ -65,6 +78,7 @@ const State = (() => {
     const box = createBox(Math.max(0.0001, meanWeight(row.boxes)));
     row.boxes.push(box);
     normalizeWeights(row.boxes);
+    limitLocks(row);
     return box;
   };
 
@@ -82,6 +96,7 @@ const State = (() => {
       normalizeWeights(rows);
     } else {
       normalizeWeights(row.boxes);
+      limitLocks(row);
     }
 
     if (selectedBoxId === boxId) selectedBoxId = null;
@@ -98,8 +113,66 @@ const State = (() => {
     found.box.image = image;
     if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
       found.box.ratio = image.width / image.height;
+      enforceAspectLocks(found.row);
     }
     return true;
+  };
+
+  /** A multi-box row always keeps at least one box free to absorb the rest. */
+  const canLockBox = (boxId) => {
+    const found = findBox(boxId);
+    if (!found || !found.box.image) return false;
+    if (found.box.lock) return true;
+    if (found.row.boxes.length === 1) return true;
+
+    const locked = found.row.boxes.filter((box) => box.lock).length;
+    return locked < found.row.boxes.length - 1;
+  };
+
+  const sameImageRatio = (a, b) =>
+    Boolean(
+      a &&
+        b &&
+        a.width > 0 &&
+        a.height > 0 &&
+        b.width > 0 &&
+        b.height > 0 &&
+        a.width * b.height === b.width * a.height,
+    );
+
+  const aspectReference = (row, excludeBoxId = null) => {
+    let reference = null;
+    for (const box of row.boxes) {
+      if (box.id === excludeBoxId || box.lock !== 'aspect' || !box.image) continue;
+      if (!reference || box.lockSeq < reference.lockSeq) reference = box;
+    }
+    return reference;
+  };
+
+  /** Aspect locks may repeat in a row only when the image ratios are identical. */
+  const canAspectLock = (boxId) => {
+    const found = findBox(boxId);
+    if (!found || !found.box.image || !canLockBox(boxId)) return false;
+    if (found.box.lock === 'aspect') return true;
+
+    const reference = aspectReference(found.row, found.box.id);
+    return !reference || sameImageRatio(found.box.image, reference.image);
+  };
+
+  const enforceAspectLocks = (row) => {
+    const aspectBoxes = row.boxes
+      .filter((box) => box.lock === 'aspect' && box.image)
+      .sort((a, b) => a.lockSeq - b.lockSeq);
+    if (aspectBoxes.length <= 1) return;
+
+    const reference = aspectBoxes[0];
+    for (let index = 1; index < aspectBoxes.length; index += 1) {
+      if (!sameImageRatio(aspectBoxes[index].image, reference.image)) {
+        aspectBoxes[index].lock = null;
+        aspectBoxes[index].ratio = null;
+        aspectBoxes[index].lockSeq = 0;
+      }
+    }
   };
 
   /** Set or release one of the exclusive width locks on a box. */
@@ -110,14 +183,26 @@ const State = (() => {
     if (mode === null) {
       found.box.lock = null;
       found.box.ratio = null;
+      found.box.lockSeq = 0;
       return true;
     }
 
     if (mode !== 'square' && mode !== 'aspect') return false;
-    if (!found.box.image || !Number.isFinite(ratio) || ratio <= 0) return false;
+    if (!Number.isFinite(ratio) || ratio <= 0) return false;
 
-    found.box.lock = mode;
+    if (mode === 'aspect') {
+      if (!canAspectLock(boxId)) return false;
+      if (found.box.lock !== 'aspect') found.box.lockSeq = (lockSequence += 1);
+      found.box.lock = 'aspect';
+      found.box.ratio = ratio;
+      enforceAspectLocks(found.row);
+      return true;
+    }
+
+    if (!canLockBox(boxId)) return false;
+    found.box.lock = 'square';
     found.box.ratio = ratio;
+    found.box.lockSeq = 0;
     return true;
   };
 
@@ -185,6 +270,13 @@ const State = (() => {
     selectedBoxId = null;
   };
 
+  /** Canvas margin/padding color, constrained to a hex color. */
+  const setCanvasColor = (value) => {
+    if (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)) return false;
+    canvasColor = value.toLowerCase();
+    return true;
+  };
+
   const orderedBoxes = () => rows.flatMap((row) => row.boxes);
 
   // v1 default: two rows, one empty placeholder box each.
@@ -197,6 +289,9 @@ const State = (() => {
     get selectedBoxId() {
       return selectedBoxId;
     },
+    get canvasColor() {
+      return canvasColor;
+    },
     get boxCount() {
       return rows.reduce((count, row) => count + row.boxes.length, 0);
     },
@@ -206,12 +301,15 @@ const State = (() => {
     addBox,
     removeBox,
     setImage,
+    canLockBox,
+    canAspectLock,
     setBoxLock,
     setRowWeights,
     setRowSplit,
     setBoxSplit,
     select,
     clearSelection,
+    setCanvasColor,
     orderedBoxes,
   };
 })();

@@ -4,7 +4,7 @@ const Export = (() => {
   const WIDTH = 1080;
   const HEIGHT = 1920;
   const FILENAME = 'photo-collage.png';
-  const BACKGROUND = '#ffffff';
+  const DEFAULT_BACKGROUND = '#ffffff';
   const PLACEHOLDER = '#d9d9d9';
 
   const drawCover = (ctx, image, box) => {
@@ -47,7 +47,7 @@ const Export = (() => {
     const images = new Map(loaded);
 
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = BACKGROUND;
+    ctx.fillStyle = state.canvasColor || DEFAULT_BACKGROUND;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     // Draw in logical canvas pixels. The export size matches the logical

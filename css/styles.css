@@ -90,6 +90,10 @@ button {
   background: #8e0000;
 }
 
+#margin-color-button {
+  box-shadow: inset 0 -3px 0 var(--canvas-bg);
+}
+
 .icon {
   display: block;
   width: var(--icon-size);
@@ -271,6 +275,20 @@ button {
   height: 100%;
   object-fit: cover;
   object-position: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.box-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 64px;
+  height: 64px;
+  max-width: 50%;
+  max-height: 50%;
+  margin: auto;
+  object-fit: contain;
+  filter: brightness(0.62);
   pointer-events: none;
   user-select: none;
 }

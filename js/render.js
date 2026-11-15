@@ -2,8 +2,10 @@
 
 const ICONS = Object.freeze({
   add: 'assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  addPhoto: 'assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  dashboard: 'assets/dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   image: 'assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -61,6 +63,14 @@ const Render = (() => {
       image.alt = `Photo ${number}`;
       image.draggable = false;
       button.append(image);
+    } else {
+      const placeholder = new Image(64, 64);
+      placeholder.className = 'box-placeholder';
+      placeholder.src = ICONS.addPhoto;
+      placeholder.alt = '';
+      placeholder.draggable = false;
+      placeholder.setAttribute('aria-hidden', 'true');
+      button.append(placeholder);
     }
 
     return button;
@@ -74,20 +84,33 @@ const Render = (() => {
     const box = found ? found.box : null;
     const hasImage = Boolean(box && box.image);
     const lock = box ? box.lock : null;
+    const canSquare = box ? state.canLockBox(box.id) : false;
+    const canAspect = box ? state.canAspectLock(box.id) : false;
+    const limitHint =
+      hasImage && !canSquare
+        ? 'At least one box in a row must stay unlocked'
+        : null;
+    const ratioHint =
+      hasImage && canSquare && !canAspect
+        ? 'Aspect locks in a row must use the same image ratio'
+        : null;
 
     const square = toolButton('lock-square', 'Lock square box', 'lockSquare');
-    square.disabled = !hasImage;
+    square.disabled = !canSquare;
     square.setAttribute('aria-pressed', String(lock === 'square'));
     square.classList.toggle('is-active', lock === 'square');
+    if (limitHint) square.title = limitHint;
 
     const aspect = toolButton(
       'lock-aspect',
       'Lock image aspect ratio',
       'lockAspect',
     );
-    aspect.disabled = !hasImage;
+    aspect.disabled = !canAspect;
     aspect.setAttribute('aria-pressed', String(lock === 'aspect'));
     aspect.classList.toggle('is-active', lock === 'aspect');
+    if (limitHint) aspect.title = limitHint;
+    else if (ratioHint) aspect.title = ratioHint;
 
     refs.selectionActions.append(
       toolButton('delete-box', 'Delete box', 'delete'),
