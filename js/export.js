@@ -1,0 +1,95 @@
+'use strict';
+
+const Export = (() => {
+  const WIDTH = 1080;
+  const HEIGHT = 1920;
+  const FILENAME = 'photo-collage.png';
+  const BACKGROUND = '#ffffff';
+  const PLACEHOLDER = '#d9d9d9';
+
+  const drawCover = (ctx, image, box) => {
+    const sourceW = image.naturalWidth || image.width;
+    const sourceH = image.naturalHeight || image.height;
+    if (!sourceW || !sourceH || box.w <= 0 || box.h <= 0) return;
+
+    const scale = Math.max(box.w / sourceW, box.h / sourceH);
+    const drawW = sourceW * scale;
+    const drawH = sourceH * scale;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(box.x, box.y, box.w, box.h);
+    ctx.clip();
+    ctx.drawImage(
+      image,
+      box.x + (box.w - drawW) / 2,
+      box.y + (box.h - drawH) / 2,
+      drawW,
+      drawH,
+    );
+    ctx.restore();
+  };
+
+  const buildCanvas = async (state) => {
+    const layout = Layout.compute(state.rows);
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+
+    // Decode everything first so a broken image fails before any download
+    // starts, and so drawing below stays synchronous.
+    const loaded = await Promise.all(
+      state
+        .orderedBoxes()
+        .filter((box) => box.image)
+        .map(async (box) => [box.id, await Images.loadElement(box.image.url)]),
+    );
+    const images = new Map(loaded);
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = BACKGROUND;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Draw in logical canvas pixels. The export size matches the logical
+    // canvas, so this scale is 1 unless those constants diverge later.
+    ctx.scale(WIDTH / METRICS.canvasW, HEIGHT / METRICS.canvasH);
+
+    for (const row of layout.rows) {
+      for (const box of row.boxes) {
+        const y = row.y + box.y;
+        if (box.w <= 0 || box.h <= 0) continue;
+
+        const image = box.image ? images.get(box.id) : null;
+        if (image) {
+          drawCover(ctx, image, { x: box.x, y, w: box.w, h: box.h });
+        } else {
+          ctx.fillStyle = PLACEHOLDER;
+          ctx.fillRect(box.x, y, box.w, box.h);
+        }
+      }
+    }
+
+    return canvas;
+  };
+
+  /** Composite the current collage and trigger a PNG download. */
+  const save = async (state) => {
+    const canvas = await buildCanvas(state);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('The collage could not be encoded as a PNG.');
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = FILENAME;
+    document.body.append(link);
+    link.click();
+    link.remove();
+
+    // Give the browser a moment to start the download before releasing the URL.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return FILENAME;
+  };
+
+  return { save, WIDTH, HEIGHT };
+})();

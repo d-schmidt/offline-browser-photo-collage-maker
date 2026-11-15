@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photo Collage Editor</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="action-bar" id="action-bar" aria-label="Actions">
+    <div class="action-bar-tools" id="selection-actions"></div>
+    <button class="icon-button" id="save-button" type="button" data-icon="download" data-action="save" aria-label="Save collage as PNG"></button>
+  </header>
+
+  <main class="editor-area" id="editor-area">
+    <div class="stage" id="stage">
+      <button class="icon-button" id="add-row-top" type="button" data-icon="add" aria-label="Add row above the canvas"></button>
+
+      <div class="canvas-line">
+        <div class="row-rail" id="row-rail-left" role="group" aria-label="Row actions, left side"></div>
+
+        <div class="canvas-wrap">
+          <section class="canvas" id="canvas" aria-label="Photo collage canvas" tabindex="-1">
+            <div class="rows" id="rows"></div>
+            <p class="canvas-empty" id="canvas-empty" hidden>
+              No rows yet. Use the + button above or below the canvas to add one.
+            </p>
+            <div class="row-boundary" id="row-boundary" aria-hidden="true" hidden></div>
+            <div class="box-boundary" id="box-boundary" aria-hidden="true" hidden></div>
+          </section>
+        </div>
+
+        <div class="row-rail" id="row-rail-right" role="group" aria-label="Row actions, right side"></div>
+      </div>
+
+      <button class="icon-button" id="add-row-bottom" type="button" data-icon="add" aria-label="Add row below the canvas"></button>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+  </main>
+
+  <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
+  <div class="visually-hidden" id="live-region" role="status" aria-live="polite"></div>
+
+  <script src="js/layout.js"></script>
+  <script src="js/images.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
