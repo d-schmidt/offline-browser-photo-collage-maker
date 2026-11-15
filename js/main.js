@@ -27,8 +27,13 @@
   let rotateDrag = null;
   let ignoreCanvasClickUntil = 0;
 
-  const ROW_HANDLE_HIT = 6;
-  const BOX_HANDLE_HIT = 6;
+  // Boundary grab bands are measured in screen pixels so they stay finger
+  // sized however far the 1080 px canvas is scaled down. Touch gets a wider
+  // band than a mouse, which can aim precisely.
+  const ROW_HANDLE_HIT = 8;
+  const BOX_HANDLE_HIT = 8;
+  const ROW_HANDLE_HIT_TOUCH = 22;
+  const BOX_HANDLE_HIT_TOUCH = 22;
   const DRAG_THRESHOLD = 3;
 
   const refresh = () => {
@@ -250,6 +255,26 @@
     return width > 0 ? width / METRICS.canvasW : 1;
   };
 
+  /** Grab distance in logical canvas pixels for a boundary band. */
+  const boundaryTolerance = (event, scale, mouseHit, touchHit) => {
+    const screenHit = event.pointerType === 'touch' ? touchHit : mouseHit;
+    return screenHit / (scale || 1);
+  };
+
+  /**
+   * Capture only once a gesture actually starts dragging. Capturing on
+   * pointerdown would retarget the click to the canvas, so a tap on a photo
+   * near a boundary could no longer select it or open the picker.
+   */
+  const capturePointer = (pointerId) => {
+    try {
+      canvas.setPointerCapture(pointerId);
+    } catch {
+      // Pointer capture is best-effort; synthetic tests and old browsers may
+      // not have an active pointer to capture.
+    }
+  };
+
   /** The selected box's live state plus the geometry it was last laid out at. */
   const selectedTarget = () => {
     if (!State.selectedBoxId) return null;
@@ -309,14 +334,6 @@
     const slack = panSlack(found.box, target.layoutBox);
     if (slack.x <= 0 && slack.y <= 0) return;
 
-    event.preventDefault();
-    try {
-      canvas.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is best-effort; synthetic tests and old browsers may
-      // not have an active pointer to capture.
-    }
-
     panDrag = {
       pointerId: event.pointerId,
       boxId: found.box.id,
@@ -337,6 +354,7 @@
     if (!panDrag.moved) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       panDrag.moved = true;
+      capturePointer(event.pointerId);
     }
 
     const scale = canvasScale();
@@ -566,35 +584,41 @@
     layoutRow.boxes.length === 1 && layoutRow.boxes[0].locked;
 
   const rowBoundaryAt = (event) => {
-    if (
-      event.target instanceof Element &&
-      event.target.closest('.box, .zoom-handle')
-    ) {
+    // The photo handles own their corners; never start a resize underneath one.
+    if (event.target instanceof Element && event.target.closest('.zoom-handle')) {
       return null;
     }
 
     const rect = canvas.getBoundingClientRect();
     const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
     const y = (event.clientY - rect.top) / scale;
+    const reach = boundaryTolerance(
+      event,
+      scale,
+      ROW_HANDLE_HIT,
+      ROW_HANDLE_HIT_TOUCH,
+    );
 
+    let nearest = null;
     for (let index = 0; index < layout.rows.length - 1; index += 1) {
       const upper = layout.rows[index];
       const lower = layout.rows[index + 1];
       if (rowHeightLocked(upper) || rowHeightLocked(lower)) continue;
 
       const boundary = upper.y + upper.h;
-      if (Math.abs(y - boundary) <= ROW_HANDLE_HIT) {
-        return { upper, lower, boundary };
+      // Keep the touch band from swallowing a whole short row.
+      const tolerance = Math.min(reach, Math.min(upper.h, lower.h) / 2);
+      const distance = Math.abs(y - boundary);
+      if (distance <= tolerance && (!nearest || distance < nearest.distance)) {
+        nearest = { upper, lower, boundary, distance };
       }
     }
-    return null;
+    return nearest;
   };
 
   const boxBoundaryAt = (event) => {
-    if (
-      event.target instanceof Element &&
-      event.target.closest('.box, .zoom-handle')
-    ) {
+    // The photo handles own their corners; never start a resize underneath one.
+    if (event.target instanceof Element && event.target.closest('.zoom-handle')) {
       return null;
     }
 
@@ -602,7 +626,14 @@
     const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
     const x = (event.clientX - rect.left) / scale;
     const y = (event.clientY - rect.top) / scale;
+    const reach = boundaryTolerance(
+      event,
+      scale,
+      BOX_HANDLE_HIT,
+      BOX_HANDLE_HIT_TOUCH,
+    );
 
+    let nearest = null;
     for (const row of layout.rows) {
       if (row.boxes.length < 2) continue;
       const first = row.boxes[0];
@@ -615,12 +646,23 @@
         const right = row.boxes[index + 1];
         if (left.locked || right.locked) continue;
         const boundary = left.x + left.w + METRICS.gap;
-        if (Math.abs(x - boundary) <= BOX_HANDLE_HIT) {
-          return { row, left, right, boundary, top: boxTop, height: first.h };
+        // Keep the touch band from swallowing a whole narrow box.
+        const tolerance = Math.min(reach, Math.min(left.w, right.w) / 2);
+        const distance = Math.abs(x - boundary);
+        if (distance <= tolerance && (!nearest || distance < nearest.distance)) {
+          nearest = {
+            row,
+            left,
+            right,
+            boundary,
+            top: boxTop,
+            height: first.h,
+            distance,
+          };
         }
       }
     }
-    return null;
+    return nearest;
   };
 
   const updateHover = (event) => {
@@ -653,14 +695,6 @@
     const hit = rowBoundaryAt(event);
     if (!hit) return;
 
-    event.preventDefault();
-    try {
-      canvas.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is best-effort; synthetic tests and old browsers may
-      // not have an active pointer to capture.
-    }
-
     rowDrag = {
       pointerId: event.pointerId,
       upperId: hit.upper.id,
@@ -681,14 +715,6 @@
     if (rowDrag || boxDrag || event.button !== 0) return;
     const hit = boxBoundaryAt(event);
     if (!hit) return;
-
-    event.preventDefault();
-    try {
-      canvas.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is best-effort; synthetic tests and older browsers may
-      // not have an active pointer to capture.
-    }
 
     boxDrag = {
       pointerId: event.pointerId,
@@ -714,6 +740,7 @@
     if (!rowDrag.moved) {
       if (Math.abs(dy) < DRAG_THRESHOLD) return;
       rowDrag.moved = true;
+      capturePointer(event.pointerId);
     }
 
     const pairH = rowDrag.startUpperH + rowDrag.startLowerH;
@@ -741,6 +768,7 @@
     if (!boxDrag.moved) {
       if (Math.abs(dx) < DRAG_THRESHOLD) return;
       boxDrag.moved = true;
+      capturePointer(event.pointerId);
     }
 
     const pairW = boxDrag.startLeftW + boxDrag.startRightW;

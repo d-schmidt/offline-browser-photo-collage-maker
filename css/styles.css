@@ -342,6 +342,24 @@ button {
   cursor: grabbing;
 }
 
+/* Invisible 40 × 40 px grab areas keep the touch target finger sized while the
+   visible dots stay small. They split along the diagonal so zoom reaches
+   up-left into the photo and rotate reaches down-right past the corner,
+   instead of the two large targets overlapping each other. */
+.zoom-handle::before {
+  position: absolute;
+  inset: -22px -4px -4px -22px;
+  background: transparent;
+  content: "";
+}
+
+.rotate-handle::before {
+  position: absolute;
+  inset: -5px -21px -21px -5px;
+  background: transparent;
+  content: "";
+}
+
 .zoom-handle::after,
 .rotate-handle::after {
   position: absolute;
