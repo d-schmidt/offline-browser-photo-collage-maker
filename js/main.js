@@ -15,6 +15,7 @@
   const rowsLayer = document.getElementById('rows');
   const fileInput = document.getElementById('file-input');
   const zoomHandle = document.getElementById('zoom-handle');
+  const rotateHandle = document.getElementById('rotate-handle');
 
   let pickerBoxId = null;
   let fitFrame = 0;
@@ -23,6 +24,7 @@
   let boxDrag = null;
   let panDrag = null;
   let zoomDrag = null;
+  let rotateDrag = null;
   let ignoreCanvasClickUntil = 0;
 
   const ROW_HANDLE_HIT = 6;
@@ -270,16 +272,23 @@
       box.zoom,
       0,
       0,
+      box.rotation,
     );
     if (!rect) return { x: 0, y: 0 };
-    return {
-      x: Math.max(0, (rect.w - layoutBox.w) / 2),
-      y: Math.max(0, (rect.h - layoutBox.h) / 2),
-    };
+    return { x: rect.slackX, y: rect.slackY };
   };
 
   const startPanDrag = (event) => {
-    if (panDrag || zoomDrag || rowDrag || boxDrag || event.button !== 0) return;
+    if (
+      panDrag ||
+      zoomDrag ||
+      rotateDrag ||
+      rowDrag ||
+      boxDrag ||
+      event.button !== 0
+    ) {
+      return;
+    }
     const element = event.target instanceof Element ? event.target : null;
     if (!element) return;
 
@@ -339,7 +348,7 @@
       : panDrag.startOffsetY;
 
     if (!State.setBoxPan(panDrag.boxId, offsetX, offsetY)) return;
-    Render.updateZoom();
+    Render.updatePhoto();
   };
 
   const finishPanDrag = (event) => {
@@ -355,13 +364,35 @@
     if (moved) ignoreCanvasClickUntil = performance.now() + 300;
   };
 
+  const centerClient = (target) => {
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
+    return {
+      x: rect.left + (target.layoutBox.x + target.layoutBox.w / 2) * scale,
+      y:
+        rect.top +
+        (target.layoutRow.y + target.layoutBox.y + target.layoutBox.h / 2) *
+          scale,
+    };
+  };
+
   const startZoomDrag = (event) => {
-    if (zoomDrag || rowDrag || boxDrag || panDrag || event.button !== 0) return;
+    if (
+      zoomDrag ||
+      rotateDrag ||
+      rowDrag ||
+      boxDrag ||
+      panDrag ||
+      event.button !== 0
+    ) {
+      return;
+    }
     const target = selectedTarget();
     if (!target) return;
 
     event.preventDefault();
     event.stopPropagation();
+    zoomHandle.focus({ preventScroll: true });
     try {
       zoomHandle.setPointerCapture(event.pointerId);
     } catch {
@@ -369,22 +400,15 @@
       // not have an active pointer to capture.
     }
 
-    const rect = canvas.getBoundingClientRect();
-    const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
-    const centerX =
-      rect.left + (target.layoutBox.x + target.layoutBox.w / 2) * scale;
-    const centerY =
-      rect.top +
-      (target.layoutRow.y + target.layoutBox.y + target.layoutBox.h / 2) * scale;
-
+    const center = centerClient(target);
     zoomDrag = {
       pointerId: event.pointerId,
       boxId: target.box.id,
-      centerX,
-      centerY,
+      centerX: center.x,
+      centerY: center.y,
       startDistance: Math.max(
         1,
-        Math.hypot(event.clientX - centerX, event.clientY - centerY),
+        Math.hypot(event.clientX - center.x, event.clientY - center.y),
       ),
       startZoom: target.box.zoom,
       moved: false,
@@ -408,7 +432,7 @@
     }
 
     if (!State.setBoxZoom(zoomDrag.boxId, zoom)) return;
-    Render.updateZoom();
+    Render.updatePhoto();
   };
 
   const finishZoomDrag = (event) => {
@@ -432,7 +456,7 @@
     const target = selectedTarget();
     if (!target) return;
     if (!State.setBoxZoom(target.box.id, target.box.zoom + amount)) return;
-    Render.updateZoom();
+    Render.updatePhoto();
     Render.announce(`Photo zoom ${Math.round(target.box.zoom * 100)} percent.`);
   };
 
@@ -440,8 +464,102 @@
     const target = selectedTarget();
     if (!target) return;
     if (!State.setBoxZoom(target.box.id, 1)) return;
-    Render.updateZoom();
+    Render.updatePhoto();
     Render.announce('Photo zoom reset.');
+  };
+
+  const pointerAngle = (event, center) =>
+    (Math.atan2(event.clientY - center.y, event.clientX - center.x) * 180) /
+    Math.PI;
+
+  const startRotateDrag = (event) => {
+    if (
+      rotateDrag ||
+      zoomDrag ||
+      panDrag ||
+      rowDrag ||
+      boxDrag ||
+      event.button !== 0
+    ) {
+      return;
+    }
+    const target = selectedTarget();
+    if (!target) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    rotateHandle.focus({ preventScroll: true });
+    try {
+      rotateHandle.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort; synthetic tests and old browsers may
+      // not have an active pointer to capture.
+    }
+
+    const center = centerClient(target);
+    rotateDrag = {
+      pointerId: event.pointerId,
+      boxId: target.box.id,
+      center,
+      startAngle: pointerAngle(event, center),
+      startRotation: target.box.rotation,
+      moved: false,
+    };
+  };
+
+  const moveRotateDrag = (event) => {
+    if (!rotateDrag || event.pointerId !== rotateDrag.pointerId) return;
+    event.stopPropagation();
+
+    let delta = pointerAngle(event, rotateDrag.center) - rotateDrag.startAngle;
+    if (delta > 180) delta -= 360;
+    else if (delta <= -180) delta += 360;
+
+    if (!rotateDrag.moved) {
+      if (Math.abs(delta) < 0.5) return;
+      rotateDrag.moved = true;
+    }
+
+    const rotation = rotateDrag.startRotation + delta;
+    if (!State.setBoxRotation(rotateDrag.boxId, rotation)) return;
+    Render.updatePhoto();
+  };
+
+  const finishRotateDrag = (event) => {
+    if (!rotateDrag || event.pointerId !== rotateDrag.pointerId) return;
+
+    const moved = rotateDrag.moved;
+    const found = State.findBox(rotateDrag.boxId);
+    const rotation = found ? found.box.rotation : 0;
+    rotateDrag = null;
+    try {
+      rotateHandle.releasePointerCapture(event.pointerId);
+    } catch {
+      // The pointer may already be released.
+    }
+    if (moved && event.type === 'pointerup') {
+      Render.announce(`Photo rotation ${Math.round(rotation)} degrees.`);
+    }
+  };
+
+  const nudgeRotation = (amount) => {
+    const target = selectedTarget();
+    if (!target) return;
+    if (!State.setBoxRotation(target.box.id, target.box.rotation + amount)) {
+      return;
+    }
+    Render.updatePhoto();
+    Render.announce(
+      `Photo rotation ${Math.round(target.box.rotation)} degrees.`,
+    );
+  };
+
+  const resetRotation = () => {
+    const target = selectedTarget();
+    if (!target) return;
+    if (!State.setBoxRotation(target.box.id, 0)) return;
+    Render.updatePhoto();
+    Render.announce('Photo rotation reset.');
   };
 
   const rowHeightLocked = (layoutRow) =>
@@ -767,6 +885,25 @@
     event.preventDefault();
   });
 
+  rotateHandle.addEventListener('pointerdown', startRotateDrag);
+  rotateHandle.addEventListener('pointermove', moveRotateDrag);
+  rotateHandle.addEventListener('pointerup', finishRotateDrag);
+  rotateHandle.addEventListener('pointercancel', finishRotateDrag);
+
+  rotateHandle.addEventListener('keydown', (event) => {
+    const step = event.shiftKey ? 15 : 1;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+      nudgeRotation(step);
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+      nudgeRotation(-step);
+    } else if (event.key === 'Home') {
+      resetRotation();
+    } else {
+      return;
+    }
+    event.preventDefault();
+  });
+
   canvas.addEventListener('pointerleave', () => {
     if (rowDrag || boxDrag || panDrag) return;
     Render.hideRowBoundary();
@@ -812,7 +949,13 @@
 
   editorArea.addEventListener('click', (event) => {
     if (performance.now() < ignoreCanvasClickUntil) return;
-    if (event.target.closest('.canvas') || event.target.closest('button')) return;
+    if (
+      event.target.closest('.canvas') ||
+      event.target.closest('.rotate-handle') ||
+      event.target.closest('button')
+    ) {
+      return;
+    }
     deselect();
   });
 

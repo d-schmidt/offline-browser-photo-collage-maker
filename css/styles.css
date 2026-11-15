@@ -145,8 +145,8 @@ button {
 }
 
 .canvas-wrap {
+  position: relative;
   flex: none;
-  overflow: hidden;
   width: calc(var(--canvas-w) * var(--scale));
   height: calc(var(--canvas-h) * var(--scale));
 }
@@ -292,9 +292,10 @@ button {
   display: none;
 }
 
-/* The inverse scale keeps the handle the same size on screen while its
-   bottom-right corner sits on the selected box's bottom-right corner. */
-.zoom-handle {
+/* The two photo handles keep their size in screen pixels: the inverse scale
+   cancels the canvas scale so they stay 18 px and easy to grab. */
+.zoom-handle,
+.rotate-handle {
   position: absolute;
   z-index: 6;
   width: 18px;
@@ -303,13 +304,46 @@ button {
   border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
-  cursor: nwse-resize;
+  pointer-events: auto;
   touch-action: none;
+}
+
+.zoom-handle {
+  cursor: nwse-resize;
   transform: translate(-100%, -100%) scale(calc(1 / var(--scale, 1)));
   transform-origin: 100% 100%;
 }
 
-.zoom-handle::after {
+/* Unclipped overlay for chrome that may sit outside the canvas, such as the
+   rotate dot just beyond the selected box's corner. */
+.canvas-chrome {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  transform: scale(var(--scale));
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.rotate-handle {
+  cursor: grab;
+  /* Move 14 screen px down-right of the corner: the inner translate is
+     scaled back up by the parent, so the offset stays constant on screen. */
+  transform:
+    translate(-50%, -50%)
+    scale(calc(1 / var(--scale, 1)))
+    translate(14px, 14px);
+}
+
+.rotate-handle:active {
+  cursor: grabbing;
+}
+
+.zoom-handle::after,
+.rotate-handle::after {
   position: absolute;
   inset: 5px;
   border-radius: 50%;
@@ -318,18 +352,23 @@ button {
 }
 
 .zoom-handle:hover,
-.zoom-handle:focus-visible {
+.zoom-handle:focus-visible,
+.rotate-handle:hover,
+.rotate-handle:focus-visible {
   background: var(--accent);
   box-shadow: 0 0 0 3px rgb(30 136 229 / 35%);
   outline: none;
 }
 
 .zoom-handle:hover::after,
-.zoom-handle:focus-visible::after {
+.zoom-handle:focus-visible::after,
+.rotate-handle:hover::after,
+.rotate-handle:focus-visible::after {
   background: #ffffff;
 }
 
-.zoom-handle[hidden] {
+.zoom-handle[hidden],
+.rotate-handle[hidden] {
   display: none;
 }
 

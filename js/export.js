@@ -19,16 +19,23 @@ const Export = (() => {
       box.zoom,
       box.offsetX,
       box.offsetY,
+      box.rotation,
     );
     if (!rect) return;
 
     // The ghost overlay used while editing is deliberately absent here: only
-    // the cropped, zoomed photo that shows inside the box reaches the PNG.
+    // the cropped, zoomed, rotated photo that shows inside the box reaches
+    // the PNG.
     ctx.save();
     ctx.beginPath();
     ctx.rect(pageX, pageY, box.w, box.h);
     ctx.clip();
-    ctx.drawImage(image, pageX + rect.x, pageY + rect.y, rect.w, rect.h);
+    ctx.translate(
+      pageX + rect.x + rect.w / 2,
+      pageY + rect.y + rect.h / 2,
+    );
+    ctx.rotate((rect.rotation * Math.PI) / 180);
+    ctx.drawImage(image, -rect.w / 2, -rect.h / 2, rect.w, rect.h);
     ctx.restore();
   };
 

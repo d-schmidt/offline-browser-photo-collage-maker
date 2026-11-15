@@ -145,28 +145,71 @@ const Layout = (() => {
   /**
    * Placement of a photo inside its box, relative to the box's top-left corner.
    * The photo always covers the box (so the collage never shows holes) and the
-   * zoom scales it further. `offsetX`/`offsetY` are −1…1 shares of the slack
-   * along each axis: driving them keeps the framing proportional when the box
-   * changes size. Both the on-screen crop and the PNG export use this rect.
+   * zoom scales it further. Rotation is in degrees and happens around the
+   * photo centre; the cover scale is raised enough that the rotated photo still
+   * fills the box. `offsetX`/`offsetY` are −1…1 shares of the remaining slack
+   * along each screen axis, so the framing survives box resizes and rotation.
+   * Both the on-screen crop and the PNG export use this rect.
    */
-  const imageRect = (image, boxW, boxH, zoom = 1, offsetX = 0, offsetY = 0) => {
+  const imageRect = (
+    image,
+    boxW,
+    boxH,
+    zoom = 1,
+    offsetX = 0,
+    offsetY = 0,
+    rotation = 0,
+  ) => {
     const sourceW = image ? image.width : 0;
     const sourceH = image ? image.height : 0;
     if (!sourceW || !sourceH || boxW <= 0 || boxH <= 0) return null;
 
-    const scale =
+    const degrees = Number(rotation) || 0;
+    const radians = (degrees * Math.PI) / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    const cosAbs = Math.abs(cos);
+    const sinAbs = Math.abs(sin);
+
+    const baseScale =
       Math.max(boxW / sourceW, boxH / sourceH) *
       clamp(Number(zoom) || 1, 1, maxZoom);
-    const w = sourceW * scale;
-    const h = sourceH * scale;
-    const slackX = Math.max(0, (w - boxW) / 2);
-    const slackY = Math.max(0, (h - boxH) / 2);
+    // Full extent of the box as seen along the rotated photo's own axes.
+    const neededW = cosAbs * boxW + sinAbs * boxH;
+    const neededH = sinAbs * boxW + cosAbs * boxH;
+    const baseW = sourceW * baseScale;
+    const baseH = sourceH * baseScale;
+    const cover = Math.max(1, neededW / baseW, neededH / baseH);
+
+    const w = baseW * cover;
+    const h = baseH * cover;
+    // The pan stays inside a rectangle aligned with the photo, so every box
+    // corner stays under the photo. Its screen-axis bounding half-extents give
+    // the drag scale.
+    const allowedX = Math.max(0, (w - neededW) / 2);
+    const allowedY = Math.max(0, (h - neededH) / 2);
+    const slackX = allowedX * cosAbs + allowedY * sinAbs;
+    const slackY = allowedX * sinAbs + allowedY * cosAbs;
+
+    let panX = clamp(Number(offsetX) || 0, -1, 1) * slackX;
+    let panY = clamp(Number(offsetY) || 0, -1, 1) * slackY;
+    // M = [[cos, sin], [sin, -cos]] is its own inverse; clamping in that
+    // rotated basis keeps a partially panned, rotated photo gap-free.
+    const localX = cos * panX + sin * panY;
+    const localY = sin * panX - cos * panY;
+    const clampedX = clamp(localX, -allowedX, allowedX);
+    const clampedY = clamp(localY, -allowedY, allowedY);
+    panX = cos * clampedX + sin * clampedY;
+    panY = sin * clampedX - cos * clampedY;
 
     return {
-      x: (boxW - w) / 2 + clamp(Number(offsetX) || 0, -1, 1) * slackX,
-      y: (boxH - h) / 2 + clamp(Number(offsetY) || 0, -1, 1) * slackY,
+      x: (boxW - w) / 2 + panX,
+      y: (boxH - h) / 2 + panY,
       w,
       h,
+      rotation: degrees,
+      slackX,
+      slackY,
     };
   };
 
@@ -200,6 +243,7 @@ const Layout = (() => {
         zoom: row.boxes[index].zoom,
         offsetX: row.boxes[index].offsetX,
         offsetY: row.boxes[index].offsetY,
+        rotation: row.boxes[index].rotation,
         x,
         // Relative to the row element, which is already positioned in the
         // canvas; the gap is the white margin inside the row.

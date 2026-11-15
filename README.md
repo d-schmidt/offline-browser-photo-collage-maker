@@ -25,7 +25,7 @@ locally: no install, no build step, no network requests, and no uploads.
 - The action bar offers **Delete box**, **Select image**, and, once the box has an image, exclusive **square** and **aspect ratio** width locks. An active lock turns red; Save is always visible on the right.
 - Locked boxes keep their square or image ratio when the row height changes; width boundaries touching a locked box are disabled. In a multi-box row, at most all but one box can be locked; the remaining box fills the space left. Aspect-ratio locks must share the same image ratio within a row—the first one sets the reference. A single-box row with a locked box also locks its row-height handles. Clicking the active lock releases it and preserves the current width.
 - Photos are cropped to cover the box, centered and clipped to its edges.
-- Select a photo box to reveal a small circle in its bottom-right corner. Drag it away from the box centre to zoom the photo (up to 6×); drag the photo, or the canvas background under its ghost, to pan. While the box is selected, the whole photo appears as a translucent ghost outside the crop; the ghost and the circle are editor-only and never appear in the PNG.
+- Select a photo box to reveal a small circle in its bottom-right corner. Drag it away from the box centre to zoom the photo (up to 6×); drag the photo, or the canvas background under its ghost, to pan. A second circle just outside the corner rotates the photo; the crop scales up as needed to stay full. While the box is selected, the whole photo appears as a translucent ghost outside the crop; the ghost and both circles are editor-only and never appear in the PNG.
 - Deleting every box in a row removes the row; the empty state keeps the
   add-row buttons available.
 - The 1080 × 1920 canvas scales to fit the window without changing its layout.
@@ -35,7 +35,8 @@ locally: no install, no build step, no network requests, and no uploads.
 Keyboard: `Tab` moves through controls, arrow keys move box selection,
 `Delete`/`Backspace` deletes the selected box, `Enter`/`Space` opens the image
 picker, and `Escape` clears the selection. With the zoom circle focused, the
-arrow keys zoom in and out and `Home` resets the zoom.
+arrow keys zoom in and out and `Home` resets the zoom. With the rotation circle
+focused, the arrow keys rotate by 1° (Shift for 15°) and `Home` resets.
 
 Still to come: dragging boxes to reorder, persistence, and undo/redo.
 

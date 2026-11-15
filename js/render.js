@@ -39,13 +39,32 @@ const Render = (() => {
   };
 
   /** Position the photo inside a box in logical pixels; the box clips it. */
-  const placeImage = (element, image, box, zoom, offsetX, offsetY) => {
-    const rect = Layout.imageRect(image, box.w, box.h, zoom, offsetX, offsetY);
+  const placeImage = (
+    element,
+    image,
+    box,
+    zoom,
+    offsetX,
+    offsetY,
+    rotation,
+  ) => {
+    const rect = Layout.imageRect(
+      image,
+      box.w,
+      box.h,
+      zoom,
+      offsetX,
+      offsetY,
+      rotation,
+    );
     if (!rect) return;
     element.style.left = `${rect.x}px`;
     element.style.top = `${rect.y}px`;
     element.style.width = `${rect.w}px`;
     element.style.height = `${rect.h}px`;
+    element.style.transform = rect.rotation
+      ? `rotate(${rect.rotation}deg)`
+      : '';
   };
 
   const buildBox = (layoutBox, number, selectedId) => {
@@ -81,6 +100,7 @@ const Render = (() => {
         layoutBox.zoom,
         layoutBox.offsetX,
         layoutBox.offsetY,
+        layoutBox.rotation,
       );
       button.append(image);
     } else {
@@ -140,7 +160,7 @@ const Render = (() => {
     );
   };
 
-  const selectedZoomTarget = () => {
+  const selectedPhotoTarget = () => {
     if (!currentLayout || !currentState || !currentState.selectedBoxId) return null;
     const found = currentState.findBox(currentState.selectedBoxId);
     if (!found || !found.box.image) return null;
@@ -152,12 +172,13 @@ const Render = (() => {
   };
 
   /**
-   * The zoom handle and the ghost of the full photo are editor-only chrome;
-   * they follow the selection and never reach the exported PNG.
+   * The zoom/rotate handles and the ghost of the full photo are editor-only
+   * chrome; they follow the selection and never reach the exported PNG.
    */
-  const paintImageChrome = (target = selectedZoomTarget()) => {
+  const paintImageChrome = (target = selectedPhotoTarget()) => {
     if (!target) {
       refs.zoomHandle.hidden = true;
+      refs.rotateHandle.hidden = true;
       refs.zoomOverlay.hidden = true;
       return;
     }
@@ -174,6 +195,18 @@ const Render = (() => {
       String(Math.round(box.zoom * 100) / 100),
     );
 
+    refs.rotateHandle.hidden = false;
+    refs.rotateHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
+    refs.rotateHandle.style.top = `${top + layoutBox.h}px`;
+    refs.rotateHandle.setAttribute(
+      'aria-valuenow',
+      String(Math.round(box.rotation)),
+    );
+    refs.rotateHandle.setAttribute(
+      'aria-valuetext',
+      `${Math.round(box.rotation)} degrees`,
+    );
+
     const rect = Layout.imageRect(
       image,
       layoutBox.w,
@@ -181,6 +214,7 @@ const Render = (() => {
       box.zoom,
       box.offsetX,
       box.offsetY,
+      box.rotation,
     );
     if (!rect) {
       refs.zoomOverlay.hidden = true;
@@ -196,11 +230,14 @@ const Render = (() => {
     refs.zoomOverlay.style.top = `${top + rect.y}px`;
     refs.zoomOverlay.style.width = `${rect.w}px`;
     refs.zoomOverlay.style.height = `${rect.h}px`;
+    refs.zoomOverlay.style.transform = rect.rotation
+      ? `rotate(${rect.rotation}deg)`
+      : '';
   };
 
-  /** Repaint only the selected box's photo and its chrome during a zoom/pan. */
-  const updateZoom = () => {
-    const target = selectedZoomTarget();
+  /** Repaint only the selected photo and its chrome during a zoom/pan/rotate. */
+  const updatePhoto = () => {
+    const target = selectedPhotoTarget();
     if (!target) return;
     const image = refs.rows.querySelector(
       `[data-box-id="${target.layoutBox.id}"] .box-image`,
@@ -213,6 +250,7 @@ const Render = (() => {
         target.box.zoom,
         target.box.offsetX,
         target.box.offsetY,
+        target.box.rotation,
       );
     }
     paintImageChrome(target);
@@ -304,6 +342,7 @@ const Render = (() => {
             layoutBox.zoom,
             layoutBox.offsetX,
             layoutBox.offsetY,
+            layoutBox.rotation,
           );
         }
       });
@@ -322,6 +361,7 @@ const Render = (() => {
     refs.rowBoundary = document.getElementById('row-boundary');
     refs.boxBoundary = document.getElementById('box-boundary');
     refs.zoomHandle = document.getElementById('zoom-handle');
+    refs.rotateHandle = document.getElementById('rotate-handle');
     refs.zoomOverlay = document.getElementById('zoom-overlay');
     refs.zoomHandle.setAttribute('aria-valuemin', String(Layout.minZoom));
     refs.zoomHandle.setAttribute('aria-valuemax', String(Layout.maxZoom));
@@ -419,7 +459,7 @@ const Render = (() => {
     paint,
     paintSelection,
     updateGeometry,
-    updateZoom,
+    updatePhoto,
     showRowBoundary,
     hideRowBoundary,
     setRowResizeCursor,

@@ -23,6 +23,7 @@ const State = (() => {
     zoom: 1,
     offsetX: 0,
     offsetY: 0,
+    rotation: 0,
   });
 
   const createRow = (weight) => ({
@@ -119,6 +120,7 @@ const State = (() => {
     found.box.zoom = 1;
     found.box.offsetX = 0;
     found.box.offsetY = 0;
+    found.box.rotation = 0;
     if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
       found.box.ratio = image.width / image.height;
       enforceAspectLocks(found.row);
@@ -233,6 +235,21 @@ const State = (() => {
     return true;
   };
 
+  /** Keep rotation in the (−180, 180] range so the value stays readable. */
+  const normalizeAngle = (degrees) => {
+    let angle = degrees % 360;
+    if (angle > 180) angle -= 360;
+    else if (angle <= -180) angle += 360;
+    return angle;
+  };
+
+  const setBoxRotation = (boxId, degrees) => {
+    const found = findBox(boxId);
+    if (!found || !Number.isFinite(degrees)) return false;
+    found.box.rotation = normalizeAngle(degrees);
+    return true;
+  };
+
   /** Replace a row's box weights, used to preserve widths when unlocking. */
   const setRowWeights = (rowId, weights) => {
     const row = findRow(rowId);
@@ -333,6 +350,7 @@ const State = (() => {
     setBoxLock,
     setBoxZoom,
     setBoxPan,
+    setBoxRotation,
     setRowWeights,
     setRowSplit,
     setBoxSplit,
