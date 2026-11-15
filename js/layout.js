@@ -127,23 +127,12 @@ const Layout = (() => {
   };
 
   /**
-   * Placement of a photo inside its box, relative to the box's top-left corner.
-   * The photo always covers the box (so the collage never shows holes) and the
-   * zoom scales it further. Rotation is in degrees and happens around the
-   * photo centre; the cover scale is raised enough that the rotated photo still
-   * fills the box. `offsetX`/`offsetY` are −1…1 shares of the remaining slack
-   * along each screen axis, so the framing survives box resizes and rotation.
-   * Both the on-screen crop and the PNG export use this rect.
+   * Scale data shared by the photo placement and the zoom controls. The cover
+   * scale fills the box for the current rotation, so 1× always means "cover";
+   * `minZoom` is the scale that shows the whole rotated photo, and `maxZoom` is
+   * capped so the absolute zoom never exceeds six times the unrotated cover.
    */
-  const imageRect = (
-    image,
-    boxW,
-    boxH,
-    zoom = 1,
-    offsetX = 0,
-    offsetY = 0,
-    rotation = 0,
-  ) => {
+  const scaleMetrics = (image, boxW, boxH, rotation = 0) => {
     const sourceW = image ? image.width : 0;
     const sourceH = image ? image.height : 0;
     if (!sourceW || !sourceH || boxW <= 0 || boxH <= 0) return null;
@@ -155,21 +144,83 @@ const Layout = (() => {
     const cosAbs = Math.abs(cos);
     const sinAbs = Math.abs(sin);
 
-    const baseScale =
-      Math.max(boxW / sourceW, boxH / sourceH) *
-      clamp(Number(zoom) || 1, 1, maxZoom);
-    // Full extent of the box as seen along the rotated photo's own axes.
+    const unrotatedCover = Math.max(boxW / sourceW, boxH / sourceH);
+    // Extent of the box along the rotated photo's own axes.
     const neededW = cosAbs * boxW + sinAbs * boxH;
     const neededH = sinAbs * boxW + cosAbs * boxH;
-    const baseW = sourceW * baseScale;
-    const baseH = sourceH * baseScale;
-    const cover = Math.max(1, neededW / baseW, neededH / baseH);
+    const coverScale = Math.max(
+      unrotatedCover,
+      neededW / sourceW,
+      neededH / sourceH,
+    );
 
-    const w = baseW * cover;
-    const h = baseH * cover;
+    // The rotated photo's own extent gives the smallest scale that still
+    // shows all of it inside the box.
+    const rotatedW = cosAbs * sourceW + sinAbs * sourceH;
+    const rotatedH = sinAbs * sourceW + cosAbs * sourceH;
+    const fitScale = Math.min(boxW / rotatedW, boxH / rotatedH);
+
+    return {
+      degrees,
+      cos,
+      sin,
+      cosAbs,
+      sinAbs,
+      coverScale,
+      minZoom: Math.min(1, fitScale / coverScale),
+      maxZoom: Math.max(1, (maxZoom * unrotatedCover) / coverScale),
+    };
+  };
+
+  /** The zoom range for a photo in a box at a given rotation. */
+  const zoomRange = (image, boxW, boxH, rotation = 0) => {
+    const metrics = scaleMetrics(image, boxW, boxH, rotation);
+    if (!metrics) return { min: 1, max: maxZoom };
+    return { min: metrics.minZoom, max: metrics.maxZoom };
+  };
+
+  /**
+   * Placement of a photo inside its box, relative to the box's top-left corner.
+   * The photo covers the box at 1× and can be zoomed in to the cap or out below
+   * the cover crop until the whole rotated photo fits. Rotation is in degrees
+   * and happens around the photo centre. `offsetX`/`offsetY` are −1…1 shares of
+   * the remaining slack along each screen axis, so the framing survives box
+   * resizes and rotation. Both the on-screen crop and the PNG export use this
+   * rect.
+   */
+  const imageRect = (
+    image,
+    boxW,
+    boxH,
+    zoom = 1,
+    offsetX = 0,
+    offsetY = 0,
+    rotation = 0,
+  ) => {
+    const metrics = scaleMetrics(image, boxW, boxH, rotation);
+    if (!metrics) return null;
+
+    const sourceW = image.width;
+    const sourceH = image.height;
+    const {
+      degrees,
+      cos,
+      sin,
+      cosAbs,
+      sinAbs,
+      coverScale,
+      minZoom,
+      maxZoom: zoomMax,
+    } = metrics;
+    const scale = coverScale * clamp(Number(zoom) || 1, minZoom, zoomMax);
+
+    const neededW = cosAbs * boxW + sinAbs * boxH;
+    const neededH = sinAbs * boxW + cosAbs * boxH;
+    const w = sourceW * scale;
+    const h = sourceH * scale;
     // The pan stays inside a rectangle aligned with the photo, so every box
-    // corner stays under the photo. Its screen-axis bounding half-extents give
-    // the drag scale.
+    // corner that is still under the photo keeps it covered. Zoomed out below
+    // the cover crop there is no slack, so the photo stays centred.
     const allowedX = Math.max(0, (w - neededW) / 2);
     const allowedY = Math.max(0, (h - neededH) / 2);
     const slackX = allowedX * cosAbs + allowedY * sinAbs;
@@ -366,5 +417,5 @@ const Layout = (() => {
     };
   };
 
-  return { compute, imageRect, maxZoom, minZoom: 1 };
+  return { compute, imageRect, zoomRange, maxZoom, minZoom: 1 };
 })();

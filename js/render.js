@@ -191,12 +191,23 @@ const Render = (() => {
       // An aspect-locked box keeps the natural crop, so zoom is not offered.
       refs.zoomHandle.hidden = true;
     } else {
+      const range = Layout.zoomRange(
+        image,
+        layoutBox.w,
+        layoutBox.h,
+        box.rotation,
+      );
       refs.zoomHandle.hidden = false;
       refs.zoomHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
       refs.zoomHandle.style.top = `${top + layoutBox.h}px`;
+      refs.zoomHandle.setAttribute('aria-valuemin', String(range.min));
+      refs.zoomHandle.setAttribute('aria-valuemax', String(range.max));
       refs.zoomHandle.setAttribute(
         'aria-valuenow',
-        String(Math.round(box.zoom * 100) / 100),
+        String(
+          Math.round(Math.min(range.max, Math.max(range.min, box.zoom)) * 100) /
+            100,
+        ),
       );
     }
 

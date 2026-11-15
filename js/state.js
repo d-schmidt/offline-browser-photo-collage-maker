@@ -224,14 +224,18 @@ const State = (() => {
     return true;
   };
 
-  /** Zoom is always at least a cover crop; the scale runs up to METRICS.maxZoom. */
+  /**
+   * Zoom is relative to the current cover crop. The layout applies the
+   * rotation-aware lower bound and six-times-cover ceiling; storing a small
+   * value keeps the next gesture continuous instead of jumping.
+   */
   const setBoxZoom = (boxId, zoom) => {
     const found = findBox(boxId);
     // Aspect-locked boxes keep the natural crop, so they ignore zoom changes.
     if (!found || found.box.lock === 'aspect' || !Number.isFinite(zoom)) {
       return false;
     }
-    found.box.zoom = Math.min(METRICS.maxZoom, Math.max(1, zoom));
+    found.box.zoom = Math.min(METRICS.maxZoom, Math.max(0.0001, zoom));
     return true;
   };
 

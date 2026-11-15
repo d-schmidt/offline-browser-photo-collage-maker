@@ -318,6 +318,30 @@
     return { x: rect.slackX, y: rect.slackY };
   };
 
+  /** The zoom boundaries for the selected photo at its current rotation. */
+  const zoomRangeFor = (target) =>
+    Layout.zoomRange(
+      target.box.image,
+      target.layoutBox.w,
+      target.layoutBox.h,
+      target.box.rotation,
+    );
+
+  /**
+   * Rotation changes the cover scale and the fit limit, so keep the stored zoom
+   * inside the new range. The layout clamps for display too, but syncing the
+   * state keeps the slider value and announcements honest.
+   */
+  const clampZoomToRange = (boxId) => {
+    const found = State.findBox(boxId);
+    const target = selectedTarget();
+    if (!found || !target || target.box.id !== boxId) return;
+    if (found.box.lock === 'aspect') return;
+    const range = zoomRangeFor(target);
+    if (found.box.zoom < range.min) State.setBoxZoom(boxId, range.min);
+    else if (found.box.zoom > range.max) State.setBoxZoom(boxId, range.max);
+  };
+
   const startPanDrag = (event) => {
     if (
       panDrag ||
@@ -434,6 +458,7 @@
     }
 
     const center = centerClient(target);
+    const range = zoomRangeFor(target);
     zoomDrag = {
       pointerId: event.pointerId,
       boxId: target.box.id,
@@ -443,7 +468,9 @@
         1,
         Math.hypot(event.clientX - center.x, event.clientY - center.y),
       ),
-      startZoom: target.box.zoom,
+      startZoom: Math.min(range.max, Math.max(range.min, target.box.zoom)),
+      minZoom: range.min,
+      maxZoom: range.max,
       moved: false,
     };
   };
@@ -458,7 +485,13 @@
       event.clientX - zoomDrag.centerX,
       event.clientY - zoomDrag.centerY,
     );
-    const zoom = zoomDrag.startZoom * (distance / zoomDrag.startDistance);
+    const zoom = Math.min(
+      zoomDrag.maxZoom,
+      Math.max(
+        zoomDrag.minZoom,
+        zoomDrag.startZoom * (distance / zoomDrag.startDistance),
+      ),
+    );
     if (!zoomDrag.moved) {
       if (Math.abs(zoom - zoomDrag.startZoom) < 0.02) return;
       zoomDrag.moved = true;
@@ -488,9 +521,13 @@
   const nudgeZoom = (amount) => {
     const target = selectedTarget();
     if (!target) return;
-    if (!State.setBoxZoom(target.box.id, target.box.zoom + amount)) return;
+    const range = zoomRangeFor(target);
+    const current = Math.min(range.max, Math.max(range.min, target.box.zoom));
+    const next = Math.min(range.max, Math.max(range.min, current + amount));
+    if (next === current) return;
+    if (!State.setBoxZoom(target.box.id, next)) return;
     Render.updatePhoto();
-    Render.announce(`Photo zoom ${Math.round(target.box.zoom * 100)} percent.`);
+    Render.announce(`Photo zoom ${Math.round(next * 100)} percent.`);
   };
 
   const resetZoom = () => {
@@ -555,6 +592,7 @@
 
     const rotation = rotateDrag.startRotation + delta;
     if (!State.setBoxRotation(rotateDrag.boxId, rotation)) return;
+    clampZoomToRange(rotateDrag.boxId);
     Render.updatePhoto();
   };
 
@@ -581,6 +619,7 @@
     if (!State.setBoxRotation(target.box.id, target.box.rotation + amount)) {
       return;
     }
+    clampZoomToRange(target.box.id);
     Render.updatePhoto();
     Render.announce(
       `Photo rotation ${Math.round(target.box.rotation)} degrees.`,
@@ -591,6 +630,7 @@
     const target = selectedTarget();
     if (!target) return;
     if (!State.setBoxRotation(target.box.id, 0)) return;
+    clampZoomToRange(target.box.id);
     Render.updatePhoto();
     Render.announce('Photo rotation reset.');
   };
