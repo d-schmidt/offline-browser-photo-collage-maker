@@ -1,0 +1,281 @@
+'use strict';
+
+/**
+ * UI strings in every supported language. The browser language picks the
+ * locale: a `de` locale gets German, everything else falls back to English.
+ * Both catalogs stay complete so no sentence mixes languages.
+ */
+const I18n = (() => {
+  const CATALOGS = Object.freeze({
+    en: Object.freeze({
+      'app.title': 'Photo Collage Editor',
+
+      'actions.label': 'Actions',
+      'orientation.toggle': 'Toggle row or column layout',
+      'orientation.toRow': 'Switch to row layout',
+      'orientation.toColumn': 'Switch to column layout',
+
+      'border.change': 'Change border thickness',
+      'border.title': 'Border thickness',
+      'border.value': '{n} px',
+      'border.pixels': '{n} pixels',
+
+      'margin.change': 'Change margin color',
+      'margin.label': 'Margin color',
+
+      'save.button': 'Save collage as JPEG or PNG',
+      'save.menu': 'Save format',
+      'save.jpeg': 'JPEG (.jpg)',
+      'save.png': 'PNG (.png)',
+      'save.saved': 'Saved {filename}.',
+      'save.failed': 'The collage could not be saved.',
+
+      'format.title': 'Select format:',
+      'format.aria': '{label}, {w} × {h} pixels',
+      'format.selected':
+        '{label} format selected, {w} by {h} pixels.',
+      'format.selectedNamed':
+        '{label} {name} format selected, {w} by {h} pixels.',
+      'format.name.status': 'Status',
+      'format.name.banner': 'Banner',
+      'format.name.portrait': 'Portrait',
+      'format.name.square': 'Square',
+
+      'add.group.top': 'Add row above the canvas',
+      'add.group.bottom': 'Add row below the canvas',
+      'add.group.left': 'Add column to the left of the canvas',
+      'add.group.right': 'Add column to the right of the canvas',
+      'add.box.rowLeft': 'Add image box to row {n} on the left',
+      'add.box.rowRight': 'Add image box to row {n} on the right',
+      'add.box.columnTop': 'Add image box to column {n} at the top',
+      'add.box.columnBottom': 'Add image box to column {n} at the bottom',
+
+      'rail.left': 'Row actions, left side',
+      'rail.right': 'Row actions, right side',
+      'rail.top': 'Column actions, above the canvas',
+      'rail.bottom': 'Column actions, below the canvas',
+
+      'canvas.label': 'Photo collage canvas',
+      'empty.rows':
+        'No rows yet. Use the + button above or below the canvas to add one.',
+      'empty.columns':
+        'No columns yet. Use the + button to the left or right of the canvas to add one.',
+
+      'group.row': 'row',
+      'group.column': 'column',
+
+      'box.label': 'Photo box {n}',
+      'box.labelEmpty': 'Empty photo box {n}',
+      'box.alt': 'Photo {n}',
+
+      'action.delete': 'Delete box',
+      'action.selectImage': 'Select image',
+      'action.lockSquare': 'Lock square box',
+      'action.lockAspect': 'Lock image aspect ratio',
+      'hint.unlocked': 'At least one box in a {group} must stay unlocked',
+      'hint.ratio':
+        'Aspect locks in a {group} must use the same image ratio',
+
+      'zoom.label': 'Photo zoom',
+      'zoom.title': 'Drag outwards to zoom the photo',
+      'rotate.label': 'Photo rotation',
+      'rotate.title': 'Drag around the photo to rotate it',
+      'rotate.value': '{n} degrees',
+
+      'announce.selected': 'Photo box {n} selected.',
+      'announce.deselected': 'Selection cleared.',
+      'announce.deleted': 'Photo box {n} deleted.',
+      'announce.lockReleased': 'Box lock released.',
+      'announce.needUnlocked':
+        'At least one box in a {group} must stay unlocked.',
+      'announce.needRatio':
+        'Aspect locks in a {group} must use the same image ratio.',
+      'announce.squareOn': 'Square lock on.',
+      'announce.aspectOn': 'Aspect ratio lock on.',
+      'announce.opening': 'Opening image…',
+      'announce.imageAdded': 'Image added to photo box {n}.',
+      'announce.saving': 'Saving collage as {format}…',
+      'announce.boxAdded': 'Image box added to {group} {n}.',
+      'announce.columnAddedLeft': 'Column added at the left.',
+      'announce.columnAddedRight': 'Column added at the right.',
+      'announce.rowAddedTop': 'Row added at the top.',
+      'announce.rowAddedBottom': 'Row added at the bottom.',
+      'announce.borderThickness': 'Border thickness {n} pixels.',
+      'announce.marginColor': 'Margin color set to {color}.',
+      'announce.zoom': 'Photo zoom {n} percent.',
+      'announce.zoomReset': 'Photo zoom reset.',
+      'announce.rotation': 'Photo rotation {n} degrees.',
+      'announce.rotationReset': 'Photo rotation reset.',
+      'layout.rowOne': 'Row layout. 1 row.',
+      'layout.rows': 'Row layout. {count} rows.',
+      'layout.columnOne': 'Column layout. 1 column.',
+      'layout.columns': 'Column layout. {count} columns.',
+
+      'error.boxGone': 'That box no longer exists.',
+      'image.notImage':
+        'That file is not an image. Choose a photo or another image file.',
+      'image.openFailed':
+        'That image could not be opened. Try a different file.',
+      'image.decodeFailed': 'An image could not be decoded.',
+      'export.encodeFailed': 'The collage could not be encoded.',
+      'export.unsupported': 'This browser cannot export {format}.',
+    }),
+    de: Object.freeze({
+      'app.title': 'Foto-Collagen-Editor',
+
+      'actions.label': 'Aktionen',
+      'orientation.toggle': 'Zeilen- oder Spaltenlayout umschalten',
+      'orientation.toRow': 'Zum Zeilenlayout wechseln',
+      'orientation.toColumn': 'Zum Spaltenlayout wechseln',
+
+      'border.change': 'Rahmenstärke ändern',
+      'border.title': 'Rahmenstärke',
+      'border.value': '{n} px',
+      'border.pixels': '{n} Pixel',
+
+      'margin.change': 'Randfarbe ändern',
+      'margin.label': 'Randfarbe',
+
+      'save.button': 'Collage als JPEG oder PNG speichern',
+      'save.menu': 'Speicherformat',
+      'save.jpeg': 'JPEG (.jpg)',
+      'save.png': 'PNG (.png)',
+      'save.saved': '{filename} gespeichert.',
+      'save.failed': 'Die Collage konnte nicht gespeichert werden.',
+
+      'format.title': 'Format auswählen:',
+      'format.aria': '{label}, {w} × {h} Pixel',
+      'format.selected': '{label} ausgewählt, {w} × {h} Pixel.',
+      'format.selectedNamed': '{label} {name} ausgewählt, {w} × {h} Pixel.',
+      'format.name.status': 'Status',
+      'format.name.banner': 'Banner',
+      'format.name.portrait': 'Hochformat',
+      'format.name.square': 'Quadrat',
+
+      'add.group.top': 'Zeile über der Arbeitsfläche hinzufügen',
+      'add.group.bottom': 'Zeile unter der Arbeitsfläche hinzufügen',
+      'add.group.left': 'Spalte links neben der Arbeitsfläche hinzufügen',
+      'add.group.right': 'Spalte rechts neben der Arbeitsfläche hinzufügen',
+      'add.box.rowLeft': 'Bildfeld zu Zeile {n} links hinzufügen',
+      'add.box.rowRight': 'Bildfeld zu Zeile {n} rechts hinzufügen',
+      'add.box.columnTop': 'Bildfeld zu Spalte {n} oben hinzufügen',
+      'add.box.columnBottom': 'Bildfeld zu Spalte {n} unten hinzufügen',
+
+      'rail.left': 'Zeilenaktionen, links',
+      'rail.right': 'Zeilenaktionen, rechts',
+      'rail.top': 'Spaltenaktionen, über der Arbeitsfläche',
+      'rail.bottom': 'Spaltenaktionen, unter der Arbeitsfläche',
+
+      'canvas.label': 'Foto-Collagen-Arbeitsfläche',
+      'empty.rows':
+        'Noch keine Zeilen. Mit der +-Schaltfläche über oder unter der Arbeitsfläche eine hinzufügen.',
+      'empty.columns':
+        'Noch keine Spalten. Mit der +-Schaltfläche links oder rechts neben der Arbeitsfläche eine hinzufügen.',
+
+      'group.row': 'Zeile',
+      'group.column': 'Spalte',
+
+      'box.label': 'Bildfeld {n}',
+      'box.labelEmpty': 'Leeres Bildfeld {n}',
+      'box.alt': 'Foto {n}',
+
+      'action.delete': 'Bildfeld löschen',
+      'action.selectImage': 'Bild auswählen',
+      'action.lockSquare': 'Quadrat sperren',
+      'action.lockAspect': 'Seitenverhältnis sperren',
+      'hint.unlocked': 'Mindestens ein Bildfeld pro {group} muss entsperrt bleiben',
+      'hint.ratio':
+        'Seitenverhältnis-Sperren in einer {group} müssen dasselbe Verhältnis verwenden',
+
+      'zoom.label': 'Foto-Zoom',
+      'zoom.title': 'Nach außen ziehen, um das Foto zu zoomen',
+      'rotate.label': 'Foto-Drehung',
+      'rotate.title': 'Um das Foto herum ziehen, um es zu drehen',
+      'rotate.value': '{n} Grad',
+
+      'announce.selected': 'Bildfeld {n} ausgewählt.',
+      'announce.deselected': 'Auswahl aufgehoben.',
+      'announce.deleted': 'Bildfeld {n} gelöscht.',
+      'announce.lockReleased': 'Sperre aufgehoben.',
+      'announce.needUnlocked':
+        'Mindestens ein Bildfeld pro {group} muss entsperrt bleiben.',
+      'announce.needRatio':
+        'Seitenverhältnis-Sperren in einer {group} müssen dasselbe Verhältnis verwenden.',
+      'announce.squareOn': 'Quadratsperre aktiv.',
+      'announce.aspectOn': 'Seitenverhältnis-Sperre aktiv.',
+      'announce.opening': 'Bild wird geöffnet…',
+      'announce.imageAdded': 'Bild zu Bildfeld {n} hinzugefügt.',
+      'announce.saving': 'Collage wird als {format} gespeichert…',
+      'announce.boxAdded': 'Bildfeld zu {group} {n} hinzugefügt.',
+      'announce.columnAddedLeft': 'Spalte links hinzugefügt.',
+      'announce.columnAddedRight': 'Spalte rechts hinzugefügt.',
+      'announce.rowAddedTop': 'Zeile oben hinzugefügt.',
+      'announce.rowAddedBottom': 'Zeile unten hinzugefügt.',
+      'announce.borderThickness': 'Rahmenstärke {n} Pixel.',
+      'announce.marginColor': 'Randfarbe auf {color} gesetzt.',
+      'announce.zoom': 'Foto-Zoom {n} Prozent.',
+      'announce.zoomReset': 'Foto-Zoom zurückgesetzt.',
+      'announce.rotation': 'Foto-Drehung {n} Grad.',
+      'announce.rotationReset': 'Foto-Drehung zurückgesetzt.',
+      'layout.rowOne': 'Zeilenlayout. 1 Zeile.',
+      'layout.rows': 'Zeilenlayout. {count} Zeilen.',
+      'layout.columnOne': 'Spaltenlayout. 1 Spalte.',
+      'layout.columns': 'Spaltenlayout. {count} Spalten.',
+
+      'error.boxGone': 'Dieses Bildfeld existiert nicht mehr.',
+      'image.notImage':
+        'Diese Datei ist kein Bild. Wähle ein Foto oder eine andere Bilddatei.',
+      'image.openFailed':
+        'Dieses Bild konnte nicht geöffnet werden. Versuche es mit einer anderen Datei.',
+      'image.decodeFailed': 'Ein Bild konnte nicht dekodiert werden.',
+      'export.encodeFailed': 'Die Collage konnte nicht kodiert werden.',
+      'export.unsupported': 'Dieser Browser kann {format} nicht exportieren.',
+    }),
+  });
+
+  const primaryLanguage =
+    (navigator.languages && navigator.languages[0]) || navigator.language || '';
+
+  const lang = String(primaryLanguage).toLowerCase().startsWith('de')
+    ? 'de'
+    : 'en';
+
+  /**
+   * Look up a string and fill `{name}` placeholders. Keys missing from the
+   * active catalog fall back to English rather than showing the raw key.
+   */
+  const t = (key, params = {}) => {
+    const catalog = CATALOGS[lang];
+    const message =
+      catalog[key] !== undefined ? catalog[key] : CATALOGS.en[key];
+    if (message === undefined) return key;
+    return message.replace(/\{(\w+)\}/g, (match, name) =>
+      Object.prototype.hasOwnProperty.call(params, name)
+        ? String(params[name])
+        : match,
+    );
+  };
+
+  /**
+   * Translate the declarative hooks in the markup: text content, aria labels,
+   * and title tooltips. Dynamic labels are re-rendered from the same catalog.
+   */
+  const apply = (root = document) => {
+    document.documentElement.lang = lang;
+
+    root.querySelectorAll('[data-i18n]').forEach((element) => {
+      element.textContent = t(element.dataset.i18n);
+    });
+    root.querySelectorAll('[data-i18n-aria-label]').forEach((element) => {
+      element.setAttribute(
+        'aria-label',
+        t(element.dataset.i18nAriaLabel),
+      );
+    });
+    root.querySelectorAll('[data-i18n-title]').forEach((element) => {
+      element.title = t(element.dataset.i18nTitle);
+    });
+  };
+
+  return { lang, t, apply };
+})();

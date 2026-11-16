@@ -101,8 +101,11 @@
     document.documentElement.style.setProperty('--canvas-pad', `${thickness}px`);
     document.documentElement.style.setProperty('--gap', `${thickness}px`);
     borderRange.value = String(thickness);
-    borderRange.setAttribute('aria-valuetext', `${thickness} pixels`);
-    borderValue.textContent = `${thickness} px`;
+    borderRange.setAttribute(
+      'aria-valuetext',
+      I18n.t('border.pixels', { n: thickness }),
+    );
+    borderValue.textContent = I18n.t('border.value', { n: thickness });
   };
 
   // Every slider step reflows the whole canvas, so coalesce the input events
@@ -125,7 +128,7 @@
     if (!State.select(boxId)) return;
     Render.paintSelection(State);
     Render.focusBox(boxId);
-    Render.announce(`Photo box ${boxNumber(boxId)} selected.`);
+    Render.announce(I18n.t('announce.selected', { n: boxNumber(boxId) }));
   };
 
   const deselect = () => {
@@ -133,7 +136,7 @@
     State.clearSelection();
     Render.paintSelection(State);
     Render.focusCanvas();
-    Render.announce('Selection cleared.');
+    Render.announce(I18n.t('announce.deselected'));
   };
 
   const openPicker = (boxId) => {
@@ -149,7 +152,7 @@
     if (!State.removeBox(boxId)) return;
     refresh();
     Render.focusCanvas();
-    Render.announce(`Photo box ${number} deleted.`);
+    Render.announce(I18n.t('announce.deleted', { n: number }));
   };
 
   const focusAction = (action) => {
@@ -185,20 +188,18 @@
       }
       refresh();
       focusAction(action);
-      Render.announce('Box lock released.');
+      Render.announce(I18n.t('announce.lockReleased'));
       return;
     }
 
-    const group = isColumnMode() ? 'column' : 'row';
+    const group = I18n.t(isColumnMode() ? 'group.column' : 'group.row');
     if (!State.canLockBox(boxId)) {
-      Render.announce(`At least one box in a ${group} must stay unlocked.`);
+      Render.announce(I18n.t('announce.needUnlocked', { group }));
       return;
     }
 
     if (mode === 'aspect' && !State.canAspectLock(boxId)) {
-      Render.announce(
-        `Aspect locks in a ${group} must use the same image ratio.`,
-      );
+      Render.announce(I18n.t('announce.needRatio', { group }));
       return;
     }
 
@@ -212,7 +213,7 @@
     refresh();
     focusAction(action);
     Render.announce(
-      mode === 'square' ? 'Square lock on.' : 'Aspect ratio lock on.',
+      I18n.t(mode === 'square' ? 'announce.squareOn' : 'announce.aspectOn'),
     );
   };
 
@@ -221,16 +222,16 @@
     pickerBoxId = null;
     if (!file || !boxId) return;
 
-    Render.announce('Opening image…');
+    Render.announce(I18n.t('announce.opening'));
     try {
       const image = await Images.load(file);
       if (!State.setImage(boxId, image)) {
-        Render.toast('That box no longer exists.', true);
+        Render.toast(I18n.t('error.boxGone'), true);
         return;
       }
       refresh();
       Render.focusBox(boxId);
-      Render.announce(`Image added to photo box ${boxNumber(boxId)}.`);
+      Render.announce(I18n.t('announce.imageAdded', { n: boxNumber(boxId) }));
     } catch (error) {
       // The box keeps whatever it showed before; only the toast changes.
       Render.toast(error.message, true);
@@ -283,14 +284,16 @@
     saveButton.disabled = true;
     saveButton.setAttribute('aria-busy', 'true');
     Render.announce(
-      `Saving collage as ${format === 'jpeg' ? 'JPEG' : 'PNG'}…`,
+      I18n.t('announce.saving', {
+        format: format === 'jpeg' ? 'JPEG' : 'PNG',
+      }),
     );
 
     try {
       const filename = await Export.save(State, format);
-      Render.toast(`Saved ${filename}.`);
+      Render.toast(I18n.t('save.saved', { filename }));
     } catch (error) {
-      Render.toast(error.message || 'The collage could not be saved.', true);
+      Render.toast(error.message || I18n.t('save.failed'), true);
     } finally {
       saveButton.disabled = false;
       saveButton.removeAttribute('aria-busy');
@@ -302,15 +305,19 @@
     refresh();
     if (isColumnMode()) {
       Render.announce(
-        position === 'start'
-          ? 'Column added at the left.'
-          : 'Column added at the right.',
+        I18n.t(
+          position === 'start'
+            ? 'announce.columnAddedLeft'
+            : 'announce.columnAddedRight',
+        ),
       );
     } else {
       Render.announce(
-        position === 'start'
-          ? 'Row added at the top.'
-          : 'Row added at the bottom.',
+        I18n.t(
+          position === 'start'
+            ? 'announce.rowAddedTop'
+            : 'announce.rowAddedBottom',
+        ),
       );
     }
   };
@@ -432,8 +439,14 @@
     refresh();
     fitCanvas();
     Render.focusCanvas();
+    const name = format.nameKey ? I18n.t(format.nameKey) : '';
     Render.announce(
-      `${format.label}${format.name ? ` ${format.name}` : ''} format selected, ${format.canvasW} by ${format.canvasH} pixels.`,
+      I18n.t(name ? 'format.selectedNamed' : 'format.selected', {
+        label: format.label,
+        name,
+        w: format.canvasW,
+        h: format.canvasH,
+      }),
     );
   };
 
@@ -689,7 +702,9 @@
       // The pointer may already be released.
     }
     if (moved && event.type === 'pointerup') {
-      Render.announce(`Photo zoom ${Math.round(zoom * 100)} percent.`);
+      Render.announce(
+        I18n.t('announce.zoom', { n: Math.round(zoom * 100) }),
+      );
     }
   };
 
@@ -702,7 +717,9 @@
     if (next === current) return;
     if (!State.setBoxZoom(target.box.id, next)) return;
     Render.updatePhoto();
-    Render.announce(`Photo zoom ${Math.round(next * 100)} percent.`);
+    Render.announce(
+      I18n.t('announce.zoom', { n: Math.round(next * 100) }),
+    );
   };
 
   const resetZoom = () => {
@@ -710,7 +727,7 @@
     if (!target) return;
     if (!State.setBoxZoom(target.box.id, 1)) return;
     Render.updatePhoto();
-    Render.announce('Photo zoom reset.');
+    Render.announce(I18n.t('announce.zoomReset'));
   };
 
   const pointerAngle = (event, center) =>
@@ -784,7 +801,9 @@
       // The pointer may already be released.
     }
     if (moved && event.type === 'pointerup') {
-      Render.announce(`Photo rotation ${Math.round(rotation)} degrees.`);
+      Render.announce(
+        I18n.t('announce.rotation', { n: Math.round(rotation) }),
+      );
     }
   };
 
@@ -797,7 +816,7 @@
     clampZoomToRange(target.box.id);
     Render.updatePhoto();
     Render.announce(
-      `Photo rotation ${Math.round(target.box.rotation)} degrees.`,
+      I18n.t('announce.rotation', { n: Math.round(target.box.rotation) }),
     );
   };
 
@@ -807,7 +826,7 @@
     if (!State.setBoxRotation(target.box.id, 0)) return;
     clampZoomToRange(target.box.id);
     Render.updatePhoto();
-    Render.announce('Photo rotation reset.');
+    Render.announce(I18n.t('announce.rotationReset'));
   };
 
   const groupExtentLocked = (layoutRow) =>
@@ -1212,7 +1231,9 @@
   });
 
   borderRange.addEventListener('change', () => {
-    Render.announce(`Border thickness ${State.borderThickness} pixels.`);
+    Render.announce(
+      I18n.t('announce.borderThickness', { n: State.borderThickness }),
+    );
   });
 
   marginColorButton.addEventListener('click', () => {
@@ -1232,7 +1253,9 @@
   });
 
   marginColorInput.addEventListener('change', () => {
-    Render.announce(`Margin color set to ${State.canvasColor}.`);
+    Render.announce(
+      I18n.t('announce.marginColor', { color: State.canvasColor }),
+    );
   });
 
   addRowTop.addEventListener('click', () => addRow('start'));
@@ -1254,7 +1277,10 @@
     const rebuilt = rail && rail.querySelector(`[data-row-id="${rowId}"]`);
     if (rebuilt) rebuilt.focus({ preventScroll: true });
     Render.announce(
-      `Image box added to ${isColumnMode() ? 'column' : 'row'} ${rowIndex + 1}.`,
+      I18n.t('announce.boxAdded', {
+        group: I18n.t(isColumnMode() ? 'group.column' : 'group.row'),
+        n: rowIndex + 1,
+      }),
     );
   };
 
@@ -1270,7 +1296,9 @@
       const boxId = box.dataset.boxId;
       if (State.selectedBoxId !== boxId && State.select(boxId)) {
         Render.paintSelection(State);
-        Render.announce(`Photo box ${boxNumber(boxId)} selected.`);
+        Render.announce(
+          I18n.t('announce.selected', { n: boxNumber(boxId) }),
+        );
       }
       return;
     }
@@ -1348,9 +1376,16 @@
     fitCanvas();
     const count = State.rows.length;
     Render.announce(
-      next === 'column'
-        ? `Column layout. ${count} column${count === 1 ? '' : 's'}.`
-        : `Row layout. ${count} row${count === 1 ? '' : 's'}.`,
+      I18n.t(
+        next === 'column'
+          ? count === 1
+            ? 'layout.columnOne'
+            : 'layout.columns'
+          : count === 1
+            ? 'layout.rowOne'
+            : 'layout.rows',
+        { count },
+      ),
     );
   });
 
@@ -1426,6 +1461,7 @@
   new ResizeObserver(queueFit).observe(editorArea);
   window.addEventListener('resize', queueFit);
 
+  I18n.apply();
   Render.init();
   applyCanvasColor();
   applyBorderThickness();

@@ -3,6 +3,8 @@
 A photo collage editor that runs entirely in your browser. Open the page, add
 rows and image boxes, and pick photos from your computer. Everything happens
 locally: no install, no build step, no network requests, and no uploads.
+The interface follows the browser language: German for a German locale, English
+otherwise.
 
 ## Open it
 

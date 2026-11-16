@@ -18,6 +18,7 @@ The editor shell is functional: a start screen that picks the canvas format (9:1
 - `index.html` — two-region shell with the format start screen, action bar (including the permanent row/column toggle and border-thickness slider), scaled canvas stage, add-group buttons, add-box rails, hidden file and color inputs, and live region.
 - `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, the mirrored column-mode stage, orientation-aware resize cursors, the border-thickness popover, focus/hover states, toast variants, reduced-motion handling.
 - `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges with the user-set padding/gap thickness, image-ratio locks (including full-size fitted groups), 40 px minimums, whole-pixel rounding, the transposed column layout, and the cover/zoom/pan/rotate photo rectangle shared with export.
+- `js/i18n.js` — English and German UI strings, selecting German for a `de` browser language and English otherwise, with declarative markup hooks.
 - `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, border thickness, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
 - `js/render.js` — renders the format buttons, rows/columns, boxes, contextual tools including the lock toggles, both rails, group/box boundary overlays in either orientation, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
@@ -167,6 +168,7 @@ css/styles.css        All styles, layout metrics as custom properties
 js/
   state.js            Editor state, weights, history, persistence
   layout.js           Format sizes, weight → pixel flow math, row/column group and box geometry
+  i18n.js             UI strings for the browser language (German for de, English otherwise)
   images.js           File loading, decoding, cover-crop, object URLs
   render.js           DOM rendering of the format screen, rows/columns, boxes and selection UI
   export.js           Offscreen canvas compositing at the chosen format → PNG/JPEG
@@ -235,6 +237,7 @@ Manual test checklist:
 
 - Modern JavaScript (ES2020+): `const`/`let`, arrow functions, template literals, `'use strict'` per file.
 - `kebab-case` for ids/classes, `camelCase` for JS, `UPPER_SNAKE_CASE` for constants.
+- All user-facing text lives in `js/i18n.js`; use `I18n.t()` in scripts and the `data-i18n*` attributes in markup.
 - One source of truth for state (`state.js`). DOM is a render target; never read editor state back out of the DOM.
 - Separate "mutate state" from "render". Route undoable mutations through one commit function.
 - Use `requestAnimationFrame` for visual updates; throttle pointermove work; avoid layout thrash and per-frame `toBlob()`.

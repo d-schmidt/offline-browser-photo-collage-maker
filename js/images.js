@@ -19,7 +19,7 @@ const Images = (() => {
       const image = new Image();
       image.decoding = 'async';
       image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error('An image could not be decoded.'));
+      image.onerror = () => reject(new Error(I18n.t('image.decodeFailed')));
       image.src = url;
     });
 
@@ -40,7 +40,7 @@ const Images = (() => {
   /** Load and decode a picked file, returning the data the box needs. */
   const load = async (file) => {
     if (!isImageFile(file)) {
-      throw new Error('That file is not an image. Choose a photo or another image file.');
+      throw new Error(I18n.t('image.notImage'));
     }
 
     const url = URL.createObjectURL(file);
@@ -50,7 +50,7 @@ const Images = (() => {
       return { url, width, height };
     } catch {
       URL.revokeObjectURL(url);
-      throw new Error('That image could not be opened. Try a different file.');
+      throw new Error(I18n.t('image.openFailed'));
     }
   };
 

@@ -103,9 +103,11 @@ const Export = (() => {
     const blob = await new Promise((resolve) =>
       canvas.toBlob(resolve, mime, jpeg ? 0.85 : undefined),
     );
-    if (!blob) throw new Error('The collage could not be encoded.');
+    if (!blob) throw new Error(I18n.t('export.encodeFailed'));
     if (blob.type !== mime) {
-      throw new Error(`This browser cannot export ${jpeg ? 'JPEG' : 'PNG'}.`);
+      throw new Error(
+        I18n.t('export.unsupported', { format: jpeg ? 'JPEG' : 'PNG' }),
+      );
     }
 
     const url = URL.createObjectURL(blob);

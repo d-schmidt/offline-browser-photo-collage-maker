@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Photo Collage Editor</title>
+  <title data-i18n="app.title">Photo Collage Editor</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="action-bar" id="action-bar" aria-label="Actions" hidden>
+  <header class="action-bar" id="action-bar" aria-label="Actions" data-i18n-aria-label="actions.label" hidden>
     <div class="action-bar-tools" id="selection-actions"></div>
     <button
       class="icon-button"
       id="orientation-button"
       type="button"
       aria-label="Toggle row or column layout"
+      data-i18n-aria-label="orientation.toggle"
       aria-pressed="false"
     ></button>
     <div class="border-menu-wrap" id="border-menu-wrap">
@@ -24,6 +25,7 @@
         type="button"
         data-icon="borderWeight"
         aria-label="Change border thickness"
+        data-i18n-aria-label="border.change"
         aria-haspopup="dialog"
         aria-expanded="false"
         aria-controls="border-menu"
@@ -33,10 +35,11 @@
         id="border-menu"
         role="dialog"
         aria-label="Border thickness"
+        data-i18n-aria-label="border.title"
         hidden
       >
         <div class="border-menu-head">
-          <label class="border-menu-label" for="border-range">Border thickness</label>
+          <label class="border-menu-label" for="border-range" data-i18n="border.title">Border thickness</label>
           <output class="border-menu-value" id="border-value" for="border-range">5 px</output>
         </div>
         <input
@@ -50,7 +53,7 @@
         >
       </div>
     </div>
-    <button class="icon-button" id="margin-color-button" type="button" data-icon="colorFill" aria-label="Change margin color"></button>
+    <button class="icon-button" id="margin-color-button" type="button" data-icon="colorFill" aria-label="Change margin color" data-i18n-aria-label="margin.change"></button>
     <div class="save-menu-wrap" id="save-menu-wrap">
       <button
         class="icon-button"
@@ -58,31 +61,32 @@
         type="button"
         data-icon="download"
         aria-label="Save collage as JPEG or PNG"
+        data-i18n-aria-label="save.button"
         aria-haspopup="menu"
         aria-expanded="false"
         aria-controls="save-menu"
       ></button>
-      <div class="save-menu" id="save-menu" role="menu" aria-label="Save format" hidden>
-        <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="jpeg">JPEG (.jpg)</button>
-        <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="png">PNG (.png)</button>
+      <div class="save-menu" id="save-menu" role="menu" aria-label="Save format" data-i18n-aria-label="save.menu" hidden>
+        <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="jpeg" data-i18n="save.jpeg">JPEG (.jpg)</button>
+        <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="png" data-i18n="save.png">PNG (.png)</button>
       </div>
     </div>
   </header>
 
   <main class="editor-area" id="editor-area">
     <section class="format-screen" id="format-screen" aria-labelledby="format-title">
-      <h1 class="format-title" id="format-title">Select format:</h1>
+      <h1 class="format-title" id="format-title" data-i18n="format.title">Select format:</h1>
       <div class="format-options" id="format-options" role="group" aria-labelledby="format-title"></div>
     </section>
 
     <div class="stage" id="stage" hidden>
-      <button class="icon-button" id="add-row-top" type="button" data-icon="add" aria-label="Add row above the canvas"></button>
+      <button class="icon-button" id="add-row-top" type="button" data-icon="add" aria-label="Add row above the canvas" data-i18n-aria-label="add.group.top"></button>
 
       <div class="canvas-line">
-        <div class="row-rail" id="row-rail-left" role="group" aria-label="Row actions, left side"></div>
+        <div class="row-rail" id="row-rail-left" role="group" aria-label="Row actions, left side" data-i18n-aria-label="rail.left"></div>
 
         <div class="canvas-wrap">
-          <section class="canvas" id="canvas" aria-label="Photo collage canvas" tabindex="-1">
+          <section class="canvas" id="canvas" aria-label="Photo collage canvas" data-i18n-aria-label="canvas.label" tabindex="-1">
             <div class="rows" id="rows"></div>
             <img class="zoom-overlay" id="zoom-overlay" alt="" draggable="false" hidden>
             <div
@@ -91,13 +95,15 @@
               role="slider"
               tabindex="0"
               aria-label="Photo zoom"
+              data-i18n-aria-label="zoom.label"
               aria-valuemin="1"
               aria-valuemax="6"
               aria-valuenow="1"
               title="Drag outwards to zoom the photo"
+              data-i18n-title="zoom.title"
               hidden
             ></div>
-            <p class="canvas-empty" id="canvas-empty" hidden>
+            <p class="canvas-empty" id="canvas-empty" data-i18n="empty.rows" hidden>
               No rows yet. Use the + button above or below the canvas to add one.
             </p>
             <div class="row-boundary" id="row-boundary" aria-hidden="true" hidden></div>
@@ -111,29 +117,32 @@
               role="slider"
               tabindex="0"
               aria-label="Photo rotation"
+              data-i18n-aria-label="rotate.label"
               aria-valuemin="-180"
               aria-valuemax="180"
               aria-valuenow="0"
               title="Drag around the photo to rotate it"
+              data-i18n-title="rotate.title"
               hidden
             ></div>
           </div>
         </div>
 
-        <div class="row-rail" id="row-rail-right" role="group" aria-label="Row actions, right side"></div>
+        <div class="row-rail" id="row-rail-right" role="group" aria-label="Row actions, right side" data-i18n-aria-label="rail.right"></div>
       </div>
 
-      <button class="icon-button" id="add-row-bottom" type="button" data-icon="add" aria-label="Add row below the canvas"></button>
+      <button class="icon-button" id="add-row-bottom" type="button" data-icon="add" aria-label="Add row below the canvas" data-i18n-aria-label="add.group.bottom"></button>
     </div>
 
     <div class="toast" id="toast" hidden></div>
   </main>
 
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
-  <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color">
+  <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color" data-i18n-aria-label="margin.label">
   <div class="visually-hidden" id="live-region" role="status" aria-live="polite"></div>
 
   <script src="js/layout.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/images.js"></script>
   <script src="js/state.js"></script>
   <script src="js/render.js"></script>

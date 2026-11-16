@@ -15,24 +15,24 @@ const formatSize = (ratioW, ratioH) => {
   };
 };
 
-const createFormat = (id, ratioW, ratioH, label, name, icon) =>
+const createFormat = (id, ratioW, ratioH, label, nameKey, icon) =>
   Object.freeze({
     id,
     ratioW,
     ratioH,
     label,
-    name,
+    nameKey,
     icon,
     ...formatSize(ratioW, ratioH),
   });
 
 /** Canvas formats offered on the start screen, in display order. */
 const FORMATS = Object.freeze([
-  createFormat('9x16', 9, 16, '9:16', 'Status', 'format9x16'),
-  createFormat('16x9', 16, 9, '16:9', 'Banner', 'format16x9'),
-  createFormat('7x9', 7, 9, '7:9', 'Portrait', 'format7x9'),
+  createFormat('9x16', 9, 16, '9:16', 'format.name.status', 'format9x16'),
+  createFormat('16x9', 16, 9, '16:9', 'format.name.banner', 'format16x9'),
+  createFormat('7x9', 7, 9, '7:9', 'format.name.portrait', 'format7x9'),
   createFormat('5x4', 5, 4, '5:4', '', 'format5x4'),
-  createFormat('1x1', 1, 1, '1:1', 'Square', 'format1x1'),
+  createFormat('1x1', 1, 1, '1:1', 'format.name.square', 'format1x1'),
 ]);
 
 // Logical layout metrics. These mirror the CSS custom properties in

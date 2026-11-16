@@ -90,7 +90,9 @@ const Render = (() => {
     button.classList.toggle('has-lock', locked);
     button.classList.toggle('is-selected', layoutBox.id === selectedId);
     button.setAttribute('aria-pressed', String(layoutBox.id === selectedId));
-    const label = hasImage ? `Photo box ${number}` : `Empty photo box ${number}`;
+    const label = hasImage
+      ? I18n.t('box.label', { n: number })
+      : I18n.t('box.labelEmpty', { n: number });
     button.setAttribute('aria-label', label);
     button.title = label;
 
@@ -98,7 +100,7 @@ const Render = (() => {
       const image = document.createElement('img');
       image.className = 'box-image';
       image.src = layoutBox.image.url;
-      image.alt = `Photo ${number}`;
+      image.alt = I18n.t('box.alt', { n: number });
       image.draggable = false;
       placeImage(
         image,
@@ -133,17 +135,23 @@ const Render = (() => {
     const lock = box ? box.lock : null;
     const canSquare = box ? state.canLockBox(box.id) : false;
     const canAspect = box ? state.canAspectLock(box.id) : false;
-    const group = state.orientation === 'column' ? 'column' : 'row';
+    const group = I18n.t(
+      state.orientation === 'column' ? 'group.column' : 'group.row',
+    );
     const limitHint =
       hasImage && !canSquare
-        ? `At least one box in a ${group} must stay unlocked`
+        ? I18n.t('hint.unlocked', { group })
         : null;
     const ratioHint =
       hasImage && canSquare && !canAspect
-        ? `Aspect locks in a ${group} must use the same image ratio`
+        ? I18n.t('hint.ratio', { group })
         : null;
 
-    const square = toolButton('lock-square', 'Lock square box', 'lockSquare');
+    const square = toolButton(
+      'lock-square',
+      I18n.t('action.lockSquare'),
+      'lockSquare',
+    );
     square.disabled = !canSquare;
     square.setAttribute('aria-pressed', String(lock === 'square'));
     square.classList.toggle('is-active', lock === 'square');
@@ -151,7 +159,7 @@ const Render = (() => {
 
     const aspect = toolButton(
       'lock-aspect',
-      'Lock image aspect ratio',
+      I18n.t('action.lockAspect'),
       'lockAspect',
     );
     aspect.disabled = !canAspect;
@@ -161,8 +169,8 @@ const Render = (() => {
     else if (ratioHint) aspect.title = ratioHint;
 
     refs.selectionActions.append(
-      toolButton('delete-box', 'Delete box', 'delete'),
-      toolButton('select-image', 'Select image', 'image'),
+      toolButton('delete-box', I18n.t('action.delete'), 'delete'),
+      toolButton('select-image', I18n.t('action.selectImage'), 'image'),
       square,
       aspect,
     );
@@ -229,7 +237,7 @@ const Render = (() => {
     );
     refs.rotateHandle.setAttribute(
       'aria-valuetext',
-      `${Math.round(box.rotation)} degrees`,
+      I18n.t('rotate.value', { n: Math.round(box.rotation) }),
     );
 
     const rect = Layout.imageRect(
@@ -289,10 +297,15 @@ const Render = (() => {
     const column = layout.column;
     const fragment = document.createDocumentFragment();
     layout.rows.forEach((layoutRow, index) => {
-      const place = side === 'left' ? 'above' : 'below';
       const label = column
-        ? `Add image box to column ${index + 1} ${place}`
-        : `Add image box to row ${index + 1} on the ${side}`;
+        ? I18n.t(
+            side === 'left' ? 'add.box.columnTop' : 'add.box.columnBottom',
+            { n: index + 1 },
+          )
+        : I18n.t(
+            side === 'left' ? 'add.box.rowLeft' : 'add.box.rowRight',
+            { n: index + 1 },
+          );
       const button = toolButton('add-box', label, 'add');
       button.classList.add('rail-button');
       button.dataset.rowId = layoutRow.id;
@@ -419,12 +432,15 @@ const Render = (() => {
       button.className = 'format-button';
       button.dataset.format = format.id;
 
-      const label = format.name
-        ? `${format.label} ${format.name}`
-        : format.label;
+      const name = format.nameKey ? I18n.t(format.nameKey) : '';
+      const label = name ? `${format.label} ${name}` : format.label;
       button.setAttribute(
         'aria-label',
-        `${label}, ${format.canvasW} × ${format.canvasH} pixels`,
+        I18n.t('format.aria', {
+          label,
+          w: format.canvasW,
+          h: format.canvasH,
+        }),
       );
       button.append(iconElement(format.icon));
 
@@ -433,11 +449,11 @@ const Render = (() => {
       ratio.textContent = format.label;
       button.append(ratio);
 
-      if (format.name) {
-        const name = document.createElement('span');
-        name.className = 'format-name';
-        name.textContent = format.name;
-        button.append(name);
+      if (name) {
+        const nameElement = document.createElement('span');
+        nameElement.className = 'format-name';
+        nameElement.textContent = name;
+        button.append(nameElement);
       }
 
       const size = document.createElement('span');
@@ -457,7 +473,9 @@ const Render = (() => {
     const column = state.orientation === 'column';
     const button = refs.orientationButton;
     button.setAttribute('aria-pressed', String(column));
-    button.title = column ? 'Switch to row layout' : 'Switch to column layout';
+    button.title = I18n.t(
+      column ? 'orientation.toRow' : 'orientation.toColumn',
+    );
     if (button.dataset.orientation !== state.orientation) {
       button.dataset.orientation = state.orientation;
       const icon = iconElement('mode');
@@ -478,31 +496,27 @@ const Render = (() => {
     refs.canvas.classList.toggle('is-column-mode', column);
     refs.railLeft.setAttribute(
       'aria-label',
-      column ? 'Column actions, above the canvas' : 'Row actions, left side',
+      I18n.t(column ? 'rail.top' : 'rail.left'),
     );
     refs.railRight.setAttribute(
       'aria-label',
-      column ? 'Column actions, below the canvas' : 'Row actions, right side',
+      I18n.t(column ? 'rail.bottom' : 'rail.right'),
     );
-    refs.empty.textContent = column
-      ? 'No columns yet. Use the + button to the left or right of the canvas to add one.'
-      : 'No rows yet. Use the + button above or below the canvas to add one.';
+    refs.empty.textContent = I18n.t(
+      column ? 'empty.columns' : 'empty.rows',
+    );
     paintOrientation(state);
   };
 
   const paintAddGroupButtons = (column) => {
     refs.addRowTop.setAttribute(
       'aria-label',
-      column
-        ? 'Add column to the left of the canvas'
-        : 'Add row above the canvas',
+      I18n.t(column ? 'add.group.left' : 'add.group.top'),
     );
     refs.addRowTop.title = refs.addRowTop.getAttribute('aria-label');
     refs.addRowBottom.setAttribute(
       'aria-label',
-      column
-        ? 'Add column to the right of the canvas'
-        : 'Add row below the canvas',
+      I18n.t(column ? 'add.group.right' : 'add.group.bottom'),
     );
     refs.addRowBottom.title = refs.addRowBottom.getAttribute('aria-label');
   };
