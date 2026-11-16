@@ -10,6 +10,8 @@
   const addRowBottom = document.getElementById('add-row-bottom');
   const actionBar = document.getElementById('action-bar');
   const saveButton = document.getElementById('save-button');
+  const saveMenuWrap = document.getElementById('save-menu-wrap');
+  const saveMenu = document.getElementById('save-menu');
   const marginColorButton = document.getElementById('margin-color-button');
   const marginColorInput = document.getElementById('margin-color-input');
   const rowsLayer = document.getElementById('rows');
@@ -26,6 +28,7 @@
   let zoomDrag = null;
   let rotateDrag = null;
   let ignoreCanvasClickUntil = 0;
+  let saveMenuOpen = false;
 
   // Boundary grab bands are measured in screen pixels so they stay finger
   // sized however far the 1080 px canvas is scaled down. Touch gets a wider
@@ -173,14 +176,37 @@
     }
   };
 
-  const saveCollage = async () => {
+  const saveMenuItems = () =>
+    Array.from(saveMenu.querySelectorAll('[role="menuitem"]'));
+
+  const openSaveMenu = (focusLast = false) => {
+    if (saveMenuOpen || saveButton.disabled) return;
+    saveMenuOpen = true;
+    saveMenu.hidden = false;
+    saveButton.setAttribute('aria-expanded', 'true');
+    const items = saveMenuItems();
+    const item = focusLast ? items[items.length - 1] : items[0];
+    if (item) item.focus({ preventScroll: true });
+  };
+
+  const closeSaveMenu = (restoreFocus = false) => {
+    if (!saveMenuOpen) return;
+    saveMenuOpen = false;
+    saveMenu.hidden = true;
+    saveButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) saveButton.focus({ preventScroll: true });
+  };
+
+  const saveCollage = async (format) => {
     if (saveButton.disabled) return;
     saveButton.disabled = true;
     saveButton.setAttribute('aria-busy', 'true');
-    Render.announce('Saving collage as PNG…');
+    Render.announce(
+      `Saving collage as ${format === 'jpeg' ? 'JPEG' : 'PNG'}…`,
+    );
 
     try {
-      const filename = await Export.save(State);
+      const filename = await Export.save(State, format);
       Render.toast(`Saved ${filename}.`);
     } catch (error) {
       Render.toast(error.message || 'The collage could not be saved.', true);
@@ -881,6 +907,61 @@
 
   // --- wiring -------------------------------------------------------------
 
+  saveButton.addEventListener('click', () => {
+    if (saveMenuOpen) closeSaveMenu(true);
+    else openSaveMenu();
+  });
+
+  saveButton.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      openSaveMenu(event.key === 'ArrowUp');
+    } else if (event.key === 'Escape' && saveMenuOpen) {
+      event.preventDefault();
+      closeSaveMenu();
+    }
+  });
+
+  saveMenu.addEventListener('click', (event) => {
+    const item = event.target.closest('button[data-format]');
+    if (!item) return;
+    const format = item.dataset.format === 'jpeg' ? 'jpeg' : 'png';
+    closeSaveMenu(true);
+    saveCollage(format);
+  });
+
+  saveMenu.addEventListener('keydown', (event) => {
+    const items = saveMenuItems();
+    if (items.length === 0) return;
+
+    const current = items.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
+    else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeSaveMenu(true);
+      return;
+    } else if (event.key === 'Tab') {
+      closeSaveMenu();
+      return;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
+  });
+
+  document.addEventListener('pointerdown', (event) => {
+    if (!saveMenuOpen) return;
+    if (saveMenuWrap.contains(event.target)) return;
+    closeSaveMenu();
+  });
+
   marginColorButton.addEventListener('click', () => {
     try {
       if (typeof marginColorInput.showPicker === 'function') {
@@ -1002,11 +1083,6 @@
   actionBar.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
-
-    if (button.dataset.action === 'save') {
-      saveCollage();
-      return;
-    }
 
     const boxId = State.selectedBoxId;
     if (!boxId) return;

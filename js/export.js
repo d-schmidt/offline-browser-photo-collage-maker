@@ -8,11 +8,11 @@ const Export = (() => {
 
   const pad = (value) => String(value).padStart(2, '0');
 
-  /** Local-time download name: collage-yyyy-MM-dd-HH-mm.png */
-  const filename = (date = new Date()) =>
+  /** Local-time download name: collage-yyyy-MM-dd-HH-mm.<extension> */
+  const filename = (extension, date = new Date()) =>
     `collage-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
       date.getDate(),
-    )}-${pad(date.getHours())}-${pad(date.getMinutes())}.png`;
+    )}-${pad(date.getHours())}-${pad(date.getMinutes())}.${extension}`;
 
   const drawPhoto = (ctx, image, box, pageX, pageY) => {
     const source = {
@@ -88,15 +88,26 @@ const Export = (() => {
     return canvas;
   };
 
-  /** Composite the current collage and trigger a PNG download. */
-  const save = async (state) => {
+  /**
+   * Composite the current collage and trigger a download. `format` is `png`
+   * (lossless, the default) or `jpeg` at 85% quality.
+   */
+  const save = async (state, format = 'png') => {
+    const jpeg = format === 'jpeg';
+    const mime = jpeg ? 'image/jpeg' : 'image/png';
+    const extension = jpeg ? 'jpg' : 'png';
     const canvas = await buildCanvas(state);
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('The collage could not be encoded as a PNG.');
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, mime, jpeg ? 0.85 : undefined),
+    );
+    if (!blob) throw new Error('The collage could not be encoded.');
+    if (blob.type !== mime) {
+      throw new Error(`This browser cannot export ${jpeg ? 'JPEG' : 'PNG'}.`);
+    }
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const name = filename();
+    const name = filename(extension);
     link.href = url;
     link.download = name;
     document.body.append(link);

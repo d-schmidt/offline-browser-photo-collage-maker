@@ -11,7 +11,22 @@
   <header class="action-bar" id="action-bar" aria-label="Actions">
     <div class="action-bar-tools" id="selection-actions"></div>
     <button class="icon-button" id="margin-color-button" type="button" data-icon="dashboard" aria-label="Change margin color"></button>
-    <button class="icon-button" id="save-button" type="button" data-icon="download" data-action="save" aria-label="Save collage as PNG"></button>
+    <div class="save-menu-wrap" id="save-menu-wrap">
+      <button
+        class="icon-button"
+        id="save-button"
+        type="button"
+        data-icon="download"
+        aria-label="Save collage as JPEG or PNG"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="save-menu"
+      ></button>
+      <div class="save-menu" id="save-menu" role="menu" aria-label="Save format" hidden>
+        <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="jpeg">JPEG (.jpg)</button>
+        <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="png">PNG (.png)</button>
+      </div>
+    </div>
   </header>
 
   <main class="editor-area" id="editor-area">

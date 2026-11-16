@@ -11,7 +11,7 @@
 
 ## Current state
 
-The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks with full-width single-image rows, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and PNG save/export.
+The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks with full-width single-image rows, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and JPEG/PNG save/export.
 
 **Working:**
 
@@ -21,7 +21,7 @@ The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/
 - `js/state.js` — rows, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, canvas margin color, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
 - `js/render.js` — renders rows, boxes, contextual tools including the lock toggles, both rails, row/box boundary overlays, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
-- `js/export.js` — offscreen `1080 × 1920` PNG compositing using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
+- `js/export.js` — offscreen `1080 × 1920` JPEG/PNG compositing using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
 - `js/main.js` — event wiring, file picker, margin-color picker, save action, lock toggles, keyboard navigation/deletion, row- and box-boundary dragging with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
 - `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, and margin-color icons.
@@ -53,7 +53,7 @@ Define once as CSS custom properties on `:root` and mirror them in JS constants:
 
 | Token | Value | Meaning |
 | --- | --- | --- |
-| `--canvas-w` / `--canvas-h` | 1080 × 1920 px | Fixed logical canvas size (9:16). Never changes with content. Matches the PNG export size. |
+| `--canvas-w` / `--canvas-h` | 1080 × 1920 px | Fixed logical canvas size (9:16). Never changes with content. Matches the export size. |
 | `--canvas-pad` | 5 px | White padding inside the canvas, all sides |
 | `--gap` | 5 px | White margin around every image box; adjacent boxes show 10 px between them, and the canvas edges show 5 px padding plus 5 px margin |
 | `--placeholder` | `#d9d9d9` | Empty image box fill; a centered add-photo icon marks the drop target |
@@ -87,16 +87,16 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
   - A row with multiple boxes can have at most `n − 1` locks. The remaining unlocked box is forced to fill whatever width is left. Deleting the forced box can leave only locked boxes, so the last lock is released automatically to restore the rule.
   - Aspect-ratio locks are further limited to one ratio per row: the first aspect-locked image sets the row's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
   - A row with a single box may lock that box. Its row-height handles are then disabled: a square lock keeps its width derived from the row height, while an aspect lock derives the row height from the full width and centres the box if the row minimum makes it shorter.
-- **Margin color** (`dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by the PNG export.
-- **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — composites the fixed 1080 × 1920 canvas offscreen and downloads it as a PNG named `collage-yyyy-MM-dd-HH-mm.png` from the local save time. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
+- **Margin color** (`dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by both export formats.
+- **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens a small menu below the button with **JPEG (.jpg)** and **PNG (.png)**. Both composite the fixed 1080 × 1920 canvas offscreen and download it as `collage-yyyy-MM-dd-HH-mm.<ext>` using the local save time; JPEG is encoded at 85% quality. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
 - Only boxes have contextual actions; the margin-color picker and Save are global.
 
 ### Direct manipulation
 
 - **Zoom a photo** — selecting a box that has a photo shows an 18 px circle in its bottom-right corner (screen-sized at any canvas scale). An invisible 40 px grab pad extends up-left from the dot so the target stays finger-sized without changing the visual. Pointer-drag the circle away from the box centre to scale the photo; the zoom factor follows the distance ratio, so pulling to twice the starting distance shows 2×. 1× is the cover crop for the current rotation; dragging inward goes below 1× until the whole rotated photo fits in the box (the canvas background shows around it), and outward stops at six times the unrotated cover. The range is recalculated when the photo is rotated or the box is resized. The circle is a `role="slider"`: arrow keys zoom and `Home` resets to the cover crop. While the box's aspect-ratio lock is active, the zoom circle is hidden and the state ignores zoom changes.
 - **Rotate a photo** — a second 18 px circle sits 14 screen px outside the same corner, in an unclipped chrome layer so it stays reachable when the box touches the canvas edge. Its invisible grab pad extends 40 px down-right, away from the zoom pad so the two targets do not fight. Drag it around the box centre to rotate the photo in degrees. At 1× the image scales up just enough that its rotated rectangle still covers the box, so no gap appears; zooming out below 1× then trades that cover for showing more of the photo, down to the fit scale. Arrow keys rotate ±1° (Shift ±15°) and `Home` resets. The rotation is stored per box in the (−180, 180] range and resets when the photo is replaced.
-- **Pan a photo** — while the box is selected, pointer-drag the photo itself, or the canvas background under its ghost, to move it within the crop. Panning stops at the image edges, so it never reveals more background than the current zoom already shows. Offsets are stored as −1…1 shares of the rotation-aware slack on each screen axis, so the framing survives row and box resizes and is preserved through PNG export.
-- **Ghost overlay** — while an image box is selected, the full photo is drawn at 32% opacity behind the box but above its siblings, showing the parts outside the crop as a drag reference. It follows the zoom and rotation. It is DOM chrome: the PNG export draws only the cropped, zoomed, rotated photo. The ghost and both circles vanish as soon as the selection clears or moves to another box.
+- **Pan a photo** — while the box is selected, pointer-drag the photo itself, or the canvas background under its ghost, to move it within the crop. Panning stops at the image edges, so it never reveals more background than the current zoom already shows. Offsets are stored as −1…1 shares of the rotation-aware slack on each screen axis, so the framing survives row and box resizes and is preserved through export.
+- **Ghost overlay** — while an image box is selected, the full photo is drawn at 32% opacity behind the box but above its siblings, showing the parts outside the crop as a drag reference. It follows the zoom and rotation. It is DOM chrome: the export draws only the cropped, zoomed, rotated photo. The ghost and both circles vanish as soon as the selection clears or moves to another box.
 - **Drag a box** — planned, not built: pointer-drag on a selected box reorders it within or across rows. Until reordering lands, a drag on a selected photo pans it instead.
 - **Resize a box** — hovering the white gap between two boxes in the same row highlights it with a 2 px vertical accent line and shows a column-resize cursor. The grab band is measured in screen pixels (8 px around the boundary for a mouse, 22 px for touch) and extends over the boxes, so it stays usable when the canvas is scaled down. Dragging moves that boundary, trading width between the two boxes while every other box keeps its width. Both boxes are clamped to the 40 px minimum. Height always follows the row. A boundary touching a locked box is not draggable.
 - **Resize a row** — hovering the white gap between two rows highlights it with a 2 px accent line across the canvas and shows a row-resize cursor. The same screen-sized grab band widens for touch. Dragging moves that boundary, trading height between the two adjacent rows while the canvas height and every other row stay fixed. Both rows are clamped to the 40 px minimum. Locked boxes recalculate their width from the new height so their ratio is preserved. A boundary adjacent to a single-box locked row is not draggable.
@@ -151,7 +151,7 @@ js/
   layout.js           Weight → pixel flow math, row/box geometry
   images.js           File loading, decoding, cover-crop, object URLs
   render.js           DOM rendering of rows/boxes and selection UI
-  export.js           Offscreen canvas compositing → 1080 × 1920 PNG
+  export.js           Offscreen canvas compositing → 1080 × 1920 PNG/JPEG
   main.js             Wiring, events, startup
 assets/               Material Symbols SVG icons (supplied + download)
 serve.py              Optional stdlib-only dev server (localhost)
@@ -195,9 +195,9 @@ Manual test checklist:
 - Rotate a photo at 1×, then resize its row and box: the rotation stays, the crop continues to cover the box, and the rotate circle keeps tracking the corner — including when the corner sits on the canvas edge, where the unclipped chrome layer keeps it clickable.
 - Drag the selected photo, or the background under its ghost: it pans within the crop, stops at the image edges, and the ghost moves with it. Resize its row or box and confirm the framing stays proportional. Panning still respects the tighter slack of a rotated photo.
 - Select another box or clear the selection: both circles and the ghost disappear. Select an image box again: the saved zoom/pan/rotation return. Replace the photo: zoom, pan, and rotation all reset.
-- Save while zoomed, panned, and rotated: the PNG matches the visible crop, with no ghost, circles, or selection border.
-- Click Save; confirm a 1080 × 1920 PNG downloads and matches the canvas without selection borders.
-- Click the margin-color button; pick a color and confirm the canvas padding/gaps change live and the exported PNG uses that color.
+- Save while zoomed, panned, and rotated: the exported PNG and JPEG match the visible crop, with no ghost, circles, or selection border.
+- Click Save; confirm a menu opens below the button with JPEG and PNG. Each downloads a 1080 × 1920 file with the matching extension and matches the canvas without selection borders. Confirm the menu closes with Escape, an outside click, or after choosing a format.
+- Click the margin-color button; pick a color and confirm the canvas padding/gaps change live and the exported file uses that color.
 - Hover between two boxes in a row: vertical blue line and column-resize cursor; drag to trade widths down to 40 px.
 - Hover between two rows: horizontal blue line and row-resize cursor; drag to trade heights down to 40 px.
 - Drag a selected photo: it pans rather than reorders until drag reordering is built.
@@ -234,7 +234,7 @@ Manual test checklist:
 Defaults chosen for v1 — change them here before implementation if wrong:
 
 1. **Drag semantics:** reorder by weight, not free placement. Free positioning would conflict with the flex-flow requirement.
-2. **Canvas size:** 1080 × 1920 (9:16), configurable in one constant, matching the 1080 × 1920 PNG export target.
+2. **Canvas size:** 1080 × 1920 (9:16), configurable in one constant, matching the 1080 × 1920 export target.
 3. **Resize axes:** box width only; row heights come from row-boundary drags. Vertical box handles are omitted.
 4. **Persistence and undo/redo:** planned next, not in v1. State is already weight-based, so both are cheap to add once the model is stable.
 
