@@ -36,6 +36,7 @@ locally: no install, no build step, no network requests, and no uploads.
 - The canvas (1080 px on its shorter side, longer side set by the chosen
   format) scales to fit the window without changing its layout.
 - **Margin color** in the action bar opens the system color picker and recolors the canvas padding and gaps; the export uses the same color.
+- **Border thickness** in the action bar opens a slider from 0 to 100 px that sets the canvas padding and every gap together. The default 5 px keeps the classic look (10 px between boxes and at the canvas edge); 0 removes all margins so the photos touch and the margin color disappears. The export uses the same thickness.
 - **Save** opens a menu for JPEG or PNG. Both download a file at the chosen canvas size named `collage-yyyy-MM-dd-HH-mm.jpg` or `.png` using the local save time; JPEG uses 85% quality. The export matches the on-screen layout in either mode.
 
 Keyboard: on the start screen, `Tab` moves between formats and `Enter` or

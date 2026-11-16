@@ -13,6 +13,11 @@
   const saveMenuWrap = document.getElementById('save-menu-wrap');
   const saveMenu = document.getElementById('save-menu');
   const orientationButton = document.getElementById('orientation-button');
+  const borderButton = document.getElementById('border-button');
+  const borderMenuWrap = document.getElementById('border-menu-wrap');
+  const borderMenu = document.getElementById('border-menu');
+  const borderRange = document.getElementById('border-range');
+  const borderValue = document.getElementById('border-value');
   const marginColorButton = document.getElementById('margin-color-button');
   const marginColorInput = document.getElementById('margin-color-input');
   const rowsLayer = document.getElementById('rows');
@@ -32,6 +37,8 @@
   let rotateDrag = null;
   let ignoreCanvasClickUntil = 0;
   let saveMenuOpen = false;
+  let borderMenuOpen = false;
+  let borderFrame = 0;
 
   // Boundary grab bands are measured in screen pixels so they stay finger
   // sized however far the 1080 px canvas is scaled down. Touch gets a wider
@@ -45,6 +52,8 @@
   const isColumnMode = () => State.orientation === 'column';
 
   const refresh = () => {
+    // Padding and gaps come from state, so sync the layout before computing.
+    Layout.setBorderThickness(State.borderThickness);
     layout = Layout.compute(State.rows, State.orientation);
     Render.paint(State, layout);
   };
@@ -80,6 +89,31 @@
   const applyCanvasColor = () => {
     document.documentElement.style.setProperty('--canvas-bg', State.canvasColor);
     marginColorInput.value = State.canvasColor;
+  };
+
+  /**
+   * The canvas padding and every box gap share one thickness, so the range
+   * slider and its readout mirror the state value. The CSS tokens are updated
+   * for documentation only; the geometry itself comes from Layout.
+   */
+  const applyBorderThickness = () => {
+    const thickness = State.borderThickness;
+    document.documentElement.style.setProperty('--canvas-pad', `${thickness}px`);
+    document.documentElement.style.setProperty('--gap', `${thickness}px`);
+    borderRange.value = String(thickness);
+    borderRange.setAttribute('aria-valuetext', `${thickness} pixels`);
+    borderValue.textContent = `${thickness} px`;
+  };
+
+  // Every slider step reflows the whole canvas, so coalesce the input events
+  // into at most one repaint per frame.
+  const queueBorderRefresh = () => {
+    if (borderFrame) return;
+    borderFrame = requestAnimationFrame(() => {
+      borderFrame = 0;
+      applyBorderThickness();
+      refresh();
+    });
   };
 
   const boxNumber = (boxId) => {
@@ -210,6 +244,7 @@
 
   const openSaveMenu = (focusLast = false) => {
     if (saveMenuOpen || saveButton.disabled) return;
+    closeBorderMenu();
     saveMenuOpen = true;
     saveMenu.hidden = false;
     saveButton.setAttribute('aria-expanded', 'true');
@@ -224,6 +259,23 @@
     saveMenu.hidden = true;
     saveButton.setAttribute('aria-expanded', 'false');
     if (restoreFocus) saveButton.focus({ preventScroll: true });
+  };
+
+  const openBorderMenu = () => {
+    if (borderMenuOpen) return;
+    closeSaveMenu();
+    borderMenuOpen = true;
+    borderMenu.hidden = false;
+    borderButton.setAttribute('aria-expanded', 'true');
+    borderRange.focus({ preventScroll: true });
+  };
+
+  const closeBorderMenu = (restoreFocus = false) => {
+    if (!borderMenuOpen) return;
+    borderMenuOpen = false;
+    borderMenu.hidden = true;
+    borderButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) borderButton.focus({ preventScroll: true });
   };
 
   const saveCollage = async (format) => {
@@ -846,7 +898,7 @@
           const left = row.boxes[index];
           const right = row.boxes[index + 1];
           if (left.locked || right.locked) continue;
-          const boundary = row.x + left.x + left.w + METRICS.gap;
+          const boundary = row.x + left.x + left.w + layout.gap;
           // Keep the touch band from swallowing a whole narrow box.
           const tolerance = Math.min(reach, Math.min(left.w, right.w) / 2);
           const distance = Math.abs(x - boundary);
@@ -874,7 +926,7 @@
           const upper = row.boxes[index];
           const lower = row.boxes[index + 1];
           if (upper.locked || lower.locked) continue;
-          const boundary = row.y + upper.y + upper.h + METRICS.gap;
+          const boundary = row.y + upper.y + upper.h + layout.gap;
           // Keep the touch band from swallowing a whole short box.
           const tolerance = Math.min(reach, Math.min(upper.h, lower.h) / 2);
           const distance = Math.abs(y - boundary);
@@ -1036,8 +1088,8 @@
         axis: boxDrag.axis,
         boundary:
           boxDrag.axis === 'x'
-            ? group.x + box.x + box.w + METRICS.gap
-            : group.y + box.y + box.h + METRICS.gap,
+            ? group.x + box.x + box.w + layout.gap
+            : group.y + box.y + box.h + layout.gap,
         start: boxDrag.axis === 'x' ? group.y + box.y : group.x + box.x,
         extent: boxDrag.axis === 'x' ? box.h : box.w,
       });
@@ -1130,9 +1182,37 @@
   });
 
   document.addEventListener('pointerdown', (event) => {
-    if (!saveMenuOpen) return;
-    if (saveMenuWrap.contains(event.target)) return;
-    closeSaveMenu();
+    if (saveMenuOpen && !saveMenuWrap.contains(event.target)) closeSaveMenu();
+    if (borderMenuOpen && !borderMenuWrap.contains(event.target)) {
+      closeBorderMenu();
+    }
+  });
+
+  borderButton.addEventListener('click', () => {
+    if (borderMenuOpen) closeBorderMenu(true);
+    else openBorderMenu();
+  });
+
+  borderMenu.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeBorderMenu(true);
+    }
+  });
+
+  // Tabbing out of the popover closes it, so the slider never stays open
+  // while focus is on a control elsewhere in the action bar.
+  borderMenuWrap.addEventListener('focusout', (event) => {
+    if (!borderMenuWrap.contains(event.relatedTarget)) closeBorderMenu();
+  });
+
+  borderRange.addEventListener('input', () => {
+    if (!State.setBorderThickness(Number(borderRange.value))) return;
+    queueBorderRefresh();
+  });
+
+  borderRange.addEventListener('change', () => {
+    Render.announce(`Border thickness ${State.borderThickness} pixels.`);
   });
 
   marginColorButton.addEventListener('click', () => {
@@ -1348,6 +1428,7 @@
 
   Render.init();
   applyCanvasColor();
+  applyBorderThickness();
   Render.paintFormats(FORMATS, chooseFormat);
   refresh();
 

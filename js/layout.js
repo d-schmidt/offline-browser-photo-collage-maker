@@ -38,21 +38,31 @@ const FORMATS = Object.freeze([
 // Logical layout metrics. These mirror the CSS custom properties in
 // styles.css; the editor always computes in these fixed pixels and the canvas
 // is only visually scaled to fit the viewport. The canvas size comes from the
-// chosen format.
+// chosen format. The padding and the box gap are not fixed: the border
+// thickness slider sets both, so 5 px gives the classic 10 px separation and
+// 0 px removes the margin color from the canvas entirely.
 const METRICS = Object.freeze({
   pad: 5,
   gap: 5,
   minRowH: 40,
   minBoxW: 40,
   maxZoom: 6,
+  maxBorder: 100,
 });
 
 const Layout = (() => {
-  const { pad, gap, minRowH, minBoxW, maxZoom } = METRICS;
+  const { minRowH, minBoxW, maxZoom, maxBorder } = METRICS;
   let canvasW = FORMATS[0].canvasW;
   let canvasH = FORMATS[0].canvasH;
-  let contentW = canvasW - 2 * pad;
-  let contentH = canvasH - 2 * pad;
+  // Padding and gap share one thickness, adjustable from 0 to 100 px.
+  let thickness = METRICS.pad;
+  let contentW = canvasW - 2 * thickness;
+  let contentH = canvasH - 2 * thickness;
+
+  const syncContent = () => {
+    contentW = Math.max(0, canvasW - 2 * thickness);
+    contentH = Math.max(0, canvasH - 2 * thickness);
+  };
 
   /**
    * Switch the logical canvas size to a format. Weights are relative, so the
@@ -61,8 +71,20 @@ const Layout = (() => {
   const setCanvasSize = (width, height) => {
     canvasW = width;
     canvasH = height;
-    contentW = width - 2 * pad;
-    contentH = height - 2 * pad;
+    syncContent();
+  };
+
+  /**
+   * Set the canvas padding and the gap around every box together. The value is
+   * in logical pixels: 0 removes the margin color around and between photos,
+   * while the 100 px ceiling still leaves the 1080 px canvas usable.
+   */
+  const setBorderThickness = (value) => {
+    const next = clamp(Math.round(Number(value) || 0), 0, maxBorder);
+    if (next === thickness) return false;
+    thickness = next;
+    syncContent();
+    return true;
   };
 
   const clamp = (value, minimum, maximum) =>
@@ -300,22 +322,27 @@ const Layout = (() => {
   };
 
   const placeBoxes = (row, rowH, contentWidth, column, fitBoxH = null) => {
-    const rowBoxH = Math.max(0, rowH - 2 * gap);
+    const rowBoxH = Math.max(0, rowH - 2 * thickness);
     // A single aspect-locked box derives its height from the full row width,
     // so it can be shorter than the row minimum (centre it) or a fraction of a
     // pixel taller than the rounded row (it eats into the next row's gap).
     const boxH = fitBoxH === null ? rowBoxH : fitBoxH;
-    const boxY = gap + Math.max(0, (rowBoxH - boxH) / 2);
+    const boxY = thickness + Math.max(0, (rowBoxH - boxH) / 2);
     // Every box contributes a gap on both sides. The canvas padding supplies
     // the outer half of the edge margin; between two boxes the two margins add
     // up to twice the gap, so spacing matches the rows above and below.
-    const available = Math.max(0, contentWidth - 2 * gap * row.boxes.length);
+    const available = Math.max(
+      0,
+      contentWidth - 2 * thickness * row.boxes.length,
+    );
     const widths = boxWidths(row.boxes, boxH, available, column);
     const used = widths.reduce((sum, width) => sum + width, 0);
     const fills = Math.abs(used - available) < 0.01;
 
-    const start = pad + gap;
-    const limit = pad + contentWidth - gap;
+    // Boxes are positioned inside their group: one padding plus one gap at the
+    // start, and the mirrored margin at the far edge.
+    const start = 2 * thickness;
+    const limit = contentWidth;
     let cursor = start;
     let exact = start;
     return widths.map((width, index) => {
@@ -325,8 +352,8 @@ const Layout = (() => {
       // stays left-aligned instead of stretching and breaking the ratio.
       const end = last && fills ? limit : Math.min(Math.round(exact), limit);
       const x = Math.min(cursor, limit);
-      cursor = end + 2 * gap;
-      exact += 2 * gap;
+      cursor = end + 2 * thickness;
+      exact += 2 * thickness;
       return {
         id: row.boxes[index].id,
         image: row.boxes[index].image,
@@ -355,7 +382,7 @@ const Layout = (() => {
     const box = row.boxes[0];
     if (box.lock !== 'aspect' || !isLocked(box)) return null;
     const ratio = column ? 1 / box.ratio : box.ratio;
-    return (contentWidth - 2 * gap) / ratio;
+    return (contentWidth - 2 * thickness) / ratio;
   };
 
   const placeRows = (rows, contentWidth, contentHeight, column) => {
@@ -381,7 +408,7 @@ const Layout = (() => {
       heights = new Array(rows.length).fill(contentHeight / rows.length);
     } else {
       const idealRows = fits.map((boxH) =>
-        boxH === null ? null : Math.max(minRowH, boxH + 2 * gap),
+        boxH === null ? null : Math.max(minRowH, boxH + 2 * thickness),
       );
       const fitBudget =
         contentHeight - minRowH * (rows.length - fitIndices.length);
@@ -431,15 +458,15 @@ const Layout = (() => {
       }
     }
 
-    let cursor = pad;
-    let exact = pad;
+    let cursor = thickness;
+    let exact = thickness;
     return heights.map((height, index) => {
       exact += height;
       const last = index === heights.length - 1;
       // Groups whose fitted boxes need less than the full canvas stay
       // start-aligned; only the normal weighted layout reaches the far edge.
       const end = last
-        ? Math.min(pad + contentHeight, Math.round(exact))
+        ? Math.min(thickness + contentHeight, Math.round(exact))
         : Math.round(exact);
       const y = cursor;
       cursor = end;
@@ -467,8 +494,8 @@ const Layout = (() => {
     return {
       contentW,
       contentH,
-      pad,
-      gap,
+      pad: thickness,
+      gap: thickness,
       column,
       rows: placed.map(({ row, y, h, fitBoxH }) => {
         const boxes = placeBoxes(row, h, flowW, column, fitBoxH);
@@ -502,6 +529,7 @@ const Layout = (() => {
     maxZoom,
     minZoom: 1,
     setCanvasSize,
+    setBorderThickness,
     get canvasW() {
       return canvasW;
     },

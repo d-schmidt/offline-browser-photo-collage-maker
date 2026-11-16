@@ -17,6 +17,39 @@
       aria-label="Toggle row or column layout"
       aria-pressed="false"
     ></button>
+    <div class="border-menu-wrap" id="border-menu-wrap">
+      <button
+        class="icon-button"
+        id="border-button"
+        type="button"
+        data-icon="borderWeight"
+        aria-label="Change border thickness"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        aria-controls="border-menu"
+      ></button>
+      <div
+        class="border-menu"
+        id="border-menu"
+        role="dialog"
+        aria-label="Border thickness"
+        hidden
+      >
+        <div class="border-menu-head">
+          <label class="border-menu-label" for="border-range">Border thickness</label>
+          <output class="border-menu-value" id="border-value" for="border-range">5 px</output>
+        </div>
+        <input
+          class="border-range"
+          id="border-range"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value="5"
+        >
+      </div>
+    </div>
     <button class="icon-button" id="margin-color-button" type="button" data-icon="colorFill" aria-label="Change margin color"></button>
     <div class="save-menu-wrap" id="save-menu-wrap">
       <button

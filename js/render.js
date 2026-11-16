@@ -10,6 +10,7 @@ const ICONS = Object.freeze({
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -531,7 +532,12 @@ const Render = (() => {
     // in ICONS alone. The orientation button is painted per mode instead.
     document.querySelectorAll('[data-icon]').forEach((button) => {
       const name = button.dataset.icon;
-      if (ICONS[name]) button.append(iconElement(name));
+      if (ICONS[name]) {
+        const icon = iconElement(name);
+        // The line-weight mark reads as a vertical border thickness.
+        if (name === 'borderWeight') icon.classList.add('is-rotated-cw');
+        button.append(icon);
+      }
       button.title = button.getAttribute('aria-label') || '';
     });
   };

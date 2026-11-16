@@ -15,14 +15,14 @@ The editor shell is functional: a start screen that picks the canvas format (9:1
 
 **Working:**
 
-- `index.html` — two-region shell with the format start screen, action bar (including the permanent row/column toggle), scaled canvas stage, add-group buttons, add-box rails, hidden file and color inputs, and live region.
-- `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, the mirrored column-mode stage, orientation-aware resize cursors, focus/hover states, toast variants, reduced-motion handling.
-- `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges, image-ratio locks (including full-size fitted groups), 40 px minimums, whole-pixel rounding, the transposed column layout, and the cover/zoom/pan/rotate photo rectangle shared with export.
-- `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
+- `index.html` — two-region shell with the format start screen, action bar (including the permanent row/column toggle and border-thickness slider), scaled canvas stage, add-group buttons, add-box rails, hidden file and color inputs, and live region.
+- `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, the mirrored column-mode stage, orientation-aware resize cursors, the border-thickness popover, focus/hover states, toast variants, reduced-motion handling.
+- `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges with the user-set padding/gap thickness, image-ratio locks (including full-size fitted groups), 40 px minimums, whole-pixel rounding, the transposed column layout, and the cover/zoom/pan/rotate photo rectangle shared with export.
+- `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, border thickness, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
 - `js/render.js` — renders the format buttons, rows/columns, boxes, contextual tools including the lock toggles, both rails, group/box boundary overlays in either orientation, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
 - `js/export.js` — offscreen JPEG/PNG compositing at the chosen canvas size using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
-- `js/main.js` — event wiring, format selection, file picker, margin-color picker, save action, orientation toggle, lock toggles, keyboard navigation/deletion, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
+- `js/main.js` — event wiring, format selection, file picker, margin-color picker, border-thickness popover with a frame-coalesced reflow, save action, orientation toggle, lock toggles, keyboard navigation/deletion, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
 - `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, margin-color, and row/column mode icons.
 
@@ -46,7 +46,7 @@ On load the editor area shows a **format start screen**: the heading `Select for
 
 While editing, two stacked regions fill the viewport height, no page scrolling:
 
-1. **Action bar** — fixed height (~56 px) at the top, dark background. Contextual tool icons sit on the left; the always-visible **row/column toggle**, **margin-color picker**, and **Save** button sit on the right. The contextual area is empty when nothing is selected.
+1. **Action bar** — fixed height (~56 px) at the top, dark background. Contextual tool icons sit on the left; the always-visible **row/column toggle**, **border-thickness button**, **margin-color picker**, and **Save** button sit on the right. The contextual area is empty when nothing is selected.
 2. **Editor area** — fills the remaining height, dark gray background (`#2b2b2b`). Centered inside it: the collage canvas, with add-group buttons and add-box rails arranged according to the current mode.
 
 ### Row and column modes
@@ -69,8 +69,8 @@ Define once as CSS custom properties on `:root` and mirror them in JS constants:
 | Token | Value | Meaning |
 | --- | --- | --- |
 | `--canvas-w` / `--canvas-h` | from the chosen format | Logical canvas size; 1080 px on the shorter side, the longer side from the ratio: 9:16 → 1080 × 1920, 16:9 → 1920 × 1080, 7:9 → 1080 × 1389, 5:4 → 1350 × 1080, 1:1 → 1080 × 1080. Set when the format is chosen; never changes with content. Matches the export size. |
-| `--canvas-pad` | 5 px | White padding inside the canvas, all sides |
-| `--gap` | 5 px | White margin around every image box; adjacent boxes show 10 px between them, and the canvas edges show 5 px padding plus 5 px margin |
+| `--canvas-pad` | 5 px default, 0–100 px | White padding inside the canvas, all sides. Set by the border-thickness slider; 0 removes it |
+| `--gap` | 5 px default, 0–100 px | White margin around every image box, set by the same slider. At 5 px adjacent boxes show 10 px between them, and the canvas edges show 5 px padding plus 5 px margin; at 0 the photos touch and the canvas background is hidden |
 | `--placeholder` | `#d9d9d9` | Empty image box fill; a centered add-photo icon marks the drop target |
 | `--canvas-bg` | `#ffffff` | Canvas background / margin color; configurable with the action-bar color picker |
 | `--page-bg` | `#2b2b2b` | Page background around the canvas |
@@ -82,7 +82,7 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 
 - Initial state after choosing a format: **two groups**, each containing **one empty placeholder box**. Portrait and square formats call these rows; landscape formats call them columns.
 - In row mode a group is a horizontal track inside the canvas; boxes fill it left to right, like a flex row with wrapping disabled. In column mode the same group is a vertical track; boxes stack top to bottom.
-- Image boxes are white on the outside (5 px margin) with light gray placeholder fill; once populated, the photo covers the box, cropped to the box aspect ratio and centered (`object-fit: cover`), clipped by the box. Adjacent boxes therefore have 10 px of white between them, and the canvas edges have 5 px padding plus the 5 px box margin.
+- Image boxes are white on the outside (5 px margin by default, set by the border-thickness slider) with light gray placeholder fill; once populated, the photo covers the box, cropped to the box aspect ratio and centered (`object-fit: cover`), clipped by the box. At the default thickness, adjacent boxes have 10 px of white between them, and the canvas edges have 5 px padding plus the 5 px box margin.
 - Empty boxes show a centered `add_photo_alternate` icon as a visual hint; loading a photo replaces it.
 - **Add box:** a button beside each group, using `add_circle.svg`. In row mode the buttons sit on the left and right of the canvas, vertically centered on the row. In column mode they sit above and below the canvas, horizontally centered on the column.
 - **Add group:** buttons outside the canvas, using `add_circle.svg`. In row mode they sit above and below and add a row (top inserts at the top, bottom appends). In column mode they sit to the left and right and add a column (left inserts at the left, right appends). A new group always starts with one empty box.
@@ -91,7 +91,7 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 ### Selection and contextual actions
 
 - Clicking an image box selects it: 3 px border in the accent blue. The border turns red while one of the box's locks is active.
-- Clicking the canvas background, the gray editor background, or pressing `Escape` clears the selection and empties the contextual actions. The row/column toggle, margin-color picker, and Save stay visible.
+- Clicking the canvas background, the gray editor background, or pressing `Escape` clears the selection and empties the contextual actions. The row/column toggle, border-thickness button, margin-color picker, and Save stay visible.
 - Double-clicking a box selects it and opens the image picker.
 - Selected-box actions:
   - **Delete** (`delete.svg`) — removes the box. Deleting the last box in a group removes that group. The selection is cleared.
@@ -103,8 +103,9 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
   - Aspect-ratio locks are further limited to one ratio per group: the first aspect-locked image sets the group's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
   - A group with a single box may lock that box. Its group-boundary handles are then disabled: a square lock keeps the box's free side derived from the group's cross-axis size, while an aspect lock derives the group's cross-axis size from the full flow-axis space and centres the box if the group minimum makes it shorter.
 - **Margin color** (`format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by both export formats.
+- **Border thickness** (`line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` rotated 90° clockwise, always visible) — opens a small popover below the button with a 0–100 px slider and a live `N px` readout. The value sets the canvas padding and every box gap together, so 5 px is the classic layout (10 px between boxes and to the canvas edge) and 0 px removes all margins: boxes touch each other and the canvas edge, and the margin color is no longer visible. It applies to both modes and both export formats. The slider is keyboard reachable; each step reflows the canvas once per frame. Escape, an outside click, or tabbing out closes the popover.
 - **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens a small menu below the button with **JPEG (.jpg)** and **PNG (.png)**. Both composite the canvas at the chosen format's logical size (1080 px on the shorter side) offscreen and download it as `collage-yyyy-MM-dd-HH-mm.<ext>` using the local save time; JPEG is encoded at 85% quality. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
-- Only boxes have contextual actions; the row/column toggle, margin-color picker, and Save are global.
+- Only boxes have contextual actions; the row/column toggle, border-thickness slider, margin-color picker, and Save are global.
 
 ### Direct manipulation
 
@@ -152,6 +153,7 @@ long names are written once.
 | Lock square | `assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Lock aspect ratio | `assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Margin color | `assets/format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Border thickness | `assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` (rotated 90° clockwise) |
 | Save / download | `assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 
 - The SVGs have a baked-in `fill="#e3e3e3"`, tuned for the dark UI. Do not wrap them in a darker container; if extra contrast is ever needed, override the fill instead of downloading new icons.
@@ -213,7 +215,8 @@ Manual test checklist:
 - Select another box or clear the selection: both circles and the ghost disappear. Select an image box again: the saved zoom/pan/rotation return. Replace the photo: zoom, pan, and rotation all reset.
 - Save while zoomed, panned, and rotated: the exported PNG and JPEG match the visible crop, with no ghost, circles, or selection border.
 - Fresh page shows the `Select format:` heading above five buttons with icons, ratios, names, and pixel sizes; the action bar and canvas stay hidden. Choose one and the editor appears with the matching canvas (9:16 → 1080 × 1920, 16:9 → 1920 × 1080, 7:9 → 1080 × 1389, 5:4 → 1350 × 1080, 1:1 → 1080 × 1080).
-- The action bar shows the permanent row/column toggle before the margin picker. Portrait and square formats open in row mode with the dashboard icon rotated 90° counter-clockwise; landscape formats open in column mode with the dashboard icon upright. The browser surface stays at the chosen size in both modes.
+- The action bar shows the permanent row/column toggle before the border-thickness and margin-color buttons. Portrait and square formats open in row mode with the dashboard icon rotated 90° counter-clockwise; landscape formats open in column mode with the dashboard icon upright. The browser surface stays at the chosen size in both modes.
+- Click the border-thickness button: a popover opens with a slider at 5 px and the line-weight icon shows upright (rotated 90° clockwise). Drag it to 0: the canvas fills edge to edge, boxes touch each other, and the margin color is no longer visible. Slide to 20 and confirm the padding and every gap grow to 20 px (40 px between two boxes), the readout follows, and the canvas size stays fixed. Check the same in column mode and in an exported PNG/JPEG. Escape, an outside click, or tabbing away closes the popover.
 - Switch a portrait format to column mode: two stacked rows become two side-by-side columns, the top row becomes the right column, add-group buttons move to the left/right, add-box buttons move above/below each column, group boundaries are vertical, and box boundaries are horizontal. Switch back and the right column becomes the top row.
 - With images present, switch modes: the box selection clears (border, ghost, and zoom/rotate circles disappear), every ratio lock is released, the photos keep their zoom, pan, and rotation, and the visible proportions are carried into the new axes. No animation runs.
 - In column mode, hover between two columns for a vertical line and column-resize cursor; hover between two boxes inside a column for a horizontal line and row-resize cursor. Drag each and confirm the sizes trade while the canvas stays fixed.

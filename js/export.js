@@ -45,6 +45,9 @@ const Export = (() => {
   };
 
   const buildCanvas = async (state) => {
+    // The export uses the same padding and gaps as the editor, so the current
+    // border thickness has to be in the layout before it computes geometry.
+    Layout.setBorderThickness(state.borderThickness);
     const layout = Layout.compute(state.rows, state.orientation);
     // The export canvas matches the chosen format's logical size, so it can be
     // drawn in the same pixels the editor lays out.

@@ -12,6 +12,7 @@ const State = (() => {
   const rows = [];
   let selectedBoxId = null;
   let canvasColor = '#ffffff';
+  let borderThickness = METRICS.pad;
   let orientation = 'row';
   let sequence = 0;
   let lockSequence = 0;
@@ -359,6 +360,19 @@ const State = (() => {
   };
 
   /**
+   * Global border thickness in logical pixels: the canvas padding and the gap
+   * around every box. 0 removes the margin color around and between photos.
+   */
+  const setBorderThickness = (value) => {
+    const pixels = Number(value);
+    if (!Number.isFinite(pixels)) return false;
+    const next = Math.min(METRICS.maxBorder, Math.max(0, Math.round(pixels)));
+    if (next === borderThickness) return false;
+    borderThickness = next;
+    return true;
+  };
+
+  /**
    * Switch between the horizontal row layout and its transposed column layout.
    * `rotate` is the 90° turn used by the action-bar toggle: the top row becomes
    * the right column (and the right column becomes the top row going back).
@@ -403,6 +417,9 @@ const State = (() => {
     get canvasColor() {
       return canvasColor;
     },
+    get borderThickness() {
+      return borderThickness;
+    },
     get orientation() {
       return orientation;
     },
@@ -428,6 +445,7 @@ const State = (() => {
     select,
     clearSelection,
     setCanvasColor,
+    setBorderThickness,
     setOrientation,
     orderedBoxes,
   };
