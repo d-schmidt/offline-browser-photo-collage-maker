@@ -102,7 +102,7 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
   - A group with multiple boxes can have at most `n − 1` locks. The remaining unlocked box is forced to fill whatever space is left. Deleting the forced box can leave only locked boxes, so the last lock is released automatically to restore the rule.
   - Aspect-ratio locks are further limited to one ratio per group: the first aspect-locked image sets the group's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
   - A group with a single box may lock that box. Its group-boundary handles are then disabled: a square lock keeps the box's free side derived from the group's cross-axis size, while an aspect lock derives the group's cross-axis size from the full flow-axis space and centres the box if the group minimum makes it shorter.
-- **Margin color** (`dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by both export formats.
+- **Margin color** (`format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by both export formats.
 - **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens a small menu below the button with **JPEG (.jpg)** and **PNG (.png)**. Both composite the canvas at the chosen format's logical size (1080 px on the shorter side) offscreen and download it as `collage-yyyy-MM-dd-HH-mm.<ext>` using the local save time; JPEG is encoded at 85% quality. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
 - Only boxes have contextual actions; the row/column toggle, margin-color picker, and Save are global.
 
@@ -151,7 +151,7 @@ long names are written once.
 | Select image | `assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Lock square | `assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Lock aspect ratio | `assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
-| Margin color | `assets/dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Margin color | `assets/format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Save / download | `assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 
 - The SVGs have a baked-in `fill="#e3e3e3"`, tuned for the dark UI. Do not wrap them in a darker container; if extra contrast is ever needed, override the fill instead of downloading new icons.
