@@ -23,7 +23,7 @@ locally: no install, no build step, no network requests, and no uploads.
 - **+ above/below the canvas** adds a row; **+ on either side of a row** adds a box to it. In column mode the buttons swap: **+ left/right** adds a column and **+ above/below a column** adds a box.
 - Drag the white gap between two boxes in a group to trade width (row mode) or height (column mode); a blue line and the matching resize cursor show the handle.
 - Drag the white gap between two groups to trade height (row mode) or width (column mode); a blue line and resize cursor show the handle.
-- Switching modes turns the structure 90°: the top row becomes the right column going to column mode, and the right column becomes the top row going back. Photos keep their own zoom, pan, and rotation; ratio locks are released before the turn.
+- Switching modes turns the structure 90°: the top row becomes the right column going to column mode, and the right column becomes the top row going back. The current box selection is cleared, photos keep their own zoom, pan, and rotation, and ratio locks are released before the turn.
 - Click a box to select it: blue 3 px border, with the contextual actions in the action bar. A red border means a lock is active.
 - Double-click a box to open the image picker for it.
 - Click the gray background around the canvas or press `Escape` to clear the selection.

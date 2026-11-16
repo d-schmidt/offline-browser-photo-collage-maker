@@ -59,6 +59,7 @@ While editing, two stacked regions fill the viewport height, no page scrolling:
 - A single-box aspect-locked group still spans the full cross axis, which means the full canvas height in column mode. Square locks derive the box's other side from the group's cross-axis size in either mode.
 - Switching modes turns the structure 90°: row → column is clockwise (the top row becomes the right column) and column → row is counter-clockwise (the right column becomes the top row). Box order inside each group is preserved, so the leftmost box becomes the topmost.
 - The turn freezes the current pixel proportions into the weights first, releases every ratio lock before the structure moves, and never rotates or resets the photos themselves. Their zoom, pan, and rotation survive; only the box shape changes.
+- Switching modes clears the current box selection, so the selection border, ghost, and zoom/rotate circles do not follow the box into the new layout.
 - No animation is used for the switch.
 
 ### Layout metrics
@@ -214,7 +215,7 @@ Manual test checklist:
 - Fresh page shows the `Select format:` heading above five buttons with icons, ratios, names, and pixel sizes; the action bar and canvas stay hidden. Choose one and the editor appears with the matching canvas (9:16 → 1080 × 1920, 16:9 → 1920 × 1080, 7:9 → 1080 × 1389, 5:4 → 1350 × 1080, 1:1 → 1080 × 1080).
 - The action bar shows the permanent row/column toggle before the margin picker. Portrait and square formats open in row mode with the dashboard icon rotated 90° counter-clockwise; landscape formats open in column mode with the dashboard icon upright. The browser surface stays at the chosen size in both modes.
 - Switch a portrait format to column mode: two stacked rows become two side-by-side columns, the top row becomes the right column, add-group buttons move to the left/right, add-box buttons move above/below each column, group boundaries are vertical, and box boundaries are horizontal. Switch back and the right column becomes the top row.
-- With images present, switch modes: every ratio lock is released, the photos keep their zoom, pan, and rotation, and the visible proportions are carried into the new axes. No animation runs.
+- With images present, switch modes: the box selection clears (border, ghost, and zoom/rotate circles disappear), every ratio lock is released, the photos keep their zoom, pan, and rotation, and the visible proportions are carried into the new axes. No animation runs.
 - In column mode, hover between two columns for a vertical line and column-resize cursor; hover between two boxes inside a column for a horizontal line and row-resize cursor. Drag each and confirm the sizes trade while the canvas stays fixed.
 - In column mode, confirm the `n − 1` lock cap, matching aspect ratios, and the disabled group boundary next to a single-box locked column. Lock aspect ratio on a lone column: the box spans the canvas from top to bottom with its natural ratio. Lock square on a lone column: its height matches its width.
 - Delete every box in column mode: the empty state mentions columns, and the left/right add-group buttons still add a column.

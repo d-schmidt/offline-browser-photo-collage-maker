@@ -1259,6 +1259,9 @@
     const next = isColumnMode() ? 'row' : 'column';
     freezeLayoutProportions();
     State.setOrientation(next, true);
+    // The turn is a structural change; keep the zoom/rotate chrome from
+    // following the box into the new layout.
+    State.clearSelection();
     refresh();
     // The rails move to the other sides of the canvas, so the available space
     // and therefore the canvas scale can change.
