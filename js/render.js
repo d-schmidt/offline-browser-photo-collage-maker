@@ -9,6 +9,11 @@ const ICONS = Object.freeze({
   image: 'assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  format5x4: 'assets/crop_5_4_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  format1x1: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
 });
 
 const Render = (() => {
@@ -367,6 +372,50 @@ const Render = (() => {
     paintImageChrome();
   };
 
+  /** Start-screen buttons: one per canvas format, sized from the format list. */
+  const paintFormats = (formats, onChoose) => {
+    const container = document.getElementById('format-options');
+    const fragment = document.createDocumentFragment();
+
+    for (const format of formats) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'format-button';
+      button.dataset.format = format.id;
+
+      const label = format.name
+        ? `${format.label} ${format.name}`
+        : format.label;
+      button.setAttribute(
+        'aria-label',
+        `${label}, ${format.canvasW} × ${format.canvasH} pixels`,
+      );
+      button.append(iconElement(format.icon));
+
+      const ratio = document.createElement('span');
+      ratio.className = 'format-ratio';
+      ratio.textContent = format.label;
+      button.append(ratio);
+
+      if (format.name) {
+        const name = document.createElement('span');
+        name.className = 'format-name';
+        name.textContent = format.name;
+        button.append(name);
+      }
+
+      const size = document.createElement('span');
+      size.className = 'format-size';
+      size.textContent = `${format.canvasW} × ${format.canvasH}`;
+      button.append(size);
+
+      button.addEventListener('click', () => onChoose(format));
+      fragment.append(button);
+    }
+
+    container.replaceChildren(fragment);
+  };
+
   const init = () => {
     refs.selectionActions = document.getElementById('selection-actions');
     refs.canvas = document.getElementById('canvas');
@@ -473,6 +522,7 @@ const Render = (() => {
   return {
     init,
     paint,
+    paintFormats,
     paintSelection,
     updateGeometry,
     updatePhoto,

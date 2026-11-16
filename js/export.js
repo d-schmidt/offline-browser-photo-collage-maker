@@ -1,8 +1,6 @@
 'use strict';
 
 const Export = (() => {
-  const WIDTH = 1080;
-  const HEIGHT = 1920;
   const DEFAULT_BACKGROUND = '#ffffff';
   const PLACEHOLDER = '#d9d9d9';
 
@@ -48,9 +46,13 @@ const Export = (() => {
 
   const buildCanvas = async (state) => {
     const layout = Layout.compute(state.rows);
+    // The export canvas matches the chosen format's logical size, so it can be
+    // drawn in the same pixels the editor lays out.
+    const width = Layout.canvasW;
+    const height = Layout.canvasH;
     const canvas = document.createElement('canvas');
-    canvas.width = WIDTH;
-    canvas.height = HEIGHT;
+    canvas.width = width;
+    canvas.height = height;
 
     // Decode everything first so a broken image fails before any download
     // starts, and so drawing below stays synchronous.
@@ -64,11 +66,7 @@ const Export = (() => {
 
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = state.canvasColor || DEFAULT_BACKGROUND;
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-    // Draw in logical canvas pixels. The export size matches the logical
-    // canvas, so this scale is 1 unless those constants diverge later.
-    ctx.scale(WIDTH / METRICS.canvasW, HEIGHT / METRICS.canvasH);
+    ctx.fillRect(0, 0, width, height);
 
     for (const row of layout.rows) {
       for (const box of row.boxes) {
@@ -119,5 +117,5 @@ const Export = (() => {
     return name;
   };
 
-  return { save, WIDTH, HEIGHT };
+  return { save };
 })();

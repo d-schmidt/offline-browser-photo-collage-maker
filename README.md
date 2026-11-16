@@ -15,7 +15,10 @@ locally: no install, no build step, no network requests, and no uploads.
 
 ## What it does today
 
-- Starts with two rows, each holding one empty photo box on a 9:16 canvas. Empty boxes show a centered add-photo icon.
+- Starts with a format chooser: **9:16 Status** (1080 × 1920), **16:9 Banner**
+  (1920 × 1080), **7:9 Portrait** (1080 × 1389), **5:4** (1350 × 1080), and
+  **1:1 Square** (1080 × 1080). Every format keeps 1080 px on its shorter side.
+- After choosing, two rows appear, each holding one empty photo box. Empty boxes show a centered add-photo icon.
 - **+ above/below the canvas** adds a row; **+ on either side of a row** adds a box to it.
 - Drag the white gap between two boxes in a row to trade width; a vertical blue line and column-resize cursor show the handle.
 - Drag the white gap between two rows to trade height between them; a blue line and resize cursor show the handle.
@@ -28,11 +31,13 @@ locally: no install, no build step, no network requests, and no uploads.
 - Select a photo box to reveal a small circle in its bottom-right corner. Drag it away from the box centre to zoom in (up to 6× the unrotated cover) or inward below 1× to show the whole rotated photo, down to the fit scale; drag the photo, or the canvas background under its ghost, to pan. A second circle just outside the corner rotates the photo; at 1× the crop scales up as needed to stay full, and zooming out below 1× reveals more of the photo. While the box is selected, the whole photo appears as a translucent ghost outside the crop; the ghost and both circles are editor-only and never appear in the export.
 - Deleting every box in a row removes the row; the empty state keeps the
   add-row buttons available.
-- The 1080 × 1920 canvas scales to fit the window without changing its layout.
+- The canvas (1080 px on its shorter side, longer side set by the chosen
+  format) scales to fit the window without changing its layout.
 - **Margin color** in the action bar opens the system color picker and recolors the canvas padding and gaps; the export uses the same color.
-- **Save** opens a menu for JPEG or PNG. Both download a 1080 × 1920 file named `collage-yyyy-MM-dd-HH-mm.jpg` or `.png` using the local save time; JPEG uses 85% quality.
+- **Save** opens a menu for JPEG or PNG. Both download a file at the chosen canvas size named `collage-yyyy-MM-dd-HH-mm.jpg` or `.png` using the local save time; JPEG uses 85% quality.
 
-Keyboard: `Tab` moves through controls, arrow keys move box selection,
+Keyboard: on the start screen, `Tab` moves between formats and `Enter` or
+`Space` starts the editor. While editing, `Tab` moves through controls, arrow keys move box selection,
 `Delete`/`Backspace` deletes the selected box, `Enter`/`Space` opens the image
 picker, and `Escape` clears the selection. With the zoom circle focused, the
 arrow keys zoom in and out and `Home` resets the zoom. With the rotation circle

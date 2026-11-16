@@ -11,18 +11,18 @@
 
 ## Current state
 
-The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks with full-width single-image rows, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and JPEG/PNG save/export.
+The editor shell is functional: a start screen that picks the canvas format (9:16, 16:9, 7:9, 5:4, or 1:1), weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks with full-width single-image rows, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and JPEG/PNG save/export.
 
 **Working:**
 
-- `index.html` — two-region shell with the action bar, scaled 9:16 canvas stage, add-row buttons, add-box rails on both sides, hidden file and color inputs, and live region.
-- `css/styles.css` — layout tokens, scaled canvas, boxes, side rails, focus/hover states, toast variants, reduced-motion handling.
-- `js/layout.js` — 9:16 `METRICS`, weight-to-pixel flow math, per-box gaps on both edges, image-ratio width locks (including full-width fitted rows), 40 px minimums, whole-pixel rounding, and the cover/zoom/pan/rotate photo rectangle shared with export.
+- `index.html` — two-region shell with the format start screen, action bar, scaled canvas stage, add-row buttons, add-box rails on both sides, hidden file and color inputs, and live region.
+- `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, focus/hover states, toast variants, reduced-motion handling.
+- `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges, image-ratio width locks (including full-width fitted rows), 40 px minimums, whole-pixel rounding, and the cover/zoom/pan/rotate photo rectangle shared with export.
 - `js/state.js` — rows, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, canvas margin color, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
-- `js/render.js` — renders rows, boxes, contextual tools including the lock toggles, both rails, row/box boundary overlays, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
-- `js/export.js` — offscreen `1080 × 1920` JPEG/PNG compositing using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
-- `js/main.js` — event wiring, file picker, margin-color picker, save action, lock toggles, keyboard navigation/deletion, row- and box-boundary dragging with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
+- `js/render.js` — renders the format buttons, rows, boxes, contextual tools including the lock toggles, both rails, row/box boundary overlays, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
+- `js/export.js` — offscreen JPEG/PNG compositing at the chosen canvas size using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
+- `js/main.js` — event wiring, format selection, file picker, margin-color picker, save action, lock toggles, keyboard navigation/deletion, row- and box-boundary dragging with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
 - `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, and margin-color icons.
 
@@ -42,7 +42,9 @@ The editor shell is functional: a 9:16 canvas with weighted rows and boxes, add/
 
 ### Page structure
 
-Two stacked regions, full viewport height, no page scrolling:
+On load the editor area shows a **format start screen**: the heading `Select format:` above five buttons (9:16 Status, 16:9 Banner, 7:9 Portrait, 5:4, 1:1 Square), each with its icon, ratio, optional name, and pixel size. The action bar and canvas stay hidden until a format is chosen. Choosing one starts the editor and does not offer the start screen again for that session.
+
+While editing, two stacked regions fill the viewport height, no page scrolling:
 
 1. **Action bar** — fixed height (~56 px) at the top, dark background. Contextual tool icons sit on the left; the always-visible **margin-color picker** and **Save** button sit on the right. The contextual area is empty when nothing is selected.
 2. **Editor area** — fills the remaining height, dark gray background (`#2b2b2b`). Centered inside it: the collage canvas, with add-row buttons above and below and add-box buttons beside each row on both the left and right sides.
@@ -53,7 +55,7 @@ Define once as CSS custom properties on `:root` and mirror them in JS constants:
 
 | Token | Value | Meaning |
 | --- | --- | --- |
-| `--canvas-w` / `--canvas-h` | 1080 × 1920 px | Fixed logical canvas size (9:16). Never changes with content. Matches the export size. |
+| `--canvas-w` / `--canvas-h` | from the chosen format | Logical canvas size; 1080 px on the shorter side, the longer side from the ratio: 9:16 → 1080 × 1920, 16:9 → 1920 × 1080, 7:9 → 1080 × 1389, 5:4 → 1350 × 1080, 1:1 → 1080 × 1080. Set when the format is chosen; never changes with content. Matches the export size. |
 | `--canvas-pad` | 5 px | White padding inside the canvas, all sides |
 | `--gap` | 5 px | White margin around every image box; adjacent boxes show 10 px between them, and the canvas edges show 5 px padding plus 5 px margin |
 | `--placeholder` | `#d9d9d9` | Empty image box fill; a centered add-photo icon marks the drop target |
@@ -65,7 +67,7 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 
 ### Rows and image boxes
 
-- Initial state: **two rows**, each containing **one empty placeholder box**.
+- Initial state after choosing a format: **two rows**, each containing **one empty placeholder box**.
 - A row is a horizontal track inside the canvas; boxes fill it left to right, like a flex row with wrapping disabled.
 - Image boxes are white on the outside (5 px margin) with light gray placeholder fill; once populated, the photo covers the box, cropped to the box aspect ratio and centered (`object-fit: cover`), clipped by the box. Adjacent boxes therefore have 10 px of white between them, and the canvas edges have 5 px padding plus the 5 px box margin.
 - Empty boxes show a centered `add_photo_alternate` icon as a visual hint; loading a photo replaces it.
@@ -88,7 +90,7 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
   - Aspect-ratio locks are further limited to one ratio per row: the first aspect-locked image sets the row's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
   - A row with a single box may lock that box. Its row-height handles are then disabled: a square lock keeps its width derived from the row height, while an aspect lock derives the row height from the full width and centres the box if the row minimum makes it shorter.
 - **Margin color** (`dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by both export formats.
-- **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens a small menu below the button with **JPEG (.jpg)** and **PNG (.png)**. Both composite the fixed 1080 × 1920 canvas offscreen and download it as `collage-yyyy-MM-dd-HH-mm.<ext>` using the local save time; JPEG is encoded at 85% quality. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
+- **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens a small menu below the button with **JPEG (.jpg)** and **PNG (.png)**. Both composite the canvas at the chosen format's logical size (1080 px on the shorter side) offscreen and download it as `collage-yyyy-MM-dd-HH-mm.<ext>` using the local save time; JPEG is encoded at 85% quality. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
 - Only boxes have contextual actions; the margin-color picker and Save are global.
 
 ### Direct manipulation
@@ -148,10 +150,10 @@ index.html            Markup, hidden file input, script/style includes
 css/styles.css        All styles, layout metrics as custom properties
 js/
   state.js            Editor state, weights, history, persistence
-  layout.js           Weight → pixel flow math, row/box geometry
+  layout.js           Format sizes, weight → pixel flow math, row/box geometry
   images.js           File loading, decoding, cover-crop, object URLs
-  render.js           DOM rendering of rows/boxes and selection UI
-  export.js           Offscreen canvas compositing → 1080 × 1920 PNG/JPEG
+  render.js           DOM rendering of the format screen, rows/boxes and selection UI
+  export.js           Offscreen canvas compositing at the chosen format → PNG/JPEG
   main.js             Wiring, events, startup
 assets/               Material Symbols SVG icons (supplied + download)
 serve.py              Optional stdlib-only dev server (localhost)
@@ -196,7 +198,8 @@ Manual test checklist:
 - Drag the selected photo, or the background under its ghost: it pans within the crop, stops at the image edges, and the ghost moves with it. Resize its row or box and confirm the framing stays proportional. Panning still respects the tighter slack of a rotated photo.
 - Select another box or clear the selection: both circles and the ghost disappear. Select an image box again: the saved zoom/pan/rotation return. Replace the photo: zoom, pan, and rotation all reset.
 - Save while zoomed, panned, and rotated: the exported PNG and JPEG match the visible crop, with no ghost, circles, or selection border.
-- Click Save; confirm a menu opens below the button with JPEG and PNG. Each downloads a 1080 × 1920 file with the matching extension and matches the canvas without selection borders. Confirm the menu closes with Escape, an outside click, or after choosing a format.
+- Fresh page shows the `Select format:` heading above five buttons with icons, ratios, names, and pixel sizes; the action bar and canvas stay hidden. Choose one and the editor appears with the matching canvas (9:16 → 1080 × 1920, 16:9 → 1920 × 1080, 7:9 → 1080 × 1389, 5:4 → 1350 × 1080, 1:1 → 1080 × 1080).
+- Click Save; confirm a menu opens below the button with JPEG and PNG. Each downloads a file at the chosen canvas size with the matching extension and matches the canvas without selection borders. Confirm the menu closes with Escape, an outside click, or after choosing a format.
 - Click the margin-color button; pick a color and confirm the canvas padding/gaps change live and the exported file uses that color.
 - Hover between two boxes in a row: vertical blue line and column-resize cursor; drag to trade widths down to 40 px.
 - Hover between two rows: horizontal blue line and row-resize cursor; drag to trade heights down to 40 px.
@@ -234,7 +237,7 @@ Manual test checklist:
 Defaults chosen for v1 — change them here before implementation if wrong:
 
 1. **Drag semantics:** reorder by weight, not free placement. Free positioning would conflict with the flex-flow requirement.
-2. **Canvas size:** 1080 × 1920 (9:16), configurable in one constant, matching the 1080 × 1920 export target.
+2. **Canvas size:** 1080 px on the shorter side, longer side from the chosen format (9:16, 16:9, 7:9, 5:4, or 1:1), matching the export target.
 3. **Resize axes:** box width only; row heights come from row-boundary drags. Vertical box handles are omitted.
 4. **Persistence and undo/redo:** planned next, not in v1. State is already weight-based, so both are cheap to add once the model is stable.
 

@@ -18,9 +18,11 @@
   const fileInput = document.getElementById('file-input');
   const zoomHandle = document.getElementById('zoom-handle');
   const rotateHandle = document.getElementById('rotate-handle');
+  const formatScreen = document.getElementById('format-screen');
 
   let pickerBoxId = null;
   let fitFrame = 0;
+  let editing = false;
   let layout = Layout.compute(State.rows);
   let rowDrag = null;
   let boxDrag = null;
@@ -278,8 +280,8 @@
       0.05,
       Math.min(
         1,
-        (availableW - chromeW) / METRICS.canvasW,
-        (availableH - chromeH) / METRICS.canvasH,
+        (availableW - chromeW) / Layout.canvasW,
+        (availableH - chromeH) / Layout.canvasH,
       ),
     );
 
@@ -291,9 +293,34 @@
     fitFrame = requestAnimationFrame(fitCanvas);
   };
 
+  /**
+   * Start the editor with the chosen format. The canvas keeps its logical
+   * pixel size; only the CSS variables and the scale change, so the same
+   * weight-based layout reflows into the new shape.
+   */
+  const chooseFormat = (format) => {
+    if (editing) return;
+    editing = true;
+
+    Layout.setCanvasSize(format.canvasW, format.canvasH);
+    document.documentElement.style.setProperty('--canvas-w', `${format.canvasW}px`);
+    document.documentElement.style.setProperty('--canvas-h', `${format.canvasH}px`);
+
+    formatScreen.hidden = true;
+    stage.hidden = false;
+    actionBar.hidden = false;
+
+    refresh();
+    fitCanvas();
+    Render.focusCanvas();
+    Render.announce(
+      `${format.label}${format.name ? ` ${format.name}` : ''} format selected, ${format.canvasW} by ${format.canvasH} pixels.`,
+    );
+  };
+
   const canvasScale = () => {
     const width = canvas.getBoundingClientRect().width;
-    return width > 0 ? width / METRICS.canvasW : 1;
+    return width > 0 ? width / Layout.canvasW : 1;
   };
 
   /** Grab distance in logical canvas pixels for a boundary band. */
@@ -449,7 +476,7 @@
 
   const centerClient = (target) => {
     const rect = canvas.getBoundingClientRect();
-    const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
+    const scale = rect.width > 0 ? rect.width / Layout.canvasW : 1;
     return {
       x: rect.left + (target.layoutBox.x + target.layoutBox.w / 2) * scale,
       y:
@@ -671,7 +698,7 @@
     }
 
     const rect = canvas.getBoundingClientRect();
-    const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
+    const scale = rect.width > 0 ? rect.width / Layout.canvasW : 1;
     const y = (event.clientY - rect.top) / scale;
     const reach = boundaryTolerance(
       event,
@@ -704,7 +731,7 @@
     }
 
     const rect = canvas.getBoundingClientRect();
-    const scale = rect.width > 0 ? rect.width / METRICS.canvasW : 1;
+    const scale = rect.width > 0 ? rect.width / Layout.canvasW : 1;
     const x = (event.clientX - rect.left) / scale;
     const y = (event.clientY - rect.top) / scale;
     const reach = boundaryTolerance(
@@ -1127,7 +1154,7 @@
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.defaultPrevented || isTextEntry(event.target)) return;
+    if (!editing || event.defaultPrevented || isTextEntry(event.target)) return;
 
     if (event.key === 'Escape') {
       if (State.selectedBoxId) {
@@ -1154,6 +1181,9 @@
 
   Render.init();
   applyCanvasColor();
+  Render.paintFormats(FORMATS, chooseFormat);
   refresh();
-  fitCanvas();
+
+  const firstFormat = document.querySelector('#format-options .format-button');
+  if (firstFormat) firstFormat.focus({ preventScroll: true });
 })();

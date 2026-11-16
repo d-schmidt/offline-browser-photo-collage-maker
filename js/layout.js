@@ -1,11 +1,45 @@
 'use strict';
 
+// Every format keeps 1080 logical pixels on its shorter side, so exports stay
+// sharp and the longer side follows from the aspect ratio.
+const SHORT_SIDE = 1080;
+
+const formatSize = (ratioW, ratioH) => {
+  const landscape = ratioW > ratioH;
+  const longSide = Math.round(
+    (SHORT_SIDE * Math.max(ratioW, ratioH)) / Math.min(ratioW, ratioH),
+  );
+  return {
+    canvasW: landscape ? longSide : SHORT_SIDE,
+    canvasH: landscape ? SHORT_SIDE : longSide,
+  };
+};
+
+const createFormat = (id, ratioW, ratioH, label, name, icon) =>
+  Object.freeze({
+    id,
+    ratioW,
+    ratioH,
+    label,
+    name,
+    icon,
+    ...formatSize(ratioW, ratioH),
+  });
+
+/** Canvas formats offered on the start screen, in display order. */
+const FORMATS = Object.freeze([
+  createFormat('9x16', 9, 16, '9:16', 'Status', 'format9x16'),
+  createFormat('16x9', 16, 9, '16:9', 'Banner', 'format16x9'),
+  createFormat('7x9', 7, 9, '7:9', 'Portrait', 'format7x9'),
+  createFormat('5x4', 5, 4, '5:4', '', 'format5x4'),
+  createFormat('1x1', 1, 1, '1:1', 'Square', 'format1x1'),
+]);
+
 // Logical layout metrics. These mirror the CSS custom properties in
 // styles.css; the editor always computes in these fixed pixels and the canvas
-// is only visually scaled to fit the viewport.
+// is only visually scaled to fit the viewport. The canvas size comes from the
+// chosen format.
 const METRICS = Object.freeze({
-  canvasW: 1080,
-  canvasH: 1920,
   pad: 5,
   gap: 5,
   minRowH: 40,
@@ -14,9 +48,22 @@ const METRICS = Object.freeze({
 });
 
 const Layout = (() => {
-  const { canvasW, canvasH, pad, gap, minRowH, minBoxW, maxZoom } = METRICS;
-  const contentW = canvasW - 2 * pad;
-  const contentH = canvasH - 2 * pad;
+  const { pad, gap, minRowH, minBoxW, maxZoom } = METRICS;
+  let canvasW = FORMATS[0].canvasW;
+  let canvasH = FORMATS[0].canvasH;
+  let contentW = canvasW - 2 * pad;
+  let contentH = canvasH - 2 * pad;
+
+  /**
+   * Switch the logical canvas size to a format. Weights are relative, so the
+   * rows already in state simply reflow into the new area.
+   */
+  const setCanvasSize = (width, height) => {
+    canvasW = width;
+    canvasH = height;
+    contentW = width - 2 * pad;
+    contentH = height - 2 * pad;
+  };
 
   const clamp = (value, minimum, maximum) =>
     Math.min(maximum, Math.max(minimum, value));
@@ -417,5 +464,18 @@ const Layout = (() => {
     };
   };
 
-  return { compute, imageRect, zoomRange, maxZoom, minZoom: 1 };
+  return {
+    compute,
+    imageRect,
+    zoomRange,
+    maxZoom,
+    minZoom: 1,
+    setCanvasSize,
+    get canvasW() {
+      return canvasW;
+    },
+    get canvasH() {
+      return canvasH;
+    },
+  };
 })();
