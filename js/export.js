@@ -3,9 +3,16 @@
 const Export = (() => {
   const WIDTH = 1080;
   const HEIGHT = 1920;
-  const FILENAME = 'photo-collage.png';
   const DEFAULT_BACKGROUND = '#ffffff';
   const PLACEHOLDER = '#d9d9d9';
+
+  const pad = (value) => String(value).padStart(2, '0');
+
+  /** Local-time download name: collage-yyyy-MM-dd-HH-mm.png */
+  const filename = (date = new Date()) =>
+    `collage-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate(),
+    )}-${pad(date.getHours())}-${pad(date.getMinutes())}.png`;
 
   const drawPhoto = (ctx, image, box, pageX, pageY) => {
     const source = {
@@ -89,15 +96,16 @@ const Export = (() => {
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    const name = filename();
     link.href = url;
-    link.download = FILENAME;
+    link.download = name;
     document.body.append(link);
     link.click();
     link.remove();
 
     // Give the browser a moment to start the download before releasing the URL.
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return FILENAME;
+    return name;
   };
 
   return { save, WIDTH, HEIGHT };

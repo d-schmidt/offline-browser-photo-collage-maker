@@ -30,7 +30,7 @@ locally: no install, no build step, no network requests, and no uploads.
   add-row buttons available.
 - The 1080 × 1920 canvas scales to fit the window without changing its layout.
 - **Margin color** in the action bar opens the system color picker and recolors the canvas padding and gaps; the export uses the same color.
-- **Save** downloads the collage as a 1080 × 1920 PNG (`photo-collage.png`).
+- **Save** downloads the collage as a 1080 × 1920 PNG named `collage-yyyy-MM-dd-HH-mm.png` using the local save time.
 
 Keyboard: `Tab` moves through controls, arrow keys move box selection,
 `Delete`/`Backspace` deletes the selected box, `Enter`/`Space` opens the image
