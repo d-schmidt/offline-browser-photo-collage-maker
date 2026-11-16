@@ -12,6 +12,7 @@
   const saveButton = document.getElementById('save-button');
   const saveMenuWrap = document.getElementById('save-menu-wrap');
   const saveMenu = document.getElementById('save-menu');
+  const orientationButton = document.getElementById('orientation-button');
   const marginColorButton = document.getElementById('margin-color-button');
   const marginColorInput = document.getElementById('margin-color-input');
   const rowsLayer = document.getElementById('rows');
@@ -23,7 +24,7 @@
   let pickerBoxId = null;
   let fitFrame = 0;
   let editing = false;
-  let layout = Layout.compute(State.rows);
+  let layout = Layout.compute(State.rows, State.orientation);
   let rowDrag = null;
   let boxDrag = null;
   let panDrag = null;
@@ -35,25 +36,45 @@
   // Boundary grab bands are measured in screen pixels so they stay finger
   // sized however far the 1080 px canvas is scaled down. Touch gets a wider
   // band than a mouse, which can aim precisely.
-  const ROW_HANDLE_HIT = 8;
+  const GROUP_HANDLE_HIT = 8;
   const BOX_HANDLE_HIT = 8;
-  const ROW_HANDLE_HIT_TOUCH = 22;
+  const GROUP_HANDLE_HIT_TOUCH = 22;
   const BOX_HANDLE_HIT_TOUCH = 22;
   const DRAG_THRESHOLD = 3;
 
+  const isColumnMode = () => State.orientation === 'column';
+
   const refresh = () => {
-    layout = Layout.compute(State.rows);
+    layout = Layout.compute(State.rows, State.orientation);
     Render.paint(State, layout);
   };
 
   /**
-   * Freeze the current row pixel heights into weights. Called before a row
-   * loses its width-fit rule (unlocking or adding a box), so the layout keeps
-   * its heights instead of snapping back to the old weights.
+   * Freeze the groups' current pixel extents into weights. Called before a
+   * group loses its full-width (or full-height) fit rule, so the layout keeps
+   * its extents instead of snapping back to the old weights.
    */
-  const preserveRowHeights = () => {
+  const preserveGroupExtents = () => {
     if (layout.rows.length === 0) return;
-    State.setRowHeights(layout.rows.map((row) => row.h));
+    const column = isColumnMode();
+    State.setRowHeights(layout.rows.map((row) => (column ? row.w : row.h)));
+  };
+
+  /**
+   * Freeze the visible pixel proportions before the orientation turn. Rows
+   * become columns, so the current heights become widths and the current box
+   * widths become heights.
+   */
+  const freezeLayoutProportions = () => {
+    if (layout.rows.length === 0) return;
+    const column = isColumnMode();
+    State.setRowHeights(layout.rows.map((row) => (column ? row.w : row.h)));
+    for (const row of layout.rows) {
+      State.setRowWeights(
+        row.id,
+        row.boxes.map((box) => (column ? box.h : box.w)),
+      );
+    }
   };
 
   const applyCanvasColor = () => {
@@ -111,19 +132,22 @@
     const action = mode === 'square' ? 'lock-square' : 'lock-aspect';
 
     if (box.lock === mode) {
-      // A lone aspect-locked row is sized by its width; freeze that height
-      // before the rule goes away so unlocking does not make the row jump.
+      // A lone aspect-locked group is sized by its cross axis; freeze that
+      // extent before the rule goes away so unlocking does not make it jump.
       if (box.lock === 'aspect' && row.boxes.length === 1) {
-        preserveRowHeights();
+        preserveGroupExtents();
       }
-      // Preserve the current widths when the box becomes resizable again.
+      // Preserve the current cross-axis sizes when the box becomes resizable.
+      const column = isColumnMode();
       const placedRow = layout.rows.find((candidate) => candidate.id === row.id);
-      const widths = placedRow
-        ? placedRow.boxes.map((candidate) => candidate.w)
+      const sizes = placedRow
+        ? placedRow.boxes.map((candidate) =>
+            column ? candidate.h : candidate.w,
+          )
         : [];
       State.setBoxLock(boxId, null);
-      if (widths.length === row.boxes.length) {
-        State.setRowWeights(row.id, widths);
+      if (sizes.length === row.boxes.length) {
+        State.setRowWeights(row.id, sizes);
       }
       refresh();
       focusAction(action);
@@ -131,13 +155,16 @@
       return;
     }
 
+    const group = isColumnMode() ? 'column' : 'row';
     if (!State.canLockBox(boxId)) {
-      Render.announce('At least one box in a row must stay unlocked.');
+      Render.announce(`At least one box in a ${group} must stay unlocked.`);
       return;
     }
 
     if (mode === 'aspect' && !State.canAspectLock(boxId)) {
-      Render.announce('Aspect locks in a row must use the same image ratio.');
+      Render.announce(
+        `Aspect locks in a ${group} must use the same image ratio.`,
+      );
       return;
     }
 
@@ -221,7 +248,19 @@
   const addRow = (position) => {
     State.addRow(position);
     refresh();
-    Render.announce(position === 'start' ? 'Row added at the top.' : 'Row added at the bottom.');
+    if (isColumnMode()) {
+      Render.announce(
+        position === 'start'
+          ? 'Column added at the left.'
+          : 'Column added at the right.',
+      );
+    } else {
+      Render.announce(
+        position === 'start'
+          ? 'Row added at the top.'
+          : 'Row added at the bottom.',
+      );
+    }
   };
 
   const moveSelection = (key) => {
@@ -235,16 +274,27 @@
     }
 
     const current = State.findBox(boxes[currentIndex].id);
-    const direction = key === 'ArrowUp' ? -1 : key === 'ArrowDown' ? 1 : 0;
+    if (!current) return;
+
+    // The arrows follow the screen: in row mode left/right walk along a row,
+    // in column mode up/down walk along a column. The other pair moves to the
+    // neighboring group at the same box position.
+    const column = isColumnMode();
+    const alongGroup = column
+      ? key === 'ArrowUp' || key === 'ArrowDown'
+      : key === 'ArrowLeft' || key === 'ArrowRight';
     let target = null;
 
-    if (direction === 0) {
-      target = boxes[currentIndex + (key === 'ArrowRight' ? 1 : -1)] || null;
-    } else if (current) {
-      const rowIndex = State.rows.indexOf(current.row);
-      const nextRow = State.rows[rowIndex + direction];
-      if (nextRow) {
-        target = nextRow.boxes[Math.min(current.index, nextRow.boxes.length - 1)];
+    if (alongGroup) {
+      const step = key === 'ArrowRight' || key === 'ArrowDown' ? 1 : -1;
+      target = boxes[currentIndex + step] || null;
+    } else {
+      const step = key === 'ArrowUp' || key === 'ArrowLeft' ? -1 : 1;
+      const groupIndex = State.rows.indexOf(current.row);
+      const nextGroup = State.rows[groupIndex + step];
+      if (nextGroup) {
+        target =
+          nextGroup.boxes[Math.min(current.index, nextGroup.boxes.length - 1)];
       }
     }
 
@@ -258,6 +308,7 @@
 
   const fitCanvas = () => {
     fitFrame = 0;
+    const column = isColumnMode();
     const areaStyle = getComputedStyle(editorArea);
     const stageStyle = getComputedStyle(stage);
     const lineStyle = getComputedStyle(stage.querySelector('.canvas-line'));
@@ -270,11 +321,19 @@
       editorArea.clientHeight -
       parseFloat(areaStyle.paddingTop) -
       parseFloat(areaStyle.paddingBottom);
-    const stageGap = parseFloat(stageStyle.rowGap) || 0;
-    const lineGap = parseFloat(lineStyle.columnGap) || 0;
+    // The stage and the canvas line are the same two flex rows/columns in both
+    // modes, but their main axes swap, so the relevant gaps swap as well.
+    const stageGap =
+      parseFloat(column ? stageStyle.columnGap : stageStyle.rowGap) || 0;
+    const lineGap =
+      parseFloat(column ? lineStyle.rowGap : lineStyle.columnGap) || 0;
 
-    const chromeW = railLeft.offsetWidth + railRight.offsetWidth + lineGap * 2;
-    const chromeH = addRowTop.offsetHeight + addRowBottom.offsetHeight + stageGap * 2;
+    const chromeW = column
+      ? addRowTop.offsetWidth + addRowBottom.offsetWidth + stageGap * 2
+      : railLeft.offsetWidth + railRight.offsetWidth + lineGap * 2;
+    const chromeH = column
+      ? railLeft.offsetHeight + railRight.offsetHeight + lineGap * 2
+      : addRowTop.offsetHeight + addRowBottom.offsetHeight + stageGap * 2;
 
     const scale = Math.max(
       0.05,
@@ -305,6 +364,14 @@
     Layout.setCanvasSize(format.canvasW, format.canvasH);
     document.documentElement.style.setProperty('--canvas-w', `${format.canvasW}px`);
     document.documentElement.style.setProperty('--canvas-h', `${format.canvasH}px`);
+
+    // Portrait and square formats start with rows; landscape formats start
+    // with the transposed columns. The starting canvas is empty, so no
+    // structure turn is needed.
+    State.setOrientation(
+      format.canvasW > format.canvasH ? 'column' : 'row',
+      false,
+    );
 
     formatScreen.hidden = true;
     stage.hidden = false;
@@ -478,7 +545,10 @@
     const rect = canvas.getBoundingClientRect();
     const scale = rect.width > 0 ? rect.width / Layout.canvasW : 1;
     return {
-      x: rect.left + (target.layoutBox.x + target.layoutBox.w / 2) * scale,
+      x:
+        rect.left +
+        (target.layoutRow.x + target.layoutBox.x + target.layoutBox.w / 2) *
+          scale,
       y:
         rect.top +
         (target.layoutRow.y + target.layoutBox.y + target.layoutBox.h / 2) *
@@ -688,10 +758,14 @@
     Render.announce('Photo rotation reset.');
   };
 
-  const rowHeightLocked = (layoutRow) =>
+  const groupExtentLocked = (layoutRow) =>
     layoutRow.boxes.length === 1 && layoutRow.boxes[0].locked;
 
-  const rowBoundaryAt = (event) => {
+  /**
+   * Boundary between two groups: horizontal between rows, vertical between
+   * columns. Both the hit test and the drag work along the group flow axis.
+   */
+  const groupBoundaryAt = (event) => {
     // The photo handles own their corners; never start a resize underneath one.
     if (event.target instanceof Element && event.target.closest('.zoom-handle')) {
       return null;
@@ -699,31 +773,47 @@
 
     const rect = canvas.getBoundingClientRect();
     const scale = rect.width > 0 ? rect.width / Layout.canvasW : 1;
+    const x = (event.clientX - rect.left) / scale;
     const y = (event.clientY - rect.top) / scale;
+    const column = isColumnMode();
     const reach = boundaryTolerance(
       event,
       scale,
-      ROW_HANDLE_HIT,
-      ROW_HANDLE_HIT_TOUCH,
+      GROUP_HANDLE_HIT,
+      GROUP_HANDLE_HIT_TOUCH,
     );
 
     let nearest = null;
     for (let index = 0; index < layout.rows.length - 1; index += 1) {
-      const upper = layout.rows[index];
-      const lower = layout.rows[index + 1];
-      if (rowHeightLocked(upper) || rowHeightLocked(lower)) continue;
+      const first = layout.rows[index];
+      const second = layout.rows[index + 1];
+      if (groupExtentLocked(first) || groupExtentLocked(second)) continue;
 
-      const boundary = upper.y + upper.h;
-      // Keep the touch band from swallowing a whole short row.
-      const tolerance = Math.min(reach, Math.min(upper.h, lower.h) / 2);
-      const distance = Math.abs(y - boundary);
+      const boundary = column ? first.x + first.w : first.y + first.h;
+      const extentA = column ? first.w : first.h;
+      const extentB = column ? second.w : second.h;
+      // Keep the touch band from swallowing a whole short group.
+      const tolerance = Math.min(reach, Math.min(extentA, extentB) / 2);
+      const distance = Math.abs((column ? x : y) - boundary);
       if (distance <= tolerance && (!nearest || distance < nearest.distance)) {
-        nearest = { upper, lower, boundary, distance };
+        nearest = {
+          a: first,
+          b: second,
+          boundary,
+          distance,
+          axis: column ? 'x' : 'y',
+          startA: extentA,
+          startB: extentB,
+        };
       }
     }
     return nearest;
   };
 
+  /**
+   * Boundary between two boxes in the same group: vertical in a row, horizontal
+   * in a column. The hit band and the drag both run across the group.
+   */
   const boxBoundaryAt = (event) => {
     // The photo handles own their corners; never start a resize underneath one.
     if (event.target instanceof Element && event.target.closest('.zoom-handle')) {
@@ -734,6 +824,7 @@
     const scale = rect.width > 0 ? rect.width / Layout.canvasW : 1;
     const x = (event.clientX - rect.left) / scale;
     const y = (event.clientY - rect.top) / scale;
+    const column = isColumnMode();
     const reach = boundaryTolerance(
       event,
       scale,
@@ -745,28 +836,62 @@
     for (const row of layout.rows) {
       if (row.boxes.length < 2) continue;
       const first = row.boxes[0];
-      const boxTop = row.y + first.y;
-      const boxBottom = boxTop + first.h;
-      if (y < boxTop || y > boxBottom) continue;
 
-      for (let index = 0; index < row.boxes.length - 1; index += 1) {
-        const left = row.boxes[index];
-        const right = row.boxes[index + 1];
-        if (left.locked || right.locked) continue;
-        const boundary = left.x + left.w + METRICS.gap;
-        // Keep the touch band from swallowing a whole narrow box.
-        const tolerance = Math.min(reach, Math.min(left.w, right.w) / 2);
-        const distance = Math.abs(x - boundary);
-        if (distance <= tolerance && (!nearest || distance < nearest.distance)) {
-          nearest = {
-            row,
-            left,
-            right,
-            boundary,
-            top: boxTop,
-            height: first.h,
-            distance,
-          };
+      if (!column) {
+        const boxTop = row.y + first.y;
+        const boxBottom = boxTop + first.h;
+        if (y < boxTop || y > boxBottom) continue;
+
+        for (let index = 0; index < row.boxes.length - 1; index += 1) {
+          const left = row.boxes[index];
+          const right = row.boxes[index + 1];
+          if (left.locked || right.locked) continue;
+          const boundary = row.x + left.x + left.w + METRICS.gap;
+          // Keep the touch band from swallowing a whole narrow box.
+          const tolerance = Math.min(reach, Math.min(left.w, right.w) / 2);
+          const distance = Math.abs(x - boundary);
+          if (distance <= tolerance && (!nearest || distance < nearest.distance)) {
+            nearest = {
+              group: row,
+              a: left,
+              b: right,
+              axis: 'x',
+              boundary,
+              start: boxTop,
+              extent: first.h,
+              startA: left.w,
+              startB: right.w,
+              distance,
+            };
+          }
+        }
+      } else {
+        const boxLeft = row.x + first.x;
+        const boxRight = boxLeft + first.w;
+        if (x < boxLeft || x > boxRight) continue;
+
+        for (let index = 0; index < row.boxes.length - 1; index += 1) {
+          const upper = row.boxes[index];
+          const lower = row.boxes[index + 1];
+          if (upper.locked || lower.locked) continue;
+          const boundary = row.y + upper.y + upper.h + METRICS.gap;
+          // Keep the touch band from swallowing a whole short box.
+          const tolerance = Math.min(reach, Math.min(upper.h, lower.h) / 2);
+          const distance = Math.abs(y - boundary);
+          if (distance <= tolerance && (!nearest || distance < nearest.distance)) {
+            nearest = {
+              group: row,
+              a: upper,
+              b: lower,
+              axis: 'y',
+              boundary,
+              start: boxLeft,
+              extent: first.w,
+              startA: upper.h,
+              startB: lower.h,
+              distance,
+            };
+          }
         }
       }
     }
@@ -774,49 +899,50 @@
   };
 
   const updateHover = (event) => {
-    const rowHit = rowBoundaryAt(event);
-    if (rowHit) {
+    const groupHit = groupBoundaryAt(event);
+    if (groupHit) {
       Render.hideBoxBoundary();
       Render.setBoxResizeCursor(false);
-      Render.showRowBoundary(rowHit.boundary);
-      Render.setRowResizeCursor(true);
+      Render.showGroupBoundary(groupHit.boundary, groupHit.axis === 'y');
+      Render.setGroupResizeCursor(true);
       return;
     }
 
     const boxHit = boxBoundaryAt(event);
     if (boxHit) {
-      Render.hideRowBoundary();
-      Render.setRowResizeCursor(false);
-      Render.showBoxBoundary(boxHit.boundary, boxHit.top, boxHit.height);
+      Render.hideGroupBoundary();
+      Render.setGroupResizeCursor(false);
+      Render.showBoxBoundary(boxHit);
       Render.setBoxResizeCursor(true);
       return;
     }
 
-    Render.hideRowBoundary();
+    Render.hideGroupBoundary();
     Render.hideBoxBoundary();
-    Render.setRowResizeCursor(false);
+    Render.setGroupResizeCursor(false);
     Render.setBoxResizeCursor(false);
   };
 
   const startRowDrag = (event) => {
     if (rowDrag || boxDrag || event.button !== 0) return;
-    const hit = rowBoundaryAt(event);
+    const hit = groupBoundaryAt(event);
     if (!hit) return;
 
     rowDrag = {
       pointerId: event.pointerId,
-      upperId: hit.upper.id,
-      lowerId: hit.lower.id,
-      startClientY: event.clientY,
-      startUpperH: hit.upper.h,
-      startLowerH: hit.lower.h,
+      aId: hit.a.id,
+      bId: hit.b.id,
+      axis: hit.axis,
+      startClient: hit.axis === 'x' ? event.clientX : event.clientY,
+      startA: hit.startA,
+      startB: hit.startB,
       moved: false,
     };
 
     Render.hideBoxBoundary();
     Render.setBoxResizeCursor(false);
-    Render.showRowBoundary(hit.boundary);
-    Render.setRowResizeCursor(true);
+    Render.showGroupBoundary(hit.boundary, hit.axis === 'y');
+    Render.setGroupResizeCursor(true);
   };
 
   const startBoxDrag = (event) => {
@@ -826,75 +952,95 @@
 
     boxDrag = {
       pointerId: event.pointerId,
-      rowId: hit.row.id,
-      leftId: hit.left.id,
-      rightId: hit.right.id,
-      startClientX: event.clientX,
-      startLeftW: hit.left.w,
-      startRightW: hit.right.w,
+      groupId: hit.group.id,
+      aId: hit.a.id,
+      bId: hit.b.id,
+      axis: hit.axis,
+      startClient: hit.axis === 'x' ? event.clientX : event.clientY,
+      startA: hit.startA,
+      startB: hit.startB,
       moved: false,
     };
 
-    Render.hideRowBoundary();
-    Render.setRowResizeCursor(false);
-    Render.showBoxBoundary(hit.boundary, hit.top, hit.height);
+    Render.hideGroupBoundary();
+    Render.setGroupResizeCursor(false);
+    Render.showBoxBoundary(hit);
     Render.setBoxResizeCursor(true);
   };
 
   const moveRowDrag = (event) => {
     if (!rowDrag || event.pointerId !== rowDrag.pointerId) return;
 
-    const dy = event.clientY - rowDrag.startClientY;
+    const delta =
+      ((rowDrag.axis === 'x' ? event.clientX : event.clientY) -
+        rowDrag.startClient) /
+      canvasScale();
     if (!rowDrag.moved) {
-      if (Math.abs(dy) < DRAG_THRESHOLD) return;
+      if (Math.abs(delta) < DRAG_THRESHOLD) return;
       rowDrag.moved = true;
       capturePointer(event.pointerId);
     }
 
-    const pairH = rowDrag.startUpperH + rowDrag.startLowerH;
-    // Keep both rows at or above the minimum; if the pair is already too
+    const pair = rowDrag.startA + rowDrag.startB;
+    // Keep both groups at or above the minimum; if the pair is already too
     // short for two minimums, leave it split evenly.
-    const minH = Math.min(METRICS.minRowH, pairH / 2);
-    const upperH = Math.max(
-      minH,
-      Math.min(pairH - minH, rowDrag.startUpperH + dy / canvasScale()),
+    const minimum = Math.min(METRICS.minRowH, pair / 2);
+    const aSize = Math.max(
+      minimum,
+      Math.min(pair - minimum, rowDrag.startA + delta),
     );
 
-    if (!State.setRowSplit(rowDrag.upperId, rowDrag.lowerId, upperH / pairH)) return;
+    if (!State.setRowSplit(rowDrag.aId, rowDrag.bId, aSize / pair)) return;
 
-    layout = Layout.compute(State.rows);
+    layout = Layout.compute(State.rows, State.orientation);
     Render.updateGeometry(layout);
 
-    const upper = layout.rows.find((row) => row.id === rowDrag.upperId);
-    if (upper) Render.showRowBoundary(upper.y + upper.h);
+    const first = layout.rows.find((row) => row.id === rowDrag.aId);
+    if (first) {
+      Render.showGroupBoundary(
+        rowDrag.axis === 'x' ? first.x + first.w : first.y + first.h,
+        rowDrag.axis === 'y',
+      );
+    }
   };
 
   const moveBoxDrag = (event) => {
     if (!boxDrag || event.pointerId !== boxDrag.pointerId) return;
 
-    const dx = event.clientX - boxDrag.startClientX;
+    const delta =
+      ((boxDrag.axis === 'x' ? event.clientX : event.clientY) -
+        boxDrag.startClient) /
+      canvasScale();
     if (!boxDrag.moved) {
-      if (Math.abs(dx) < DRAG_THRESHOLD) return;
+      if (Math.abs(delta) < DRAG_THRESHOLD) return;
       boxDrag.moved = true;
       capturePointer(event.pointerId);
     }
 
-    const pairW = boxDrag.startLeftW + boxDrag.startRightW;
-    const minW = Math.min(METRICS.minBoxW, pairW / 2);
-    const leftW = Math.max(
-      minW,
-      Math.min(pairW - minW, boxDrag.startLeftW + dx / canvasScale()),
+    const pair = boxDrag.startA + boxDrag.startB;
+    const minimum = Math.min(METRICS.minBoxW, pair / 2);
+    const aSize = Math.max(
+      minimum,
+      Math.min(pair - minimum, boxDrag.startA + delta),
     );
 
-    if (!State.setBoxSplit(boxDrag.leftId, boxDrag.rightId, leftW / pairW)) return;
+    if (!State.setBoxSplit(boxDrag.aId, boxDrag.bId, aSize / pair)) return;
 
-    layout = Layout.compute(State.rows);
+    layout = Layout.compute(State.rows, State.orientation);
     Render.updateGeometry(layout);
 
-    const row = layout.rows.find((candidate) => candidate.id === boxDrag.rowId);
-    const left = row && row.boxes.find((box) => box.id === boxDrag.leftId);
-    if (row && left) {
-      Render.showBoxBoundary(left.x + left.w + METRICS.gap, row.y + left.y, left.h);
+    const group = layout.rows.find((candidate) => candidate.id === boxDrag.groupId);
+    const box = group && group.boxes.find((candidate) => candidate.id === boxDrag.aId);
+    if (group && box) {
+      Render.showBoxBoundary({
+        axis: boxDrag.axis,
+        boundary:
+          boxDrag.axis === 'x'
+            ? group.x + box.x + box.w + METRICS.gap
+            : group.y + box.y + box.h + METRICS.gap,
+        start: boxDrag.axis === 'x' ? group.y + box.y : group.x + box.x,
+        extent: boxDrag.axis === 'x' ? box.h : box.w,
+      });
     }
   };
 
@@ -909,8 +1055,8 @@
       // The pointer may already be released.
     }
 
-    Render.hideRowBoundary();
-    Render.setRowResizeCursor(false);
+    Render.hideGroupBoundary();
+    Render.setGroupResizeCursor(false);
     if (event.type === 'pointerup') updateHover(event);
     if (moved) ignoreCanvasClickUntil = performance.now() + 300;
   };
@@ -1020,14 +1166,16 @@
     const rowIndex = State.rows.findIndex((row) => row.id === rowId);
     const row = State.rows.find((candidate) => candidate.id === rowId);
     if (row && row.boxes.length === 1 && row.boxes[0].lock === 'aspect') {
-      preserveRowHeights();
+      preserveGroupExtents();
     }
     if (!State.addBox(rowId)) return;
     refresh();
-    // Keep keyboard focus on the row's add button after the rails re-render.
+    // Keep keyboard focus on the group's add button after the rails re-render.
     const rebuilt = rail && rail.querySelector(`[data-row-id="${rowId}"]`);
     if (rebuilt) rebuilt.focus({ preventScroll: true });
-    Render.announce(`Image box added to row ${rowIndex + 1}.`);
+    Render.announce(
+      `Image box added to ${isColumnMode() ? 'column' : 'row'} ${rowIndex + 1}.`,
+    );
   };
 
   railLeft.addEventListener('click', handlesAddBox);
@@ -1101,10 +1249,26 @@
 
   canvas.addEventListener('pointerleave', () => {
     if (rowDrag || boxDrag || panDrag) return;
-    Render.hideRowBoundary();
+    Render.hideGroupBoundary();
     Render.hideBoxBoundary();
-    Render.setRowResizeCursor(false);
+    Render.setGroupResizeCursor(false);
     Render.setBoxResizeCursor(false);
+  });
+
+  orientationButton.addEventListener('click', () => {
+    const next = isColumnMode() ? 'row' : 'column';
+    freezeLayoutProportions();
+    State.setOrientation(next, true);
+    refresh();
+    // The rails move to the other sides of the canvas, so the available space
+    // and therefore the canvas scale can change.
+    fitCanvas();
+    const count = State.rows.length;
+    Render.announce(
+      next === 'column'
+        ? `Column layout. ${count} column${count === 1 ? '' : 's'}.`
+        : `Row layout. ${count} row${count === 1 ? '' : 's'}.`,
+    );
   });
 
   actionBar.addEventListener('click', (event) => {

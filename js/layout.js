@@ -119,13 +119,17 @@ const Layout = (() => {
     Boolean(box.lock && Number.isFinite(box.ratio) && box.ratio > 0);
 
   /**
-   * Widths in pixels. Locked boxes ask for `boxHeight × ratio`; unlocked boxes
-   * share what is left by weight. If the locks cannot all fit, shrink them
-   * proportionally rather than overflowing the canvas.
+   * Widths in pixels along the layout's cross axis. Locked boxes ask for
+   * `boxHeight × ratio`; unlocked boxes share what is left by weight. In
+   * column mode the whole model is transposed, so the box ratio is inverted
+   * to keep the photo's natural width:height proportion. If the locks cannot
+   * all fit, shrink them proportionally rather than overflowing the canvas.
    */
-  const boxWidths = (boxes, boxH, total) => {
+  const boxWidths = (boxes, boxH, total, column) => {
     const locked = boxes.map((box) =>
-      isLocked(box) ? Math.max(minBoxW, boxH * box.ratio) : null,
+      isLocked(box)
+        ? Math.max(minBoxW, boxH * (column ? 1 / box.ratio : box.ratio))
+        : null,
     );
     const unlocked = [];
     let lockedTotal = 0;
@@ -295,7 +299,7 @@ const Layout = (() => {
     };
   };
 
-  const placeBoxes = (row, rowH, fitBoxH = null) => {
+  const placeBoxes = (row, rowH, contentWidth, column, fitBoxH = null) => {
     const rowBoxH = Math.max(0, rowH - 2 * gap);
     // A single aspect-locked box derives its height from the full row width,
     // so it can be shorter than the row minimum (centre it) or a fraction of a
@@ -305,13 +309,13 @@ const Layout = (() => {
     // Every box contributes a gap on both sides. The canvas padding supplies
     // the outer half of the edge margin; between two boxes the two margins add
     // up to twice the gap, so spacing matches the rows above and below.
-    const available = Math.max(0, contentW - 2 * gap * row.boxes.length);
-    const widths = boxWidths(row.boxes, boxH, available);
+    const available = Math.max(0, contentWidth - 2 * gap * row.boxes.length);
+    const widths = boxWidths(row.boxes, boxH, available, column);
     const used = widths.reduce((sum, width) => sum + width, 0);
     const fills = Math.abs(used - available) < 0.01;
 
     const start = pad + gap;
-    const limit = pad + contentW - gap;
+    const limit = pad + contentWidth - gap;
     let cursor = start;
     let exact = start;
     return widths.map((width, index) => {
@@ -346,17 +350,18 @@ const Layout = (() => {
    * width. A row with more than one box still derives widths from the height,
    * because its siblings have to share the width.
    */
-  const fitBoxHeight = (row) => {
+  const fitBoxHeight = (row, contentWidth, column) => {
     if (row.boxes.length !== 1) return null;
     const box = row.boxes[0];
     if (box.lock !== 'aspect' || !isLocked(box)) return null;
-    return (contentW - 2 * gap) / box.ratio;
+    const ratio = column ? 1 / box.ratio : box.ratio;
+    return (contentWidth - 2 * gap) / ratio;
   };
 
-  const placeRows = (rows) => {
+  const placeRows = (rows, contentWidth, contentHeight, column) => {
     if (rows.length === 0) return [];
 
-    const fits = rows.map(fitBoxHeight);
+    const fits = rows.map((row) => fitBoxHeight(row, contentWidth, column));
     const fitIndices = [];
     fits.forEach((height, index) => {
       if (height !== null) fitIndices.push(index);
@@ -367,19 +372,19 @@ const Layout = (() => {
 
     if (fitIndices.length === 0) {
       heights = distribute(
-        contentH,
+        contentHeight,
         rows.map((row) => Math.max(row.weight, 0.0001)),
         minRowH,
       );
-    } else if (contentH <= minRowH * rows.length) {
+    } else if (contentHeight <= minRowH * rows.length) {
       // Not enough room for every row minimum; split evenly instead.
-      heights = new Array(rows.length).fill(contentH / rows.length);
+      heights = new Array(rows.length).fill(contentHeight / rows.length);
     } else {
       const idealRows = fits.map((boxH) =>
         boxH === null ? null : Math.max(minRowH, boxH + 2 * gap),
       );
       const fitBudget =
-        contentH - minRowH * (rows.length - fitIndices.length);
+        contentHeight - minRowH * (rows.length - fitIndices.length);
       const idealTotal = fitIndices.reduce(
         (sum, index) => sum + idealRows[index],
         0,
@@ -397,7 +402,7 @@ const Layout = (() => {
           .map((_, index) => index)
           .filter((index) => fits[index] === null);
         const rest = distribute(
-          contentH - idealTotal,
+          contentHeight - idealTotal,
           restIndices.map((index) => Math.max(rows[index].weight, 0.0001)),
           minRowH,
         );
@@ -431,10 +436,10 @@ const Layout = (() => {
     return heights.map((height, index) => {
       exact += height;
       const last = index === heights.length - 1;
-      // Rows whose fitted boxes need less than the full canvas stay top
-      // aligned; only the normal weighted layout reaches the bottom edge.
+      // Groups whose fitted boxes need less than the full canvas stay
+      // start-aligned; only the normal weighted layout reaches the far edge.
       const end = last
-        ? Math.min(pad + contentH, Math.round(exact))
+        ? Math.min(pad + contentHeight, Math.round(exact))
         : Math.round(exact);
       const y = cursor;
       cursor = end;
@@ -447,20 +452,46 @@ const Layout = (() => {
     });
   };
 
-  /** Turn the weight-based state into row and box geometry in logical pixels. */
-  const compute = (rows) => {
-    const placed = placeRows(rows);
+  /**
+   * Turn the weight-based state into group and box geometry in logical pixels.
+   * Column mode is the same weighted model transposed: the group flow runs
+   * horizontally, so the flow and cross axes swap. The photos keep their own
+   * orientation; only the boxes around them change shape.
+   */
+  const compute = (rows, orientation = 'row') => {
+    const column = orientation === 'column';
+    const flowW = column ? contentH : contentW;
+    const flowH = column ? contentW : contentH;
+    const placed = placeRows(rows, flowW, flowH, column);
+
     return {
       contentW,
       contentH,
       pad,
       gap,
-      rows: placed.map(({ row, y, h, fitBoxH }) => ({
-        id: row.id,
-        y,
-        h,
-        boxes: placeBoxes(row, h, fitBoxH),
-      })),
+      column,
+      rows: placed.map(({ row, y, h, fitBoxH }) => {
+        const boxes = placeBoxes(row, h, flowW, column, fitBoxH);
+        if (!column) {
+          return { id: row.id, x: 0, y, w: canvasW, h, boxes };
+        }
+        // Transpose the placed row into a column: its vertical extent becomes
+        // the column's horizontal extent and every box swaps width and height.
+        return {
+          id: row.id,
+          x: y,
+          y: 0,
+          w: h,
+          h: canvasH,
+          boxes: boxes.map((box) => ({
+            ...box,
+            x: box.y,
+            y: box.x,
+            w: box.h,
+            h: box.w,
+          })),
+        };
+      }),
     };
   };
 

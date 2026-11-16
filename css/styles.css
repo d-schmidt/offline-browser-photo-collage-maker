@@ -291,10 +291,22 @@ button {
   gap: var(--stage-gap);
 }
 
+/* Column mode is the same shape turned on its side: the add-group buttons
+   move to the left and right, and the per-group box rails move above and
+   below the canvas. The canvas itself keeps its chosen format. */
+.stage.is-column-mode {
+  flex-direction: row;
+}
+
 .canvas-line {
   display: flex;
   align-items: flex-start;
   gap: var(--stage-gap);
+}
+
+.stage.is-column-mode .canvas-line {
+  flex-direction: column;
+  align-items: center;
 }
 
 .canvas-wrap {
@@ -318,12 +330,20 @@ button {
   touch-action: none;
 }
 
-.canvas.is-row-resizable {
+.canvas.is-group-resizable {
   cursor: row-resize;
+}
+
+.canvas.is-column-mode.is-group-resizable {
+  cursor: col-resize;
 }
 
 .canvas.is-box-resizable {
   cursor: col-resize;
+}
+
+.canvas.is-column-mode.is-box-resizable {
+  cursor: row-resize;
 }
 
 .canvas:focus {
@@ -337,10 +357,7 @@ button {
 
 .row-boundary {
   position: absolute;
-  left: 0;
   z-index: 4;
-  width: 100%;
-  height: 2px;
   background: var(--accent);
   pointer-events: none;
 }
@@ -352,7 +369,6 @@ button {
 .box-boundary {
   position: absolute;
   z-index: 4;
-  width: 2px;
   background: var(--accent);
   pointer-events: none;
 }
@@ -363,8 +379,6 @@ button {
 
 .row {
   position: absolute;
-  left: 0;
-  width: 100%;
 }
 
 .box {
@@ -581,10 +595,22 @@ button {
   height: calc(var(--canvas-h) * var(--scale));
 }
 
+.stage.is-column-mode .row-rail {
+  width: calc(var(--canvas-w) * var(--scale));
+  height: var(--control-size);
+}
+
 .rail-button {
   position: absolute;
   top: calc(var(--row-center, 0px) * var(--scale) - var(--control-size) / 2);
   left: 0;
+}
+
+/* In column mode the rails run across the canvas, so the per-group buttons
+   line up with their column instead of their row. */
+.stage.is-column-mode .rail-button {
+  top: 0;
+  left: calc(var(--row-center, 0px) * var(--scale) - var(--control-size) / 2);
 }
 
 .toast {

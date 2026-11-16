@@ -9,6 +9,8 @@ const ICONS = Object.freeze({
   image: 'assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  rows: 'assets/table_rows_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  column: 'assets/view_column_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -131,13 +133,14 @@ const Render = (() => {
     const lock = box ? box.lock : null;
     const canSquare = box ? state.canLockBox(box.id) : false;
     const canAspect = box ? state.canAspectLock(box.id) : false;
+    const group = state.orientation === 'column' ? 'column' : 'row';
     const limitHint =
       hasImage && !canSquare
-        ? 'At least one box in a row must stay unlocked'
+        ? `At least one box in a ${group} must stay unlocked`
         : null;
     const ratioHint =
       hasImage && canSquare && !canAspect
-        ? 'Aspect locks in a row must use the same image ratio'
+        ? `Aspect locks in a ${group} must use the same image ratio`
         : null;
 
     const square = toolButton('lock-square', 'Lock square box', 'lockSquare');
@@ -189,6 +192,7 @@ const Render = (() => {
     }
 
     const { layoutRow, layoutBox, box } = target;
+    const left = layoutRow.x + layoutBox.x;
     const top = layoutRow.y + layoutBox.y;
     const image = box.image;
 
@@ -203,7 +207,7 @@ const Render = (() => {
         box.rotation,
       );
       refs.zoomHandle.hidden = false;
-      refs.zoomHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
+      refs.zoomHandle.style.left = `${left + layoutBox.w}px`;
       refs.zoomHandle.style.top = `${top + layoutBox.h}px`;
       refs.zoomHandle.setAttribute('aria-valuemin', String(range.min));
       refs.zoomHandle.setAttribute('aria-valuemax', String(range.max));
@@ -217,7 +221,7 @@ const Render = (() => {
     }
 
     refs.rotateHandle.hidden = false;
-    refs.rotateHandle.style.left = `${layoutBox.x + layoutBox.w}px`;
+    refs.rotateHandle.style.left = `${left + layoutBox.w}px`;
     refs.rotateHandle.style.top = `${top + layoutBox.h}px`;
     refs.rotateHandle.setAttribute(
       'aria-valuenow',
@@ -247,7 +251,7 @@ const Render = (() => {
       refs.zoomOverlay.dataset.src = image.url;
     }
     refs.zoomOverlay.hidden = false;
-    refs.zoomOverlay.style.left = `${layoutBox.x + rect.x}px`;
+    refs.zoomOverlay.style.left = `${left + rect.x}px`;
     refs.zoomOverlay.style.top = `${top + rect.y}px`;
     refs.zoomOverlay.style.width = `${rect.w}px`;
     refs.zoomOverlay.style.height = `${rect.h}px`;
@@ -277,17 +281,25 @@ const Render = (() => {
     paintImageChrome(target);
   };
 
+  /** Cross-axis center of a group: its row center or its column center. */
+  const groupCenter = (layoutRow, column) =>
+    column ? layoutRow.x + layoutRow.w / 2 : layoutRow.y + layoutRow.h / 2;
+
   const paintRail = (layout, rail, side) => {
+    const column = layout.column;
     const fragment = document.createDocumentFragment();
     layout.rows.forEach((layoutRow, index) => {
-      const button = toolButton(
-        'add-box',
-        `Add image box to row ${index + 1} on the ${side}`,
-        'add',
-      );
+      const place = side === 'left' ? 'above' : 'below';
+      const label = column
+        ? `Add image box to column ${index + 1} ${place}`
+        : `Add image box to row ${index + 1} on the ${side}`;
+      const button = toolButton('add-box', label, 'add');
       button.classList.add('rail-button');
       button.dataset.rowId = layoutRow.id;
-      button.style.setProperty('--row-center', `${layoutRow.y + layoutRow.h / 2}px`);
+      button.style.setProperty(
+        '--row-center',
+        `${groupCenter(layoutRow, column)}px`,
+      );
       fragment.append(button);
     });
     rail.replaceChildren(fragment);
@@ -300,31 +312,53 @@ const Render = (() => {
         if (buttons[index]) {
           buttons[index].style.setProperty(
             '--row-center',
-            `${layoutRow.y + layoutRow.h / 2}px`,
+            `${groupCenter(layoutRow, layout.column)}px`,
           );
         }
       });
     }
   };
 
-  const showRowBoundary = (y) => {
-    refs.rowBoundary.hidden = false;
-    refs.rowBoundary.style.top = `${y - 1}px`;
+  /**
+   * Group boundary: horizontal between rows, vertical between columns. The
+   * element is shared, so both its position and its orientation are set here.
+   */
+  const showGroupBoundary = (position, horizontal) => {
+    const element = refs.rowBoundary;
+    element.hidden = false;
+    element.style.left = horizontal ? '0' : `${position - 1}px`;
+    element.style.top = horizontal ? `${position - 1}px` : '0';
+    element.style.width = horizontal ? '100%' : '2px';
+    element.style.height = horizontal ? '2px' : '100%';
   };
 
-  const hideRowBoundary = () => {
+  const hideGroupBoundary = () => {
     refs.rowBoundary.hidden = true;
   };
 
-  const setRowResizeCursor = (active) => {
-    refs.canvas.classList.toggle('is-row-resizable', active);
+  const setGroupResizeCursor = (active) => {
+    refs.canvas.classList.toggle('is-group-resizable', active);
   };
 
-  const showBoxBoundary = (x, y, height) => {
-    refs.boxBoundary.hidden = false;
-    refs.boxBoundary.style.left = `${x - 1}px`;
-    refs.boxBoundary.style.top = `${y}px`;
-    refs.boxBoundary.style.height = `${height}px`;
+  /**
+   * Box boundary: vertical between boxes in a row, horizontal between boxes in
+   * a column. `hit` carries the axis, the boundary position, and the extent of
+   * the line across it.
+   */
+  const showBoxBoundary = (hit) => {
+    const element = refs.boxBoundary;
+    element.hidden = false;
+    if (hit.axis === 'x') {
+      element.style.left = `${hit.boundary - 1}px`;
+      element.style.top = `${hit.start}px`;
+      element.style.width = '2px';
+      element.style.height = `${hit.extent}px`;
+    } else {
+      element.style.left = `${hit.start}px`;
+      element.style.top = `${hit.boundary - 1}px`;
+      element.style.width = `${hit.extent}px`;
+      element.style.height = '2px';
+    }
   };
 
   const hideBoxBoundary = () => {
@@ -335,14 +369,16 @@ const Render = (() => {
     refs.canvas.classList.toggle('is-box-resizable', active);
   };
 
-  /** Cheapest possible update while dragging a row boundary. */
+  /** Cheapest possible update while dragging a boundary. */
   const updateGeometry = (layout) => {
     currentLayout = layout;
     const rowElements = refs.rows.querySelectorAll('.row');
     layout.rows.forEach((layoutRow, rowIndex) => {
       const row = rowElements[rowIndex];
       if (!row) return;
+      row.style.left = `${layoutRow.x}px`;
       row.style.top = `${layoutRow.y}px`;
+      row.style.width = `${layoutRow.w}px`;
       row.style.height = `${layoutRow.h}px`;
 
       const boxElements = row.querySelectorAll('.box');
@@ -416,13 +452,69 @@ const Render = (() => {
     container.replaceChildren(fragment);
   };
 
+  /** The orientation toggle shows the current mode and acts on the next one. */
+  const paintOrientation = (state) => {
+    const column = state.orientation === 'column';
+    const button = refs.orientationButton;
+    button.setAttribute('aria-pressed', String(column));
+    button.title = column ? 'Switch to row layout' : 'Switch to column layout';
+    if (button.dataset.orientation !== state.orientation) {
+      button.dataset.orientation = state.orientation;
+      button.replaceChildren(iconElement(column ? 'column' : 'rows'));
+    }
+  };
+
+  /**
+   * Swap the stage between its two mirrored arrangements: the group add
+   * buttons move above/below or left/right, and the box rails move to the
+   * matching sides. The canvas itself keeps its chosen format.
+   */
+  const paintMode = (state) => {
+    const column = state.orientation === 'column';
+    refs.stage.classList.toggle('is-column-mode', column);
+    refs.canvas.classList.toggle('is-column-mode', column);
+    refs.railLeft.setAttribute(
+      'aria-label',
+      column ? 'Column actions, above the canvas' : 'Row actions, left side',
+    );
+    refs.railRight.setAttribute(
+      'aria-label',
+      column ? 'Column actions, below the canvas' : 'Row actions, right side',
+    );
+    refs.empty.textContent = column
+      ? 'No columns yet. Use the + button to the left or right of the canvas to add one.'
+      : 'No rows yet. Use the + button above or below the canvas to add one.';
+    paintOrientation(state);
+  };
+
+  const paintAddGroupButtons = (column) => {
+    refs.addRowTop.setAttribute(
+      'aria-label',
+      column
+        ? 'Add column to the left of the canvas'
+        : 'Add row above the canvas',
+    );
+    refs.addRowTop.title = refs.addRowTop.getAttribute('aria-label');
+    refs.addRowBottom.setAttribute(
+      'aria-label',
+      column
+        ? 'Add column to the right of the canvas'
+        : 'Add row below the canvas',
+    );
+    refs.addRowBottom.title = refs.addRowBottom.getAttribute('aria-label');
+  };
+
   const init = () => {
     refs.selectionActions = document.getElementById('selection-actions');
     refs.canvas = document.getElementById('canvas');
     refs.rows = document.getElementById('rows');
+    refs.stage = document.getElementById('stage');
     refs.railLeft = document.getElementById('row-rail-left');
     refs.railRight = document.getElementById('row-rail-right');
+    refs.addRowTop = document.getElementById('add-row-top');
+    refs.addRowBottom = document.getElementById('add-row-bottom');
     refs.empty = document.getElementById('canvas-empty');
+    refs.orientationButton = document.getElementById('orientation-button');
     refs.rowBoundary = document.getElementById('row-boundary');
     refs.boxBoundary = document.getElementById('box-boundary');
     refs.zoomHandle = document.getElementById('zoom-handle');
@@ -434,7 +526,7 @@ const Render = (() => {
     refs.live = document.getElementById('live-region');
 
     // Static controls only carry a data-icon name; the long asset paths live
-    // in ICONS alone.
+    // in ICONS alone. The orientation button is painted per mode instead.
     document.querySelectorAll('[data-icon]').forEach((button) => {
       const name = button.dataset.icon;
       if (ICONS[name]) button.append(iconElement(name));
@@ -445,10 +537,12 @@ const Render = (() => {
   const paint = (state, layout) => {
     currentState = state;
     currentLayout = layout;
+    paintMode(state);
+    paintAddGroupButtons(state.orientation === 'column');
     refs.empty.hidden = state.rows.length > 0;
-    hideRowBoundary();
+    hideGroupBoundary();
     hideBoxBoundary();
-    setRowResizeCursor(false);
+    setGroupResizeCursor(false);
     setBoxResizeCursor(false);
 
     const fragment = document.createDocumentFragment();
@@ -459,7 +553,9 @@ const Render = (() => {
       const row = document.createElement('div');
       row.className = 'row';
       row.dataset.rowId = layoutRow.id;
+      row.style.left = `${layoutRow.x}px`;
       row.style.top = `${layoutRow.y}px`;
+      row.style.width = `${layoutRow.w}px`;
       row.style.height = `${layoutRow.h}px`;
 
       layoutRow.boxes.forEach((layoutBox) => {
@@ -526,9 +622,9 @@ const Render = (() => {
     paintSelection,
     updateGeometry,
     updatePhoto,
-    showRowBoundary,
-    hideRowBoundary,
-    setRowResizeCursor,
+    showGroupBoundary,
+    hideGroupBoundary,
+    setGroupResizeCursor,
     showBoxBoundary,
     hideBoxBoundary,
     setBoxResizeCursor,

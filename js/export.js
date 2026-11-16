@@ -45,7 +45,7 @@ const Export = (() => {
   };
 
   const buildCanvas = async (state) => {
-    const layout = Layout.compute(state.rows);
+    const layout = Layout.compute(state.rows, state.orientation);
     // The export canvas matches the chosen format's logical size, so it can be
     // drawn in the same pixels the editor lays out.
     const width = Layout.canvasW;
@@ -70,15 +70,17 @@ const Export = (() => {
 
     for (const row of layout.rows) {
       for (const box of row.boxes) {
+        // Boxes are positioned relative to their group; columns start at x > 0.
+        const x = row.x + box.x;
         const y = row.y + box.y;
         if (box.w <= 0 || box.h <= 0) continue;
 
         const image = box.image ? images.get(box.id) : null;
         if (image) {
-          drawPhoto(ctx, image, box, box.x, y);
+          drawPhoto(ctx, image, box, x, y);
         } else {
           ctx.fillStyle = PLACEHOLDER;
-          ctx.fillRect(box.x, y, box.w, box.h);
+          ctx.fillRect(x, y, box.w, box.h);
         }
       }
     }

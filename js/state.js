@@ -3,11 +3,16 @@
 /**
  * Single source of truth for the collage. Rows and boxes only carry relative
  * weights; pixel sizes are derived by Layout on every render.
+ *
+ * A row is a horizontal group in row mode and a vertical group in column mode.
+ * The state keeps the same shape in both modes: groups ordered along the flow
+ * axis, boxes ordered across it. Layout transposes the math for columns.
  */
 const State = (() => {
   const rows = [];
   let selectedBoxId = null;
   let canvasColor = '#ffffff';
+  let orientation = 'row';
   let sequence = 0;
   let lockSequence = 0;
 
@@ -164,7 +169,7 @@ const State = (() => {
     return reference;
   };
 
-  /** Aspect locks may repeat in a row only when the image ratios are identical. */
+  /** Aspect locks may repeat in a group only when the image ratios match. */
   const canAspectLock = (boxId) => {
     const found = findBox(boxId);
     if (!found || !found.box.image || !canLockBox(boxId)) return false;
@@ -318,7 +323,7 @@ const State = (() => {
     return true;
   };
 
-  /** Same idea as setRowSplit, but for two neighboring boxes in one row. */
+  /** Same idea as setRowSplit, but for two neighboring boxes in one group. */
   const setBoxSplit = (leftBoxId, rightBoxId, leftShare) => {
     const left = findBox(leftBoxId);
     const right = findBox(rightBoxId);
@@ -353,6 +358,36 @@ const State = (() => {
     return true;
   };
 
+  /**
+   * Switch between the horizontal row layout and its transposed column layout.
+   * `rotate` is the 90° turn used by the action-bar toggle: the top row becomes
+   * the right column (and the right column becomes the top row going back).
+   * The photos themselves never rotate, only the structure around them.
+   * Ratio locks are defined against the old axis, so they are released before
+   * the structure moves.
+   */
+  const setOrientation = (mode, rotate = true) => {
+    const next = mode === 'column' ? 'column' : 'row';
+    if (next === orientation) return false;
+
+    if (rotate) {
+      // Ratio locks are tied to the old axis, so release them first.
+      for (const row of rows) {
+        for (const box of row.boxes) {
+          box.lock = null;
+          box.ratio = null;
+          box.lockSeq = 0;
+        }
+      }
+      // The 90° turn maps the top row to the right column; reversing keeps the
+      // box order inside each group, so the left box becomes the top one.
+      rows.reverse();
+    }
+
+    orientation = next;
+    return true;
+  };
+
   const orderedBoxes = () => rows.flatMap((row) => row.boxes);
 
   // v1 default: two rows, one empty placeholder box each.
@@ -367,6 +402,9 @@ const State = (() => {
     },
     get canvasColor() {
       return canvasColor;
+    },
+    get orientation() {
+      return orientation;
     },
     get boxCount() {
       return rows.reduce((count, row) => count + row.boxes.length, 0);
@@ -390,6 +428,7 @@ const State = (() => {
     select,
     clearSelection,
     setCanvasColor,
+    setOrientation,
     orderedBoxes,
   };
 })();

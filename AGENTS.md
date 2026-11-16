@@ -11,24 +11,24 @@
 
 ## Current state
 
-The editor shell is functional: a start screen that picks the canvas format (9:16, 16:9, 7:9, 5:4, or 1:1), weighted rows and boxes, add/remove, selection, image loading, keyboard control, row-boundary and box-width resizing, image-ratio width locks with full-width single-image rows, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and JPEG/PNG save/export.
+The editor shell is functional: a start screen that picks the canvas format (9:16, 16:9, 7:9, 5:4, or 1:1), weighted rows and boxes, a row/column mode toggle, add/remove, selection, image loading, keyboard control, group-boundary and box-boundary resizing, image-ratio locks with full-size single-image groups, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and JPEG/PNG save/export.
 
 **Working:**
 
-- `index.html` — two-region shell with the format start screen, action bar, scaled canvas stage, add-row buttons, add-box rails on both sides, hidden file and color inputs, and live region.
-- `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, focus/hover states, toast variants, reduced-motion handling.
-- `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges, image-ratio width locks (including full-width fitted rows), 40 px minimums, whole-pixel rounding, and the cover/zoom/pan/rotate photo rectangle shared with export.
-- `js/state.js` — rows, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, canvas margin color, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
+- `index.html` — two-region shell with the format start screen, action bar (including the permanent row/column toggle), scaled canvas stage, add-group buttons, add-box rails, hidden file and color inputs, and live region.
+- `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, the mirrored column-mode stage, orientation-aware resize cursors, focus/hover states, toast variants, reduced-motion handling.
+- `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges, image-ratio locks (including full-size fitted groups), 40 px minimums, whole-pixel rounding, the transposed column layout, and the cover/zoom/pan/rotate photo rectangle shared with export.
+- `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
-- `js/render.js` — renders the format buttons, rows, boxes, contextual tools including the lock toggles, both rails, row/box boundary overlays, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
+- `js/render.js` — renders the format buttons, rows/columns, boxes, contextual tools including the lock toggles, both rails, group/box boundary overlays in either orientation, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
 - `js/export.js` — offscreen JPEG/PNG compositing at the chosen canvas size using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
-- `js/main.js` — event wiring, format selection, file picker, margin-color picker, save action, lock toggles, keyboard navigation/deletion, row- and box-boundary dragging with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
+- `js/main.js` — event wiring, format selection, file picker, margin-color picker, save action, orientation toggle, lock toggles, keyboard navigation/deletion, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
-- `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, and margin-color icons.
+- `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, margin-color, row-mode, and column-mode icons.
 
 **Not built yet:** drag reordering, persistence, and undo/redo. The weight model and layout math already support the remaining drag work.
 
-**Next step:** drag a selected box to reorder within and across rows.
+**Next step:** drag a selected box to reorder within and across groups.
 
 
 ## Hard constraints
@@ -46,8 +46,20 @@ On load the editor area shows a **format start screen**: the heading `Select for
 
 While editing, two stacked regions fill the viewport height, no page scrolling:
 
-1. **Action bar** — fixed height (~56 px) at the top, dark background. Contextual tool icons sit on the left; the always-visible **margin-color picker** and **Save** button sit on the right. The contextual area is empty when nothing is selected.
-2. **Editor area** — fills the remaining height, dark gray background (`#2b2b2b`). Centered inside it: the collage canvas, with add-row buttons above and below and add-box buttons beside each row on both the left and right sides.
+1. **Action bar** — fixed height (~56 px) at the top, dark background. Contextual tool icons sit on the left; the always-visible **row/column toggle**, **margin-color picker**, and **Save** button sit on the right. The contextual area is empty when nothing is selected.
+2. **Editor area** — fills the remaining height, dark gray background (`#2b2b2b`). Centered inside it: the collage canvas, with add-group buttons and add-box rails arranged according to the current mode.
+
+### Row and column modes
+
+- A permanent action-bar toggle switches between **row mode** and **column mode**, showing the current mode's icon (`table_rows` for rows, `view_column` for columns) and exposing the switch through its label and title.
+- Distinct portrait formats (9:16, 7:9) start in **row mode**; landscape formats (16:9, 5:4) start in **column mode**; 1:1 starts in row mode. The chosen canvas size never changes with the mode.
+- Row mode is the horizontal model: groups stack top to bottom, boxes run left to right within each group, add-group buttons sit above and below, add-box buttons sit left and right, group boundaries are horizontal, and box boundaries are vertical.
+- Column mode is the same weighted model transposed: groups run left to right as columns, boxes stack top to bottom within each column, add-group buttons sit left and right, add-box buttons sit above and below, group boundaries are vertical, and box boundaries are horizontal. The canvas itself keeps its format.
+- The lock rules are per group, so they apply per column in column mode: the `n − 1` cap, the shared aspect-ratio reference, and the disabled boundary next to a single-box locked group all follow the columns.
+- A single-box aspect-locked group still spans the full cross axis, which means the full canvas height in column mode. Square locks derive the box's other side from the group's cross-axis size in either mode.
+- Switching modes turns the structure 90°: row → column is clockwise (the top row becomes the right column) and column → row is counter-clockwise (the right column becomes the top row). Box order inside each group is preserved, so the leftmost box becomes the topmost.
+- The turn freezes the current pixel proportions into the weights first, releases every ratio lock before the structure moves, and never rotates or resets the photos themselves. Their zoom, pan, and rotation survive; only the box shape changes.
+- No animation is used for the switch.
 
 ### Layout metrics
 
@@ -67,31 +79,31 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 
 ### Rows and image boxes
 
-- Initial state after choosing a format: **two rows**, each containing **one empty placeholder box**.
-- A row is a horizontal track inside the canvas; boxes fill it left to right, like a flex row with wrapping disabled.
+- Initial state after choosing a format: **two groups**, each containing **one empty placeholder box**. Portrait and square formats call these rows; landscape formats call them columns.
+- In row mode a group is a horizontal track inside the canvas; boxes fill it left to right, like a flex row with wrapping disabled. In column mode the same group is a vertical track; boxes stack top to bottom.
 - Image boxes are white on the outside (5 px margin) with light gray placeholder fill; once populated, the photo covers the box, cropped to the box aspect ratio and centered (`object-fit: cover`), clipped by the box. Adjacent boxes therefore have 10 px of white between them, and the canvas edges have 5 px padding plus the 5 px box margin.
 - Empty boxes show a centered `add_photo_alternate` icon as a visual hint; loading a photo replaces it.
-- **Add box:** a button beside each row, vertically centered, on both the left and right sides of the canvas, using `add_circle.svg`.
-- **Add row:** buttons above and below the canvas, using `add_circle.svg`. A new row always starts with one empty box. The top button inserts at the top of the stack; the bottom button appends.
-- No minimum number of rows: deleting the last box in the last row leaves an empty editor area, with the add-row buttons still usable.
+- **Add box:** a button beside each group, using `add_circle.svg`. In row mode the buttons sit on the left and right of the canvas, vertically centered on the row. In column mode they sit above and below the canvas, horizontally centered on the column.
+- **Add group:** buttons outside the canvas, using `add_circle.svg`. In row mode they sit above and below and add a row (top inserts at the top, bottom appends). In column mode they sit to the left and right and add a column (left inserts at the left, right appends). A new group always starts with one empty box.
+- No minimum number of groups: deleting the last box in the last group leaves an empty editor area, with the add-group buttons still usable.
 
 ### Selection and contextual actions
 
 - Clicking an image box selects it: 3 px border in the accent blue. The border turns red while one of the box's locks is active.
-- Clicking the canvas background, the gray editor background, or pressing `Escape` clears the selection and empties the contextual actions. The margin-color picker and Save stay visible.
+- Clicking the canvas background, the gray editor background, or pressing `Escape` clears the selection and empties the contextual actions. The row/column toggle, margin-color picker, and Save stay visible.
 - Double-clicking a box selects it and opens the image picker.
 - Selected-box actions:
-  - **Delete** (`delete.svg`) — removes the box. Deleting the last box in a row removes that row. The selection is cleared.
+  - **Delete** (`delete.svg`) — removes the box. Deleting the last box in a group removes that group. The selection is cleared.
   - **Select image** (`image_search.svg`) — opens the browser file picker (`accept="image/*"`). The chosen file replaces the placeholder, cropped to the box aspect ratio and centered. Invalid or undecodable files show a visible error and leave the box unchanged.
-  - **Lock square** (`crop_square.svg`) — enabled only after the box has an image. Sets the box width so it is square and keeps that ratio as the row height changes. The active button is red.
-  - **Lock aspect ratio** (`image_aspect_ratio.svg`) — enabled only after the box has an image, and only when its image ratio matches any existing aspect lock in the row. Uses the image's natural aspect ratio to set the box width and keeps that ratio as the row height changes. When this is the row's only box, the row height is instead recalculated from the full width available to a box, so the photo spans the canvas from margin to margin whenever the other rows can still keep their 40 px minimums. Activating it resets the box's zoom and pan to the plain cover crop and hides the zoom circle until the lock is released; zoom changes are ignored while locked. Rotation stays available. The active button is red.
-  - The two locks are exclusive: choosing one releases the other, and clicking the active lock releases it. While locked, width-boundary dragging involving that box is disabled; row height remains adjustable in multi-box rows, while a single-box locked row keeps its row-height handles disabled.
-  - A row with multiple boxes can have at most `n − 1` locks. The remaining unlocked box is forced to fill whatever width is left. Deleting the forced box can leave only locked boxes, so the last lock is released automatically to restore the rule.
-  - Aspect-ratio locks are further limited to one ratio per row: the first aspect-locked image sets the row's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
-  - A row with a single box may lock that box. Its row-height handles are then disabled: a square lock keeps its width derived from the row height, while an aspect lock derives the row height from the full width and centres the box if the row minimum makes it shorter.
+  - **Lock square** (`crop_square.svg`) — enabled only after the box has an image. Sets the box's free side so it is square and keeps that ratio as the group's cross-axis size changes (row height in row mode, column width in column mode). The active button is red.
+  - **Lock aspect ratio** (`image_aspect_ratio.svg`) — enabled only after the box has an image, and only when its image ratio matches any existing aspect lock in the group. Uses the image's natural aspect ratio to set the box's free side and keeps that ratio as the group's cross-axis size changes. When this is the group's only box, the group's cross-axis size is instead recalculated from the full flow-axis space available to a box, so the photo spans the canvas from margin to margin (top to bottom in column mode) whenever the other groups can still keep their 40 px minimums. Activating it resets the box's zoom and pan to the plain cover crop and hides the zoom circle until the lock is released; zoom changes are ignored while locked. Rotation stays available. The active button is red.
+  - The two locks are exclusive: choosing one releases the other, and clicking the active lock releases it. While locked, boundary dragging involving that box is disabled; the group's cross-axis size remains adjustable in multi-box groups, while a single-box locked group keeps its group-boundary handles disabled.
+  - A group with multiple boxes can have at most `n − 1` locks. The remaining unlocked box is forced to fill whatever space is left. Deleting the forced box can leave only locked boxes, so the last lock is released automatically to restore the rule.
+  - Aspect-ratio locks are further limited to one ratio per group: the first aspect-locked image sets the group's reference ratio, and another box may be aspect-locked only if its image has the exact same width:height ratio. The `n − 1` cap still applies. Replacing an aspect-locked image updates the group; locks that no longer match the reference are released.
+  - A group with a single box may lock that box. Its group-boundary handles are then disabled: a square lock keeps the box's free side derived from the group's cross-axis size, while an aspect lock derives the group's cross-axis size from the full flow-axis space and centres the box if the group minimum makes it shorter.
 - **Margin color** (`dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens the system color picker and changes the canvas background, which is also the padding, gaps, and border color around the boxes. The chosen color is used by both export formats.
 - **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens a small menu below the button with **JPEG (.jpg)** and **PNG (.png)**. Both composite the canvas at the chosen format's logical size (1080 px on the shorter side) offscreen and download it as `collage-yyyy-MM-dd-HH-mm.<ext>` using the local save time; JPEG is encoded at 85% quality. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
-- Only boxes have contextual actions; the margin-color picker and Save are global.
+- Only boxes have contextual actions; the row/column toggle, margin-color picker, and Save are global.
 
 ### Direct manipulation
 
@@ -99,27 +111,27 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 - **Rotate a photo** — a second 18 px circle sits 14 screen px outside the same corner, in an unclipped chrome layer so it stays reachable when the box touches the canvas edge. Its invisible grab pad extends 40 px down-right, away from the zoom pad so the two targets do not fight. Drag it around the box centre to rotate the photo in degrees. At 1× the image scales up just enough that its rotated rectangle still covers the box, so no gap appears; zooming out below 1× then trades that cover for showing more of the photo, down to the fit scale. Arrow keys rotate ±1° (Shift ±15°) and `Home` resets. The rotation is stored per box in the (−180, 180] range and resets when the photo is replaced.
 - **Pan a photo** — while the box is selected, pointer-drag the photo itself, or the canvas background under its ghost, to move it within the crop. Panning stops at the image edges, so it never reveals more background than the current zoom already shows. Offsets are stored as −1…1 shares of the rotation-aware slack on each screen axis, so the framing survives row and box resizes and is preserved through export.
 - **Ghost overlay** — while an image box is selected, the full photo is drawn at 32% opacity behind the box but above its siblings, showing the parts outside the crop as a drag reference. It follows the zoom and rotation. It is DOM chrome: the export draws only the cropped, zoomed, rotated photo. The ghost and both circles vanish as soon as the selection clears or moves to another box.
-- **Drag a box** — planned, not built: pointer-drag on a selected box reorders it within or across rows. Until reordering lands, a drag on a selected photo pans it instead.
-- **Resize a box** — hovering the white gap between two boxes in the same row highlights it with a 2 px vertical accent line and shows a column-resize cursor. The grab band is measured in screen pixels (8 px around the boundary for a mouse, 22 px for touch) and extends over the boxes, so it stays usable when the canvas is scaled down. Dragging moves that boundary, trading width between the two boxes while every other box keeps its width. Both boxes are clamped to the 40 px minimum. Height always follows the row. A boundary touching a locked box is not draggable.
-- **Resize a row** — hovering the white gap between two rows highlights it with a 2 px accent line across the canvas and shows a row-resize cursor. The same screen-sized grab band widens for touch. Dragging moves that boundary, trading height between the two adjacent rows while the canvas height and every other row stay fixed. Both rows are clamped to the 40 px minimum. Locked boxes recalculate their width from the new height so their ratio is preserved. A boundary adjacent to a single-box locked row is not draggable.
-- **Lock a ratio** — square locks use 1:1; aspect locks use the natural image ratio. The width is derived from the current box height, so row-height changes keep the ratio. Unlocked siblings in the row reflow; other rows are untouched. Releasing a lock preserves the box's current pixel width and makes its boundaries draggable again.
+- **Drag a box** — planned, not built: pointer-drag on a selected box reorders it within or across groups. Until reordering lands, a drag on a selected photo pans it instead.
+- **Resize a box** — hovering the white gap between two boxes in the same group highlights it with a 2 px accent line (vertical in row mode, horizontal in column mode) and shows the matching column- or row-resize cursor. The grab band is measured in screen pixels (8 px around the boundary for a mouse, 22 px for touch) and extends over the boxes, so it stays usable when the canvas is scaled down. Dragging moves that boundary, trading width or height between the two boxes while every other box keeps its size. Both boxes are clamped to the 40 px minimum. The cross-axis size always follows the group. A boundary touching a locked box is not draggable.
+- **Resize a group** — hovering the white gap between two groups highlights it with a 2 px accent line (horizontal between rows, vertical between columns) and shows the matching row- or column-resize cursor. The same screen-sized grab band widens for touch. Dragging moves that boundary, trading height or width between the two adjacent groups while the canvas size and every other group stay fixed. Both groups are clamped to the 40 px minimum. Locked boxes recalculate their free side from the new cross-axis size so their ratio is preserved. A boundary adjacent to a single-box locked group is not draggable.
+- **Lock a ratio** — square locks use 1:1; aspect locks use the natural image ratio. The box's free side is derived from the group's current cross-axis size, so resizing the group keeps the ratio. Unlocked siblings in the group reflow; other groups are untouched. Releasing a lock preserves the box's current pixel size and makes its boundaries draggable again.
 - Use pointer events and capture the pointer only once the ~3 px movement threshold is crossed, so a tap still selects the box (or a boundary tap does nothing) instead of being swallowed by a drag.
 
 ### Reflow model
 
-Boxes flow like flex items with `flex-grow`; the canvas never resizes.
+Boxes flow like flex items with `flex-grow`; the canvas never resizes. Row mode is the model below; column mode is the same math with the flow and cross axes swapped.
 
 - Canvas content width = `canvas-w − 2 × pad`. Content height = `canvas-h − 2 × pad`.
-- Each row has a height **weight**; each box has a width **weight**.
-- Row height = `contentH × weight / Σ rowWeights`, minus `2 × gap` for box height.
-- Box width = `(contentW − 2 × gap × n) × weight / Σ boxWeights` in its row. Each box reserves a gap on both sides, so two adjacent boxes show twice the gap between them and every outer edge keeps one gap beyond the canvas padding.
-- A locked box requests `boxHeight × lockRatio` instead of using its weight. Unlocked boxes share the remaining width by weight. A multi-box row always leaves at least one unlocked box, which absorbs the remainder. If the locked widths cannot fit, they shrink proportionally; if every box in a row is locked and the row is narrower than the canvas, the row stays left-aligned rather than stretching and breaking the ratio.
-- A row's only box with an **aspect** lock is the exception: its height comes from the full width available to a box (`availableWidth ÷ imageRatio`), so the box fills the canvas from margin to margin. Fitted rows claim their height first; the remaining rows share the rest by weight and stay at or above 40 px. When the fitted heights cannot all fit, they are scaled down proportionally and every other row stays at its minimum. A fitted row whose ideal height would be shorter than 40 px keeps the 40 px row and centres the full-width box in it. If every row is fitted and there is height left over, the stack stays top-aligned and the canvas background shows below it.
-- Adding a box gives it the row's mean weight; adding a row gives it the mean row weight and renormalizes the stack.
-- Removing a box or row renormalizes the remaining weights.
-- Resizing redistributes weight only between the dragged element and its siblings/adjacent rows.
-- Clamp with minimums (row 40 px, box ≈ 40 px) so nothing collapses to zero.
-- Round to whole logical pixels; give the last box in a row the rounding remainder so edges stay flush. Never let a gap or box overflow the padded content box.
+- Each group has a flow-axis **weight** (row height or column width); each box has a cross-axis **weight** (box width or height).
+- Group extent = `flowTotal × weight / Σ groupWeights`, minus `2 × gap` for the box extent.
+- Box extent = `(crossTotal − 2 × gap × n) × weight / Σ boxWeights` in its group. Each box reserves a gap on both sides, so two adjacent boxes show twice the gap between them and every outer edge keeps one gap beyond the canvas padding.
+- A locked box requests the group's cross-axis size multiplied by the lock ratio (inverted in column mode so the image's width:height proportion still holds) instead of using its weight. Unlocked boxes share the remaining cross-axis space by weight. A multi-box group always leaves at least one unlocked box, which absorbs the remainder. If the locked sizes cannot fit, they shrink proportionally; if every box in a group is locked and the group is smaller than the canvas, it stays left/top-aligned rather than stretching and breaking the ratio.
+- A group's only box with an **aspect** lock is the exception: its cross-axis size comes from the full flow-axis space available to a box, so the box fills the canvas from margin to margin (top to bottom in column mode). Fitted groups claim their flow-axis extent first; the remaining groups share the rest by weight and stay at or above 40 px. When the fitted extents cannot all fit, they are scaled down proportionally and every other group stays at its minimum. A fitted group whose ideal extent would be shorter than 40 px keeps the 40 px group and centres the full-size box in it. If every group is fitted and there is space left over, the stack stays start-aligned and the canvas background shows beyond it.
+- Adding a box gives it the group's mean weight; adding a group gives it the mean group weight and renormalizes the stack.
+- Removing a box or group renormalizes the remaining weights.
+- Resizing redistributes weight only between the dragged element and its siblings/adjacent groups.
+- Clamp with minimums (group 40 px, box ≈ 40 px) so nothing collapses to zero.
+- Round to whole logical pixels; give the last box in a group the rounding remainder so edges stay flush. Never let a gap or box overflow the padded content box.
 
 The result: any structural or size change reflows the whole canvas to fill the same fixed area, with no scrolling inside the canvas.
 
@@ -131,7 +143,9 @@ long names are written once.
 
 | Purpose | Path |
 | --- | --- |
-| Add row / add box | `assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Add group / add box | `assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Row mode indicator | `assets/table_rows_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Column mode indicator | `assets/view_column_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Empty-box hint | `assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Delete box | `assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Select image | `assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
@@ -150,9 +164,9 @@ index.html            Markup, hidden file input, script/style includes
 css/styles.css        All styles, layout metrics as custom properties
 js/
   state.js            Editor state, weights, history, persistence
-  layout.js           Format sizes, weight → pixel flow math, row/box geometry
+  layout.js           Format sizes, weight → pixel flow math, row/column group and box geometry
   images.js           File loading, decoding, cover-crop, object URLs
-  render.js           DOM rendering of the format screen, rows/boxes and selection UI
+  render.js           DOM rendering of the format screen, rows/columns, boxes and selection UI
   export.js           Offscreen canvas compositing at the chosen format → PNG/JPEG
   main.js             Wiring, events, startup
 assets/               Material Symbols SVG icons (supplied + download)
@@ -171,8 +185,8 @@ Split by concern, not by line count. This layout is a target, not a mandate — 
 
 Manual test checklist:
 
-- Fresh page shows two rows, one gray box each with a centered add-photo icon, white padding, and a 5 px box margin on every canvas edge.
-- Add/remove boxes and rows from both ends and both side rails; confirm reflow and unchanged canvas size.
+- Fresh page shows two groups (rows or columns, depending on the format), one gray box each with a centered add-photo icon, white padding, and a 5 px box margin on every canvas edge.
+- Add/remove boxes and groups from both ends and both rails in each mode; confirm reflow and unchanged canvas size.
 - Select a box: blue 3 px border and all four actions appear; deselect clears them while Save stays.
 - Select an empty box: both lock buttons are gray and disabled.
 - Load an image; the lock buttons enable. Lock square: the box becomes square, the button turns red, the selection border turns red, and its width boundaries stop responding.
@@ -199,7 +213,13 @@ Manual test checklist:
 - Select another box or clear the selection: both circles and the ghost disappear. Select an image box again: the saved zoom/pan/rotation return. Replace the photo: zoom, pan, and rotation all reset.
 - Save while zoomed, panned, and rotated: the exported PNG and JPEG match the visible crop, with no ghost, circles, or selection border.
 - Fresh page shows the `Select format:` heading above five buttons with icons, ratios, names, and pixel sizes; the action bar and canvas stay hidden. Choose one and the editor appears with the matching canvas (9:16 → 1080 × 1920, 16:9 → 1920 × 1080, 7:9 → 1080 × 1389, 5:4 → 1350 × 1080, 1:1 → 1080 × 1080).
-- Click Save; confirm a menu opens below the button with JPEG and PNG. Each downloads a file at the chosen canvas size with the matching extension and matches the canvas without selection borders. Confirm the menu closes with Escape, an outside click, or after choosing a format.
+- The action bar shows the permanent row/column toggle before the margin picker. Portrait and square formats open in row mode with the `table_rows` icon; landscape formats open in column mode with the `view_column` icon. The browser surface stays at the chosen size in both modes.
+- Switch a portrait format to column mode: two stacked rows become two side-by-side columns, the top row becomes the right column, add-group buttons move to the left/right, add-box buttons move above/below each column, group boundaries are vertical, and box boundaries are horizontal. Switch back and the right column becomes the top row.
+- With images present, switch modes: every ratio lock is released, the photos keep their zoom, pan, and rotation, and the visible proportions are carried into the new axes. No animation runs.
+- In column mode, hover between two columns for a vertical line and column-resize cursor; hover between two boxes inside a column for a horizontal line and row-resize cursor. Drag each and confirm the sizes trade while the canvas stays fixed.
+- In column mode, confirm the `n − 1` lock cap, matching aspect ratios, and the disabled group boundary next to a single-box locked column. Lock aspect ratio on a lone column: the box spans the canvas from top to bottom with its natural ratio. Lock square on a lone column: its height matches its width.
+- Delete every box in column mode: the empty state mentions columns, and the left/right add-group buttons still add a column.
+- Click Save; confirm a menu opens below the button with JPEG and PNG. Each downloads a file at the chosen canvas size with the matching extension and matches the canvas without selection borders. Repeat in column mode and confirm the columns and boxes appear at their on-screen positions, not stacked at the left edge. Confirm the menu closes with Escape, an outside click, or after choosing a format.
 - Click the margin-color button; pick a color and confirm the canvas padding/gaps change live and the exported file uses that color.
 - Hover between two boxes in a row: vertical blue line and column-resize cursor; drag to trade widths down to 40 px.
 - Hover between two rows: horizontal blue line and row-resize cursor; drag to trade heights down to 40 px.
@@ -223,12 +243,12 @@ Manual test checklist:
 - Every icon button is a real `<button>` with an `aria-label`, a `title` tooltip for mouse users, and a visible hover/focus state.
 - Keyboard: `Tab` moves through controls; arrow keys move selection between boxes; `Delete`/`Backspace` deletes the selected box; `Enter`/`Space` opens the image picker; `Escape` deselects.
 - Announce selection and error messages via an `aria-live` region.
-- Show a friendly empty state when no rows remain; fail visibly on unsupported or undecodable images.
+- Show a friendly empty state when no groups remain, using row or column wording; fail visibly on unsupported or undecodable images.
 - Respect `prefers-reduced-motion` for transitions.
 
 ## Performance and limits
 
-- Keep drag/resize at ~60 fps with 20 boxes on a mid-range laptop; update existing row/box geometry during a drag instead of rebuilding the tree.
+- Keep drag/resize at ~60 fps with 20 boxes on a mid-range laptop; update existing group/box geometry during a drag instead of rebuilding the tree.
 - Prefer `createImageBitmap` where available; never block on decoding.
 - Downscale very large photos for on-screen rendering while keeping originals for export.
 
@@ -238,7 +258,7 @@ Defaults chosen for v1 — change them here before implementation if wrong:
 
 1. **Drag semantics:** reorder by weight, not free placement. Free positioning would conflict with the flex-flow requirement.
 2. **Canvas size:** 1080 px on the shorter side, longer side from the chosen format (9:16, 16:9, 7:9, 5:4, or 1:1), matching the export target.
-3. **Resize axes:** box width only; row heights come from row-boundary drags. Vertical box handles are omitted.
+3. **Resize axes:** in row mode, boxes resize horizontally and rows vertically; column mode swaps those axes. The mode toggle owns the choice, so there are no per-box vertical handles.
 4. **Persistence and undo/redo:** planned next, not in v1. State is already weight-based, so both are cheap to add once the model is stable.
 
 ## Git
