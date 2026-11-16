@@ -9,8 +9,7 @@ const ICONS = Object.freeze({
   image: 'assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
-  rows: 'assets/table_rows_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
-  column: 'assets/view_column_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -460,7 +459,10 @@ const Render = (() => {
     button.title = column ? 'Switch to row layout' : 'Switch to column layout';
     if (button.dataset.orientation !== state.orientation) {
       button.dataset.orientation = state.orientation;
-      button.replaceChildren(iconElement(column ? 'column' : 'rows'));
+      const icon = iconElement('mode');
+      // The row icon is the same dashboard tile turned on its side.
+      if (!column) icon.classList.add('is-rotated-ccw');
+      button.replaceChildren(icon);
     }
   };
 

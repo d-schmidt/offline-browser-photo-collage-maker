@@ -101,6 +101,11 @@ button {
   user-select: none;
 }
 
+/* The row-mode toggle uses the dashboard tile turned on its side. */
+.icon.is-rotated-ccw {
+  transform: rotate(-90deg);
+}
+
 .action-bar {
   position: relative;
   z-index: 20;

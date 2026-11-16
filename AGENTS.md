@@ -24,7 +24,7 @@ The editor shell is functional: a start screen that picks the canvas format (9:1
 - `js/export.js` — offscreen JPEG/PNG compositing at the chosen canvas size using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
 - `js/main.js` — event wiring, format selection, file picker, margin-color picker, save action, orientation toggle, lock toggles, keyboard navigation/deletion, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
-- `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, margin-color, row-mode, and column-mode icons.
+- `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, margin-color, and row/column mode icons.
 
 **Not built yet:** drag reordering, persistence, and undo/redo. The weight model and layout math already support the remaining drag work.
 
@@ -51,7 +51,7 @@ While editing, two stacked regions fill the viewport height, no page scrolling:
 
 ### Row and column modes
 
-- A permanent action-bar toggle switches between **row mode** and **column mode**, showing the current mode's icon (`table_rows` for rows, `view_column` for columns) and exposing the switch through its label and title.
+- A permanent action-bar toggle switches between **row mode** and **column mode**, showing `space_dashboard` upright in column mode and rotated 90° counter-clockwise in row mode. The switch is exposed through the button's label and title.
 - Distinct portrait formats (9:16, 7:9) start in **row mode**; landscape formats (16:9, 5:4) start in **column mode**; 1:1 starts in row mode. The chosen canvas size never changes with the mode.
 - Row mode is the horizontal model: groups stack top to bottom, boxes run left to right within each group, add-group buttons sit above and below, add-box buttons sit left and right, group boundaries are horizontal, and box boundaries are vertical.
 - Column mode is the same weighted model transposed: groups run left to right as columns, boxes stack top to bottom within each column, add-group buttons sit left and right, add-box buttons sit above and below, group boundaries are vertical, and box boundaries are horizontal. The canvas itself keeps its format.
@@ -144,8 +144,7 @@ long names are written once.
 | Purpose | Path |
 | --- | --- |
 | Add group / add box | `assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
-| Row mode indicator | `assets/table_rows_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
-| Column mode indicator | `assets/view_column_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Row/column mode indicator | `assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` (row mode rotates it 90° counter-clockwise) |
 | Empty-box hint | `assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Delete box | `assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Select image | `assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
@@ -213,7 +212,7 @@ Manual test checklist:
 - Select another box or clear the selection: both circles and the ghost disappear. Select an image box again: the saved zoom/pan/rotation return. Replace the photo: zoom, pan, and rotation all reset.
 - Save while zoomed, panned, and rotated: the exported PNG and JPEG match the visible crop, with no ghost, circles, or selection border.
 - Fresh page shows the `Select format:` heading above five buttons with icons, ratios, names, and pixel sizes; the action bar and canvas stay hidden. Choose one and the editor appears with the matching canvas (9:16 → 1080 × 1920, 16:9 → 1920 × 1080, 7:9 → 1080 × 1389, 5:4 → 1350 × 1080, 1:1 → 1080 × 1080).
-- The action bar shows the permanent row/column toggle before the margin picker. Portrait and square formats open in row mode with the `table_rows` icon; landscape formats open in column mode with the `view_column` icon. The browser surface stays at the chosen size in both modes.
+- The action bar shows the permanent row/column toggle before the margin picker. Portrait and square formats open in row mode with the dashboard icon rotated 90° counter-clockwise; landscape formats open in column mode with the dashboard icon upright. The browser surface stays at the chosen size in both modes.
 - Switch a portrait format to column mode: two stacked rows become two side-by-side columns, the top row becomes the right column, add-group buttons move to the left/right, add-box buttons move above/below each column, group boundaries are vertical, and box boundaries are horizontal. Switch back and the right column becomes the top row.
 - With images present, switch modes: every ratio lock is released, the photos keep their zoom, pan, and rotation, and the visible proportions are carried into the new axes. No animation runs.
 - In column mode, hover between two columns for a vertical line and column-resize cursor; hover between two boxes inside a column for a horizontal line and row-resize cursor. Drag each and confirm the sizes trade while the canvas stays fixed.
