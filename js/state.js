@@ -99,14 +99,32 @@ const State = (() => {
     return box;
   };
 
-  /** Remove a box; an emptied row is removed as well. */
+  /**
+   * Remove a box; an emptied row is removed as well. The removed image stays
+   * alive for the caller's one-step undo, which owns releasing it.
+   */
   const removeBox = (boxId) => {
     const found = findBox(boxId);
     if (!found) return null;
     const { row, box, index } = found;
+    const rowTotal = rows.reduce((sum, candidate) => sum + candidate.weight, 0);
+    const boxTotal = row.boxes.reduce(
+      (sum, candidate) => sum + candidate.weight,
+      0,
+    );
+    // Remember the box's share of its row and the row's share of the stack;
+    // the raw weights are renormalized by the removal and would not restore
+    // the same proportions.
+    const snapshot = {
+      box,
+      rowId: row.id,
+      rowIndex: rows.indexOf(row),
+      rowShare: rowTotal > 0 ? row.weight / rowTotal : 1,
+      boxIndex: index,
+      boxShare: boxTotal > 0 ? box.weight / boxTotal : 1,
+    };
 
     row.boxes.splice(index, 1);
-    Images.release(box.image);
 
     if (row.boxes.length === 0) {
       rows.splice(rows.indexOf(row), 1);
@@ -117,6 +135,61 @@ const State = (() => {
     }
 
     if (selectedBoxId === boxId) selectedBoxId = null;
+    return snapshot;
+  };
+
+  /**
+   * Put the last removed box back where it came from, without its ratio lock.
+   * The undo is only offered while the structure is unchanged, so the saved
+   * row and box indexes still describe the current tree.
+   */
+  const restoreBox = (snapshot) => {
+    if (!snapshot || !snapshot.box) return null;
+    const box = snapshot.box;
+    box.lock = null;
+    box.ratio = null;
+    box.lockSeq = 0;
+    // Rebuild the saved weight from the saved share of the current siblings,
+    // so the restored box keeps its former proportion without overwriting
+    // sizes the user changed after the deletion.
+    const weightFromShare = (share, siblings) => {
+      const safe =
+        Number.isFinite(share) && share > 0 ? Math.min(0.999, share) : 1;
+      return siblings > 0 ? (siblings * safe) / (1 - safe) : 1;
+    };
+
+    let row = findRow(snapshot.rowId);
+    if (!row) {
+      const siblingWeight = rows.reduce(
+        (sum, candidate) => sum + candidate.weight,
+        0,
+      );
+      row = {
+        id: snapshot.rowId,
+        weight: weightFromShare(snapshot.rowShare, siblingWeight),
+        boxes: [],
+      };
+      const rowIndex = Math.min(
+        Math.max(0, snapshot.rowIndex),
+        rows.length,
+      );
+      rows.splice(rowIndex, 0, row);
+    }
+
+    const siblingWeight = row.boxes.reduce(
+      (sum, candidate) => sum + candidate.weight,
+      0,
+    );
+    box.weight = weightFromShare(snapshot.boxShare, siblingWeight);
+    const boxIndex = Math.min(
+      Math.max(0, snapshot.boxIndex),
+      row.boxes.length,
+    );
+    row.boxes.splice(boxIndex, 0, box);
+    normalizeWeights(row.boxes);
+    normalizeWeights(rows);
+    limitLocks(row);
+    selectedBoxId = box.id;
     return box;
   };
 
@@ -431,6 +504,7 @@ const State = (() => {
     addRow,
     addBox,
     removeBox,
+    restoreBox,
     setImage,
     canLockBox,
     canAspectLock,

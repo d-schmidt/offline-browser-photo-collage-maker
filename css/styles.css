@@ -78,6 +78,11 @@ button {
   background: transparent;
 }
 
+/* Hidden must beat the button's own display rule. */
+#undo-button[hidden] {
+  display: none;
+}
+
 .icon-button.is-active {
   background: #b71c1c;
 }
@@ -224,12 +229,99 @@ button {
   background: rgb(255 255 255 / 12%);
 }
 
+/* The editor and the deleted-photo shelf share the space below the action
+   bar. Landscape canvases put the shelf on the left; portrait and square
+   canvases put it along the bottom. */
+.workspace {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workspace.is-landscape {
+  flex-direction: row;
+}
+
+.workspace.is-landscape .history-bar {
+  order: -1;
+}
+
+.history-bar {
+  flex: none;
+  width: 100%;
+  height: var(--bar-h);
+  background: var(--bar-bg);
+}
+
+.workspace.is-landscape .history-bar {
+  width: var(--bar-h);
+  height: auto;
+  border-right: 1px solid rgb(255 255 255 / 8%);
+}
+
+.workspace.is-portrait .history-bar {
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.history-bar[hidden] {
+  display: none;
+}
+
+.history-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.workspace.is-landscape .history-list {
+  flex-direction: column;
+}
+
+.history-thumb {
+  display: block;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+  background: #2a2a2a;
+  cursor: pointer;
+}
+
+/* The shelf always shows square crops; the full photo stays in storage. */
+.history-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.history-thumb:hover {
+  border-color: rgb(255 255 255 / 45%);
+}
+
+.history-thumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .editor-area {
   position: relative;
   display: flex;
   flex: 1 1 auto;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   padding: 16px;

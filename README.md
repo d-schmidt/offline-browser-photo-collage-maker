@@ -35,6 +35,15 @@ otherwise.
 - Select a photo box to reveal a small circle in its bottom-right corner. Drag it away from the box centre to zoom in (up to 6× the unrotated cover) or inward below 1× to show the whole rotated photo, down to the fit scale; drag the photo, or the canvas background under its ghost, to pan. A second circle just outside the corner rotates the photo; at 1× the crop scales up as needed to stay full, and zooming out below 1× reveals more of the photo. While the box is selected, the whole photo appears as a translucent ghost outside the crop; the ghost and both circles are editor-only and never appear in the export.
 - Deleting every box in a group removes the group; the empty state keeps the
   add-group buttons available.
+- Deleting a box puts an **Undo** button at the left of the action bar. It
+  restores only the last deleted box, in its old place, with its photo and
+  framing but without a ratio lock. Adding a box or group, deleting another
+  box, or switching row/column mode removes the undo.
+- The last ten deleted or replaced photos are kept in the browser (deduplicated
+  and downscaled, so they survive a reload). They appear as square thumbnails
+  in a second bar — on the left for landscape formats, along the bottom for
+  portrait and square formats. Select a box, then click a thumbnail to put that
+  photo into it; the shelf never changes the layout on its own.
 - The canvas (1080 px on its shorter side, longer side set by the chosen
   format) scales to fit the window without changing its layout.
 - **Margin color** in the action bar opens the system color picker and recolors the canvas padding and gaps; the export uses the same color.
@@ -48,10 +57,13 @@ picker, and `Escape` clears the selection. With the zoom circle focused, the
 arrow keys zoom in and out and `Home` resets the zoom. With the rotation circle
 focused, the arrow keys rotate by 1° (Shift for 15°) and `Home` resets.
 
-Still to come: dragging boxes to reorder, persistence, and undo/redo.
+Still to come: dragging boxes to reorder, saving and restoring the whole
+collage, and general undo/redo.
 
 ## Privacy
 
 Files you select are read in memory through `URL.createObjectURL` and are never
-sent anywhere. The page makes no network requests, uses no CDN, and needs no
+sent anywhere. Deleted or replaced photos are copied into your browser's
+`localStorage` as small JPEGs for the recovery shelf; clearing site data removes
+them. The page makes no network requests, uses no CDN, and needs no
 dependencies.

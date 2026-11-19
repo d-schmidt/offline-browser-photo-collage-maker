@@ -11,6 +11,7 @@ const ICONS = Object.freeze({
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -508,6 +509,29 @@ const Render = (() => {
     paintOrientation(state);
   };
 
+  /** Square thumbnails of the photos deleted or replaced most recently. */
+  const paintHistory = (entries) => {
+    const fragment = document.createDocumentFragment();
+    entries.forEach((entry, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'history-thumb';
+      button.dataset.historyId = entry.hash;
+      const label = I18n.t('history.photo', { n: index + 1 });
+      button.setAttribute('aria-label', label);
+      button.title = label;
+
+      const image = new Image();
+      image.src = entry.data;
+      image.alt = '';
+      image.draggable = false;
+      image.decoding = 'async';
+      button.append(image);
+      fragment.append(button);
+    });
+    refs.historyList.replaceChildren(fragment);
+  };
+
   const paintAddGroupButtons = (column) => {
     refs.addRowTop.setAttribute(
       'aria-label',
@@ -541,6 +565,7 @@ const Render = (() => {
     refs.zoomHandle.setAttribute('aria-valuemax', String(Layout.maxZoom));
     refs.toast = document.getElementById('toast');
     refs.live = document.getElementById('live-region');
+    refs.historyList = document.getElementById('history-list');
 
     // Static controls only carry a data-icon name; the long asset paths live
     // in ICONS alone. The orientation button is painted per mode instead.
@@ -641,6 +666,7 @@ const Render = (() => {
     init,
     paint,
     paintFormats,
+    paintHistory,
     paintSelection,
     updateGeometry,
     updatePhoto,

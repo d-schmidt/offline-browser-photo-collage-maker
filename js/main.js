@@ -25,6 +25,10 @@
   const zoomHandle = document.getElementById('zoom-handle');
   const rotateHandle = document.getElementById('rotate-handle');
   const formatScreen = document.getElementById('format-screen');
+  const undoButton = document.getElementById('undo-button');
+  const workspace = document.getElementById('workspace');
+  const historyBar = document.getElementById('history-bar');
+  const historyList = document.getElementById('history-list');
 
   let pickerBoxId = null;
   let fitFrame = 0;
@@ -39,6 +43,8 @@
   let saveMenuOpen = false;
   let borderMenuOpen = false;
   let borderFrame = 0;
+  // The most recent deletion, kept alive for the one-step undo button.
+  let pendingDelete = null;
 
   // Boundary grab bands are measured in screen pixels so they stay finger
   // sized however far the 1080 px canvas is scaled down. Touch gets a wider
@@ -145,14 +151,97 @@
     fileInput.click();
   };
 
+  const updateUndoButton = () => {
+    undoButton.hidden = !pendingDelete;
+  };
+
+  /** Drop the pending undo and release the image it was holding alive. */
+  const discardPendingDelete = () => {
+    if (!pendingDelete) return;
+    Images.release(pendingDelete.box.image);
+    pendingDelete = null;
+    updateUndoButton();
+  };
+
+  /**
+   * The deleted-photo shelf lives on the left for landscape canvases and along
+   * the bottom for portrait and square ones. It is part of the workspace, so
+   * showing or hiding it changes the room the canvas has and rescales it.
+   */
+  const syncHistoryBar = () => {
+    const entries = History.entries;
+    Render.paintHistory(entries);
+    historyBar.hidden = !editing || entries.length === 0;
+    if (editing) queueFit();
+  };
+
+  /**
+   * Put a photo into a box. The photo that was there before goes on the shelf,
+   * so a replacement can be recovered just like a deletion.
+   */
+  const applyImageToBox = (boxId, image) => {
+    const found = State.findBox(boxId);
+    if (!found) {
+      Images.release(image);
+      return false;
+    }
+    const previous = found.box.image;
+    if (previous) History.add(previous).then(syncHistoryBar);
+    if (!State.setImage(boxId, image)) return false;
+    refresh();
+    return true;
+  };
+
   const deleteSelected = () => {
     const boxId = State.selectedBoxId;
     if (!boxId) return;
     const number = boxNumber(boxId);
-    if (!State.removeBox(boxId)) return;
+    const snapshot = State.removeBox(boxId);
+    if (!snapshot) return;
+
+    discardPendingDelete();
+    pendingDelete = snapshot;
+    updateUndoButton();
+    if (snapshot.box.image) {
+      History.add(snapshot.box.image).then(syncHistoryBar);
+    }
     refresh();
     Render.focusCanvas();
     Render.announce(I18n.t('announce.deleted', { n: number }));
+  };
+
+  /** Restore the last removed box in place, without its ratio lock. */
+  const undoDelete = () => {
+    if (!pendingDelete) return;
+    const snapshot = pendingDelete;
+    pendingDelete = null;
+    updateUndoButton();
+
+    const box = State.restoreBox(snapshot);
+    if (!box) {
+      Images.release(snapshot.box.image);
+      return;
+    }
+    refresh();
+    Render.focusBox(box.id);
+    Render.announce(I18n.t('announce.undone', { n: boxNumber(box.id) }));
+  };
+
+  /**
+   * Put a shelved photo into the selected box. The shelf never changes the
+   * structure on its own; without a selection it asks for one instead.
+   */
+  const addHistoryPhoto = (entry) => {
+    const boxId = State.selectedBoxId;
+    if (!boxId) {
+      Render.toast(I18n.t('history.selectBox'));
+      return;
+    }
+    if (!applyImageToBox(boxId, History.imageFor(entry))) return;
+    Render.focusBox(boxId);
+    Render.announce(
+      I18n.t('announce.historyAdded', { n: boxNumber(boxId) }),
+    );
   };
 
   const focusAction = (action) => {
@@ -225,11 +314,10 @@
     Render.announce(I18n.t('announce.opening'));
     try {
       const image = await Images.load(file);
-      if (!State.setImage(boxId, image)) {
+      if (!applyImageToBox(boxId, image)) {
         Render.toast(I18n.t('error.boxGone'), true);
         return;
       }
-      refresh();
       Render.focusBox(boxId);
       Render.announce(I18n.t('announce.imageAdded', { n: boxNumber(boxId) }));
     } catch (error) {
@@ -301,6 +389,9 @@
   };
 
   const addRow = (position) => {
+    // Adding a group changes the structure, so the one-step undo no longer
+    // describes the current tree.
+    discardPendingDelete();
     State.addRow(position);
     refresh();
     if (isColumnMode()) {
@@ -435,6 +526,13 @@
     formatScreen.hidden = true;
     stage.hidden = false;
     actionBar.hidden = false;
+
+    // Landscape formats keep the deleted-photo shelf on the left; portrait and
+    // square formats put it along the bottom.
+    const landscape = format.canvasW > format.canvasH;
+    workspace.classList.toggle('is-landscape', landscape);
+    workspace.classList.toggle('is-portrait', !landscape);
+    syncHistoryBar();
 
     refresh();
     fitCanvas();
@@ -1271,6 +1369,7 @@
     if (row && row.boxes.length === 1 && row.boxes[0].lock === 'aspect') {
       preserveGroupExtents();
     }
+    discardPendingDelete();
     if (!State.addBox(rowId)) return;
     refresh();
     // Keep keyboard focus on the group's add button after the rails re-render.
@@ -1286,6 +1385,15 @@
 
   railLeft.addEventListener('click', handlesAddBox);
   railRight.addEventListener('click', handlesAddBox);
+
+  undoButton.addEventListener('click', undoDelete);
+
+  historyList.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-history-id]');
+    if (!button) return;
+    const entry = History.find(button.dataset.historyId);
+    if (entry) addHistoryPhoto(entry);
+  });
 
   canvas.addEventListener('click', (event) => {
     if (performance.now() < ignoreCanvasClickUntil) return;
@@ -1365,6 +1473,8 @@
 
   orientationButton.addEventListener('click', () => {
     const next = isColumnMode() ? 'row' : 'column';
+    // The turn reorders the groups, so a pending undo no longer has a place.
+    discardPendingDelete();
     freezeLayoutProportions();
     State.setOrientation(next, true);
     // The turn is a structural change; keep the zoom/rotate chrome from
@@ -1463,6 +1573,8 @@
 
   I18n.apply();
   Render.init();
+  History.load();
+  syncHistoryBar();
   applyCanvasColor();
   applyBorderThickness();
   Render.paintFormats(FORMATS, chooseFormat);

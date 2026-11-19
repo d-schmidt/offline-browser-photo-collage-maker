@@ -47,7 +47,8 @@ const Images = (() => {
     try {
       const { width, height } = await measure(file, url);
       if (!width || !height) throw new Error('empty image');
-      return { url, width, height };
+      // Keep the original file so the history shelf can store a copy later.
+      return { url, width, height, blob: file };
     } catch {
       URL.revokeObjectURL(url);
       throw new Error(I18n.t('image.openFailed'));

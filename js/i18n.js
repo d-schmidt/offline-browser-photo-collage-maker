@@ -30,6 +30,12 @@ const I18n = (() => {
       'save.saved': 'Saved {filename}.',
       'save.failed': 'The collage could not be saved.',
 
+      'undo.button': 'Undo last delete',
+      'history.label': 'Deleted photos',
+      'history.photo': 'Deleted photo {n}',
+      'history.selectBox':
+        'Select a photo box first, then click a saved photo.',
+
       'format.title': 'Select format:',
       'format.aria': '{label}, {w} × {h} pixels',
       'format.selected':
@@ -85,6 +91,8 @@ const I18n = (() => {
       'announce.selected': 'Photo box {n} selected.',
       'announce.deselected': 'Selection cleared.',
       'announce.deleted': 'Photo box {n} deleted.',
+      'announce.undone': 'Photo box {n} restored.',
+      'announce.historyAdded': 'Deleted photo added to photo box {n}.',
       'announce.lockReleased': 'Box lock released.',
       'announce.needUnlocked':
         'At least one box in a {group} must stay unlocked.',
@@ -143,6 +151,12 @@ const I18n = (() => {
       'save.saved': '{filename} gespeichert.',
       'save.failed': 'Die Collage konnte nicht gespeichert werden.',
 
+      'undo.button': 'Letztes Löschen rückgängig machen',
+      'history.label': 'Gelöschte Fotos',
+      'history.photo': 'Gelöschtes Foto {n}',
+      'history.selectBox':
+        'Wähle zuerst ein Bildfeld aus und klicke dann auf ein gespeichertes Foto.',
+
       'format.title': 'Format auswählen:',
       'format.aria': '{label}, {w} × {h} Pixel',
       'format.selected': '{label} ausgewählt, {w} × {h} Pixel.',
@@ -196,6 +210,8 @@ const I18n = (() => {
       'announce.selected': 'Bildfeld {n} ausgewählt.',
       'announce.deselected': 'Auswahl aufgehoben.',
       'announce.deleted': 'Bildfeld {n} gelöscht.',
+      'announce.undone': 'Bildfeld {n} wiederhergestellt.',
+      'announce.historyAdded': 'Gelöschtes Foto zu Bildfeld {n} hinzugefügt.',
       'announce.lockReleased': 'Sperre aufgehoben.',
       'announce.needUnlocked':
         'Mindestens ein Bildfeld pro {group} muss entsperrt bleiben.',

@@ -9,6 +9,15 @@
 </head>
 <body>
   <header class="action-bar" id="action-bar" aria-label="Actions" data-i18n-aria-label="actions.label" hidden>
+    <button
+      class="icon-button"
+      id="undo-button"
+      type="button"
+      data-icon="undo"
+      aria-label="Undo last delete"
+      data-i18n-aria-label="undo.button"
+      hidden
+    ></button>
     <div class="action-bar-tools" id="selection-actions"></div>
     <button
       class="icon-button"
@@ -73,69 +82,75 @@
     </div>
   </header>
 
-  <main class="editor-area" id="editor-area">
-    <section class="format-screen" id="format-screen" aria-labelledby="format-title">
-      <h1 class="format-title" id="format-title" data-i18n="format.title">Select format:</h1>
-      <div class="format-options" id="format-options" role="group" aria-labelledby="format-title"></div>
-    </section>
+  <div class="workspace" id="workspace">
+    <main class="editor-area" id="editor-area">
+      <section class="format-screen" id="format-screen" aria-labelledby="format-title">
+        <h1 class="format-title" id="format-title" data-i18n="format.title">Select format:</h1>
+        <div class="format-options" id="format-options" role="group" aria-labelledby="format-title"></div>
+      </section>
 
-    <div class="stage" id="stage" hidden>
-      <button class="icon-button" id="add-row-top" type="button" data-icon="add" aria-label="Add row above the canvas" data-i18n-aria-label="add.group.top"></button>
+      <div class="stage" id="stage" hidden>
+        <button class="icon-button" id="add-row-top" type="button" data-icon="add" aria-label="Add row above the canvas" data-i18n-aria-label="add.group.top"></button>
 
-      <div class="canvas-line">
-        <div class="row-rail" id="row-rail-left" role="group" aria-label="Row actions, left side" data-i18n-aria-label="rail.left"></div>
+        <div class="canvas-line">
+          <div class="row-rail" id="row-rail-left" role="group" aria-label="Row actions, left side" data-i18n-aria-label="rail.left"></div>
 
-        <div class="canvas-wrap">
-          <section class="canvas" id="canvas" aria-label="Photo collage canvas" data-i18n-aria-label="canvas.label" tabindex="-1">
-            <div class="rows" id="rows"></div>
-            <img class="zoom-overlay" id="zoom-overlay" alt="" draggable="false" hidden>
-            <div
-              class="zoom-handle"
-              id="zoom-handle"
-              role="slider"
-              tabindex="0"
-              aria-label="Photo zoom"
-              data-i18n-aria-label="zoom.label"
-              aria-valuemin="1"
-              aria-valuemax="6"
-              aria-valuenow="1"
-              title="Drag outwards to zoom the photo"
-              data-i18n-title="zoom.title"
-              hidden
-            ></div>
-            <p class="canvas-empty" id="canvas-empty" data-i18n="empty.rows" hidden>
-              No rows yet. Use the + button above or below the canvas to add one.
-            </p>
-            <div class="row-boundary" id="row-boundary" aria-hidden="true" hidden></div>
-            <div class="box-boundary" id="box-boundary" aria-hidden="true" hidden></div>
-          </section>
+          <div class="canvas-wrap">
+            <section class="canvas" id="canvas" aria-label="Photo collage canvas" data-i18n-aria-label="canvas.label" tabindex="-1">
+              <div class="rows" id="rows"></div>
+              <img class="zoom-overlay" id="zoom-overlay" alt="" draggable="false" hidden>
+              <div
+                class="zoom-handle"
+                id="zoom-handle"
+                role="slider"
+                tabindex="0"
+                aria-label="Photo zoom"
+                data-i18n-aria-label="zoom.label"
+                aria-valuemin="1"
+                aria-valuemax="6"
+                aria-valuenow="1"
+                title="Drag outwards to zoom the photo"
+                data-i18n-title="zoom.title"
+                hidden
+              ></div>
+              <p class="canvas-empty" id="canvas-empty" data-i18n="empty.rows" hidden>
+                No rows yet. Use the + button above or below the canvas to add one.
+              </p>
+              <div class="row-boundary" id="row-boundary" aria-hidden="true" hidden></div>
+              <div class="box-boundary" id="box-boundary" aria-hidden="true" hidden></div>
+            </section>
 
-          <div class="canvas-chrome">
-            <div
-              class="rotate-handle"
-              id="rotate-handle"
-              role="slider"
-              tabindex="0"
-              aria-label="Photo rotation"
-              data-i18n-aria-label="rotate.label"
-              aria-valuemin="-180"
-              aria-valuemax="180"
-              aria-valuenow="0"
-              title="Drag around the photo to rotate it"
-              data-i18n-title="rotate.title"
-              hidden
-            ></div>
+            <div class="canvas-chrome">
+              <div
+                class="rotate-handle"
+                id="rotate-handle"
+                role="slider"
+                tabindex="0"
+                aria-label="Photo rotation"
+                data-i18n-aria-label="rotate.label"
+                aria-valuemin="-180"
+                aria-valuemax="180"
+                aria-valuenow="0"
+                title="Drag around the photo to rotate it"
+                data-i18n-title="rotate.title"
+                hidden
+              ></div>
+            </div>
           </div>
+
+          <div class="row-rail" id="row-rail-right" role="group" aria-label="Row actions, right side" data-i18n-aria-label="rail.right"></div>
         </div>
 
-        <div class="row-rail" id="row-rail-right" role="group" aria-label="Row actions, right side" data-i18n-aria-label="rail.right"></div>
+        <button class="icon-button" id="add-row-bottom" type="button" data-icon="add" aria-label="Add row below the canvas" data-i18n-aria-label="add.group.bottom"></button>
       </div>
 
-      <button class="icon-button" id="add-row-bottom" type="button" data-icon="add" aria-label="Add row below the canvas" data-i18n-aria-label="add.group.bottom"></button>
-    </div>
+      <div class="toast" id="toast" hidden></div>
+    </main>
 
-    <div class="toast" id="toast" hidden></div>
-  </main>
+    <aside class="history-bar" id="history-bar" aria-label="Deleted photos" data-i18n-aria-label="history.label" hidden>
+      <div class="history-list" id="history-list"></div>
+    </aside>
+  </div>
 
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
   <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color" data-i18n-aria-label="margin.label">
@@ -144,6 +159,7 @@
   <script src="js/layout.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/images.js"></script>
+  <script src="js/history.js"></script>
   <script src="js/state.js"></script>
   <script src="js/render.js"></script>
   <script src="js/export.js"></script>

@@ -11,7 +11,7 @@
 
 ## Current state
 
-The editor shell is functional: a start screen that picks the canvas format (9:16, 16:9, 7:9, 5:4, or 1:1), weighted rows and boxes, a row/column mode toggle, add/remove, selection, image loading, keyboard control, group-boundary and box-boundary resizing, image-ratio locks with full-size single-image groups, per-photo zoom/pan/rotation with a selection-only ghost overlay, a configurable margin color, and JPEG/PNG save/export.
+The editor shell is functional: a start screen that picks the canvas format (9:16, 16:9, 7:9, 5:4, or 1:1), weighted rows and boxes, a row/column mode toggle, add/remove with a one-step delete undo, selection, image loading, keyboard control, group-boundary and box-boundary resizing, image-ratio locks with full-size single-image groups, per-photo zoom/pan/rotation with a selection-only ghost overlay, a browser-local shelf of the last ten deleted or replaced photos, a configurable margin color, and JPEG/PNG save/export.
 
 **Working:**
 
@@ -19,15 +19,16 @@ The editor shell is functional: a start screen that picks the canvas format (9:1
 - `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, the mirrored column-mode stage, orientation-aware resize cursors, the border-thickness popover, focus/hover states, toast variants, reduced-motion handling.
 - `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges with the user-set padding/gap thickness, image-ratio locks (including full-size fitted groups), 40 px minimums, whole-pixel rounding, the transposed column layout, and the cover/zoom/pan/rotate photo rectangle shared with export.
 - `js/i18n.js` — English and German UI strings, selecting German for a `de` browser language and English otherwise, with declarative markup hooks.
-- `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, border thickness, neighbor weight splits, and per-box zoom/pan/rotation that resets when the photo is replaced; revokes replaced object URLs.
-- `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup.
-- `js/render.js` — renders the format buttons, rows/columns, boxes, contextual tools including the lock toggles, both rails, group/box boundary overlays in either orientation, the selection-only zoom and rotation circles plus the translucent full-photo ghost, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
+- `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, border thickness, neighbor weight splits, per-box zoom/pan/rotation that resets when the photo is replaced, and the one-step remove/restore snapshot; revokes replaced object URLs.
+- `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup; keeps the original `File` on the image so it can be shelved later.
+- `js/history.js` — browser-local shelf of the last ten deleted or replaced photos in `localStorage`, deduplicated by content hash, storing downscaled JPEG copies and handing them back as image objects; survives a reload and starts empty when storage is unavailable.
+- `js/render.js` — renders the format buttons, rows/columns, boxes, contextual tools including the lock toggles, both rails, group/box boundary overlays in either orientation, the selection-only zoom and rotation circles plus the translucent full-photo ghost, the square deleted-photo thumbnails, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
 - `js/export.js` — offscreen JPEG/PNG compositing at the chosen canvas size using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
-- `js/main.js` — event wiring, format selection, file picker, margin-color picker, border-thickness popover with a frame-coalesced reflow, save action, orientation toggle, lock toggles, keyboard navigation/deletion, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
+- `js/main.js` — event wiring, format selection, file picker, margin-color picker, border-thickness popover with a frame-coalesced reflow, save action, orientation toggle, lock toggles, keyboard navigation/deletion, the one-step delete undo, the deleted-photo shelf, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
 - `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, margin-color, and row/column mode icons.
 
-**Not built yet:** drag reordering, persistence, and undo/redo. The weight model and layout math already support the remaining drag work.
+**Not built yet:** drag reordering, full collage persistence, and general undo/redo. The deleted-photo shelf and its one-step delete undo are already browser-local.
 
 **Next step:** drag a selected box to reorder within and across groups.
 
@@ -108,6 +109,15 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 - **Save** (`download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg`, always visible) — opens a small menu below the button with **JPEG (.jpg)** and **PNG (.png)**. Both composite the canvas at the chosen format's logical size (1080 px on the shorter side) offscreen and download it as `collage-yyyy-MM-dd-HH-mm.<ext>` using the local save time; JPEG is encoded at 85% quality. Selection borders are not included; empty boxes export as their gray fill without the add-photo hint; photos are cover-cropped exactly as on screen.
 - Only boxes have contextual actions; the row/column toggle, border-thickness slider, margin-color picker, and Save are global.
 
+### Undo and the deleted-photo shelf
+
+- Every deleted or replaced photo is copied into a browser-local shelf in `localStorage`: the ten most recent, newest first, deduplicated by a content hash so the same photo never fills two slots. The stored copy is downscaled to 800 px on its longer side (JPEG, 80% quality); deleting or replacing the same photo again moves its existing entry to the front instead of adding another. Storage failures (private mode, full quota) degrade to a session-only shelf instead of breaking the editor.
+- The shelf is a second dark bar with square 40 px thumbnails cropped with `object-fit: cover`: beside the left edge of the editor for landscape formats (16:9, 5:4) and along the bottom for portrait and square formats (9:16, 7:9, 1:1). It hides before a format is chosen and while it is empty, and scrolls when ten thumbnails do not fit.
+- Clicking a thumbnail inserts the stored photo into the currently selected box; the photo it replaces joins the shelf in turn. With no box selected it shows a short hint instead. The shelf never adds, removes, or reorders boxes on its own, and the selected box keeps the selection.
+- Deleting a box shows an **Undo** button (`undo_24dp_…svg`) at the far left of the action bar. It restores only the last deleted box: same group, index, and weight, with its photo, zoom, pan, and rotation, but without a ratio lock, and selects the restored box. The button hides after that one undo.
+- Any structural change discards the pending undo: another delete (which becomes the new undo target), adding a box or group, or switching row/column mode. The shelved photo stays available. Replacing a photo or editing its zoom, pan, rotation, or locks does not discard the undo.
+- The in-memory image of the pending undo is kept alive (its object URL is not revoked) until the undo is used or discarded.
+
 ### Direct manipulation
 
 - **Zoom a photo** — selecting a box that has a photo shows an 18 px circle in its bottom-right corner (screen-sized at any canvas scale). An invisible 40 px grab pad extends up-left from the dot so the target stays finger-sized without changing the visual. Pointer-drag the circle away from the box centre to scale the photo; the zoom factor follows the distance ratio, so pulling to twice the starting distance shows 2×. 1× is the cover crop for the current rotation; dragging inward goes below 1× until the whole rotated photo fits in the box (the canvas background shows around it), and outward stops at six times the unrotated cover. The range is recalculated when the photo is rotated or the box is resized. The circle is a `role="slider"`: arrow keys zoom and `Home` resets to the cover crop. While the box's aspect-ratio lock is active, the zoom circle is hidden and the state ignores zoom changes.
@@ -147,6 +157,7 @@ long names are written once.
 | Purpose | Path |
 | --- | --- |
 | Add group / add box | `assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
+| Undo last delete | `assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Row/column mode indicator | `assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` (row mode rotates it 90° counter-clockwise) |
 | Empty-box hint | `assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
 | Delete box | `assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg` |
@@ -170,7 +181,8 @@ js/
   layout.js           Format sizes, weight → pixel flow math, row/column group and box geometry
   i18n.js             UI strings for the browser language (German for de, English otherwise)
   images.js           File loading, decoding, cover-crop, object URLs
-  render.js           DOM rendering of the format screen, rows/columns, boxes and selection UI
+  history.js          Deleted/replaced photo shelf in localStorage (10, deduplicated)
+  render.js           DOM rendering of the format screen, rows/columns, boxes, shelf and selection UI
   export.js           Offscreen canvas compositing at the chosen format → PNG/JPEG
   main.js             Wiring, events, startup
 assets/               Material Symbols SVG icons (supplied + download)
@@ -199,6 +211,12 @@ Manual test checklist:
 - Replace the reference aspect-locked image with a different ratio: confirm other aspect locks that no longer match are released.
 - Single-box row: lock its box and confirm both row-height boundaries stop responding. Unlock and confirm row resizing returns.
 - Delete the forced box from a row with multiple boxes and two locks: confirm a lock is released so one box stays unlocked.
+- Delete a box with a photo: an undo button appears at the far left of the action bar, the photo appears in the shelf (left bar on a landscape format, bottom bar on a portrait or square format), and no console errors appear.
+- Click undo: the box returns at its old position with its photo and framing, its ratio lock is gone, the box is selected, and the undo button disappears.
+- Delete a box, then add a box, add a group, or switch row/column mode: the undo button disappears. Repeat with a second delete: undo reverts only the newest delete.
+- Replace a loaded photo: the previous photo joins the shelf. Replace it again with the same photo: it moves to the front instead of appearing twice. Reload the page and confirm the shelf is restored; delete or replace more than ten photos and confirm the oldest drops off.
+- Click a shelf thumbnail with a box selected: the photo replaces that box's image and the old photo joins the shelf. Click one with nothing selected: a hint asks for a box and the collage structure stays unchanged.
+- Choose a 16:9 or 5:4 format: the shelf sits on the left. Choose 9:16, 7:9, or 1:1: it sits along the bottom. It stays hidden until the first photo is shelved, scales the canvas when it appears, and its thumbnails are square crops.
 - Double-click a box: the image picker opens for that box.
 - Click the gray area around the canvas: the current selection clears.
 - Change the row height with a square or aspect lock active: the locked box keeps its ratio and siblings in the row reflow.
@@ -265,7 +283,7 @@ Defaults chosen for v1 — change them here before implementation if wrong:
 1. **Drag semantics:** reorder by weight, not free placement. Free positioning would conflict with the flex-flow requirement.
 2. **Canvas size:** 1080 px on the shorter side, longer side from the chosen format (9:16, 16:9, 7:9, 5:4, or 1:1), matching the export target.
 3. **Resize axes:** in row mode, boxes resize horizontally and rows vertically; column mode swaps those axes. The mode toggle owns the choice, so there are no per-box vertical handles.
-4. **Persistence and undo/redo:** planned next, not in v1. State is already weight-based, so both are cheap to add once the model is stable.
+4. **Persistence and undo/redo:** full collage persistence and general undo/redo are still planned. The deleted-photo shelf and its one-step delete undo are part of v1; the weight-based state keeps broader persistence cheap to add later.
 
 ## Git
 
