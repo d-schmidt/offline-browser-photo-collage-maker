@@ -33,6 +33,7 @@ otherwise.
 - Locked boxes keep their square or image ratio when the group's cross-axis size changes; boundaries touching a locked box are disabled. In a multi-box group, at most all but one box can be locked; the remaining box fills the space left. Aspect-ratio locks must share the same image ratio within a group—the first one sets the reference. A single-box group with a locked box also locks its group-boundary handles. Clicking the active lock releases it and preserves the current size. Activating the aspect-ratio lock resets the photo's zoom and pan to the plain cover crop and hides its zoom circle until the lock is released; square locks keep zoom available. A lone aspect-locked group fills the canvas from margin to margin (top to bottom in column mode).
 - Photos are cropped to cover the box, centered and clipped to its edges at 1×; zooming out below 1× shows the whole rotated photo with the margin color around it.
 - Select a photo box to reveal a small circle in its bottom-right corner. Drag it away from the box centre to zoom in (up to 6× the unrotated cover) or inward below 1× to show the whole rotated photo, down to the fit scale; drag the photo, or the canvas background under its ghost, to pan. A second circle just outside the corner rotates the photo; at 1× the crop scales up as needed to stay full, and zooming out below 1× reveals more of the photo. While the box is selected, the whole photo appears as a translucent ghost outside the crop; the ghost and both circles are editor-only and never appear in the export.
+- A **free-form photo layer** sits above the rows/columns. The square-plus button at the canvas's top-left corner adds a gray empty square at the centre; load a photo and the box takes the photo's natural ratio. Drag the box to move it anywhere (over the grid and over other free-form boxes), drag the corner circle to scale it, and drag the outer circle to rotate it. While selected, any part hanging outside the canvas is previewed at reduced opacity; unselected and in the export it is cut at the canvas edge. Free-form boxes support the same delete/undo and deleted-photo shelf as grid photos.
 - Deleting every box in a group removes the group; the empty state keeps the
   add-group buttons available.
 - Deleting a box puts an **Undo** button at the left of the action bar. It
@@ -55,7 +56,9 @@ Keyboard: on the start screen, `Tab` moves between formats and `Enter` or
 `Delete`/`Backspace` deletes the selected box, `Enter`/`Space` opens the image
 picker, and `Escape` clears the selection. With the zoom circle focused, the
 arrow keys zoom in and out and `Home` resets the zoom. With the rotation circle
-focused, the arrow keys rotate by 1° (Shift for 15°) and `Home` resets.
+focused, the arrow keys rotate by 1° (Shift for 15°) and `Home` resets. A
+selected free-form box moves with the arrow keys (10 px, Shift 1 px); its scale
+and rotation circles use the same arrow/`Home` controls.
 
 Still to come: dragging boxes to reorder, saving and restoring the whole
 collage, and general undo/redo.

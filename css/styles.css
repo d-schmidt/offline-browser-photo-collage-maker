@@ -462,6 +462,16 @@ button {
   height: calc(var(--canvas-h) * var(--scale));
 }
 
+/* The free-form add button sits just outside the canvas's top-left corner,
+   using the same 12 px gap and 32 px control size as the add-group and
+   add-box buttons around the rails. */
+.free-add-button {
+  position: absolute;
+  top: calc(-1 * (var(--control-size) + var(--stage-gap)));
+  left: calc(-1 * (var(--control-size) + var(--stage-gap)));
+  z-index: 4;
+}
+
 /* The canvas always keeps its logical size; only the visual transform
    changes, so every layout calculation stays in logical pixels. */
 .canvas {
@@ -587,6 +597,121 @@ button {
   user-select: none;
 }
 
+/* Free-form layer. It sits above the weighted grid and outside the canvas's
+   clipping box. Every box has a canvas-sized clipping slot, so an unselected
+   photo is cut at the canvas edge; the selected box adds an unclipped control
+   layer with a translucent overhang preview. */
+.free-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  transform: scale(var(--scale));
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.free-slot {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The selected box gets an unclipped control layer: the overhang outside the
+   canvas is previewed at reduced opacity, while the part inside stays solid
+   because it sits on top of the clipped copy below. */
+.free-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.free-ghost {
+  position: absolute;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+  transform-origin: center center;
+  pointer-events: auto;
+}
+
+.free-ghost-body {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: var(--placeholder);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.free-ghost.has-image .free-ghost-body {
+  background: none;
+}
+
+.free-ghost::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-shadow: inset 0 0 0 3px var(--accent);
+  content: "";
+  pointer-events: none;
+}
+
+.free-box {
+  position: absolute;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: var(--placeholder);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+  transform-origin: center center;
+  pointer-events: auto;
+}
+
+.free-box.has-image {
+  background: none;
+}
+
+.free-box:hover {
+  background: #cfcfcf;
+}
+
+.free-box.has-image:hover {
+  background: none;
+}
+
+.free-box:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.free-box-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.free-slot .box-placeholder {
+  /* The placeholder icon rotates with the box and stays centred. */
+  pointer-events: none;
+}
+
 /* Ghost of the full photo while its box is selected. It sits below the
    selected box (whose opaque photo hides the overlap) but above siblings, so
    the parts of the image outside the crop stay visible for panning. It is
@@ -653,6 +778,84 @@ button {
 
 .rotate-handle:active {
   cursor: grabbing;
+}
+
+/* Free-form box controls reuse the photo handle look. They live inside the
+   box, so they rotate with it and keep their screen size through the inverse
+   canvas scale. */
+.free-scale,
+.free-rotate {
+  position: absolute;
+  z-index: 7;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.free-scale {
+  top: 100%;
+  left: 100%;
+  cursor: nwse-resize;
+  transform: translate(-100%, -100%) scale(calc(1 / var(--scale, 1)));
+  transform-origin: 100% 100%;
+}
+
+.free-rotate {
+  top: 100%;
+  left: 100%;
+  cursor: grab;
+  transform:
+    translate(-50%, -50%)
+    scale(calc(1 / var(--scale, 1)))
+    translate(14px, 14px);
+}
+
+.free-rotate:active {
+  cursor: grabbing;
+}
+
+.free-scale::before {
+  position: absolute;
+  inset: -22px -4px -4px -22px;
+  background: transparent;
+  content: "";
+}
+
+.free-rotate::before {
+  position: absolute;
+  inset: -5px -21px -21px -5px;
+  background: transparent;
+  content: "";
+}
+
+.free-scale::after,
+.free-rotate::after {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.free-scale:hover,
+.free-scale:focus-visible,
+.free-rotate:hover,
+.free-rotate:focus-visible {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgb(30 136 229 / 35%);
+  outline: none;
+}
+
+.free-scale:hover::after,
+.free-scale:focus-visible::after,
+.free-rotate:hover::after,
+.free-rotate:focus-visible::after {
+  background: #ffffff;
 }
 
 /* Invisible 40 × 40 px grab areas keep the touch target finger sized while the

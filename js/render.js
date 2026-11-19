@@ -2,6 +2,7 @@
 
 const ICONS = Object.freeze({
   add: 'assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  addBox: 'assets/add_box_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   addPhoto: 'assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -126,8 +127,203 @@ const Render = (() => {
     return button;
   };
 
+  /**
+   * Geometry for a free-form box. It is absolutely positioned by its centre
+   * and rotated around that centre, so moving and scaling stay intuitive.
+   */
+  const applyFreeStyles = (element, box) => {
+    element.style.left = `${box.x}px`;
+    element.style.top = `${box.y}px`;
+    element.style.width = `${box.width}px`;
+    element.style.height = `${box.width / (box.aspect || 1)}px`;
+    element.style.transform = `translate(-50%, -50%) rotate(${box.rotation}deg)`;
+  };
+
+  const paintFreeHandleValues = (scale, rotate, box) => {
+    scale.setAttribute('aria-valuemin', '40');
+    scale.setAttribute('aria-valuemax', '10000');
+    scale.setAttribute('aria-valuenow', String(Math.round(box.width)));
+    scale.setAttribute('aria-valuetext', I18n.t('free.size', {
+      n: Math.round(box.width),
+    }));
+    rotate.setAttribute('aria-valuemin', '-180');
+    rotate.setAttribute('aria-valuemax', '180');
+    rotate.setAttribute('aria-valuenow', String(Math.round(box.rotation)));
+    rotate.setAttribute('aria-valuetext', I18n.t('rotate.value', {
+      n: Math.round(box.rotation),
+    }));
+  };
+
+  /** Fill a free-form box (or its ghost copy) with its photo or placeholder. */
+  const freeContent = (box, container) => {
+    if (box.image) {
+      const image = document.createElement('img');
+      image.className = 'free-box-image';
+      image.src = box.image.url;
+      image.alt = '';
+      image.draggable = false;
+      container.append(image);
+      return;
+    }
+    const placeholder = new Image(64, 64);
+    placeholder.className = 'box-placeholder';
+    placeholder.src = ICONS.addPhoto;
+    placeholder.alt = '';
+    placeholder.draggable = false;
+    placeholder.setAttribute('aria-hidden', 'true');
+    container.append(placeholder);
+  };
+
+  /**
+   * Scale and rotate controls live inside the rotated box so they follow the
+   * photo at any angle. They keep their screen size through the canvas scale.
+   */
+  const attachFreeHandles = (element, box) => {
+    const scale = document.createElement('div');
+    scale.className = 'free-scale';
+    scale.dataset.freeHandle = 'scale';
+    scale.setAttribute('role', 'slider');
+    scale.tabIndex = 0;
+    scale.setAttribute('aria-label', I18n.t('free.scale'));
+    scale.title = I18n.t('free.scaleTitle');
+
+    const rotate = document.createElement('div');
+    rotate.className = 'free-rotate';
+    rotate.dataset.freeHandle = 'rotate';
+    rotate.setAttribute('role', 'slider');
+    rotate.tabIndex = 0;
+    rotate.setAttribute('aria-label', I18n.t('free.rotate'));
+    rotate.title = I18n.t('free.rotateTitle');
+
+    paintFreeHandleValues(scale, rotate, box);
+    element.append(scale, rotate);
+  };
+
+  /** The clipped, always-solid copy of a free-form box. */
+  const buildFreeBox = (box, number, selected) => {
+    const slot = document.createElement('div');
+    slot.className = 'free-slot';
+    slot.dataset.freeId = box.id;
+    if (selected) slot.style.zIndex = '15';
+
+    const element = document.createElement('div');
+    element.className = 'free-box';
+    element.dataset.freeId = box.id;
+    element.setAttribute('role', 'button');
+    element.tabIndex = 0;
+    element.setAttribute('aria-pressed', String(selected));
+
+    const hasImage = Boolean(box.image);
+    element.classList.toggle('has-image', hasImage);
+    const label = hasImage
+      ? I18n.t('free.label', { n: number })
+      : I18n.t('free.labelEmpty', { n: number });
+    element.setAttribute('aria-label', label);
+    element.title = label;
+    applyFreeStyles(element, box);
+    freeContent(box, element);
+
+    slot.append(element);
+    return slot;
+  };
+
+  /**
+   * Unclipped selection layer for the selected box: the translucent overhang
+   * preview plus the rotation and scale handles and the selection border.
+   */
+  const buildFreeControls = (box) => {
+    const layer = document.createElement('div');
+    layer.className = 'free-controls';
+    layer.dataset.freeId = box.id;
+
+    const ghost = document.createElement('div');
+    ghost.className = 'free-ghost';
+    ghost.dataset.freeId = box.id;
+    ghost.classList.toggle('has-image', Boolean(box.image));
+    applyFreeStyles(ghost, box);
+
+    const body = document.createElement('div');
+    body.className = 'free-ghost-body';
+    freeContent(box, body);
+
+    ghost.append(body);
+    attachFreeHandles(ghost, box);
+    layer.append(ghost);
+    return layer;
+  };
+
+  const paintFree = (state) => {
+    const fragment = document.createDocumentFragment();
+    state.freeBoxes.forEach((box, index) => {
+      const selected = box.id === state.selectedFreeId;
+      fragment.append(buildFreeBox(box, index + 1, selected));
+      if (selected) fragment.append(buildFreeControls(box));
+    });
+    refs.freeLayer.replaceChildren(fragment);
+  };
+
+  /**
+   * Update selection chrome in place instead of rebuilding the free layer, so
+   * a pointer drag keeps its original target and its focus. Only the clipped
+   * boxes survive; the selected control layer is cheap to recreate.
+   */
+  const paintFreeSelection = (state) => {
+    refs.freeLayer.querySelectorAll('.free-slot').forEach((slot) => {
+      const selected = slot.dataset.freeId === state.selectedFreeId;
+      // Raise the selected solid copy above the other boxes, so its ghost
+      // overlay blends into an opaque result inside the canvas.
+      slot.style.zIndex = selected ? '15' : '';
+    });
+    refs.freeLayer.querySelectorAll('.free-box').forEach((element) => {
+      const selected = element.dataset.freeId === state.selectedFreeId;
+      element.classList.toggle('is-selected', selected);
+      element.setAttribute('aria-pressed', String(selected));
+    });
+    refs.freeLayer
+      .querySelectorAll('.free-controls')
+      .forEach((node) => node.remove());
+
+    if (!state.selectedFreeId) return;
+    const found = state.findFreeBox(state.selectedFreeId);
+    if (!found) return;
+    refs.freeLayer.append(buildFreeControls(found.box));
+  };
+
+  /** Repaint one free-form box while it is being moved, scaled, or rotated. */
+  const updateFreeBox = (box) => {
+    refs.freeLayer
+      .querySelectorAll(
+        `.free-box[data-free-id="${box.id}"], .free-ghost[data-free-id="${box.id}"]`,
+      )
+      .forEach((element) => applyFreeStyles(element, box));
+
+    const ghost = refs.freeLayer.querySelector(
+      `.free-ghost[data-free-id="${box.id}"]`,
+    );
+    if (!ghost) return;
+    const scale = ghost.querySelector('.free-scale');
+    const rotate = ghost.querySelector('.free-rotate');
+    if (scale && rotate) paintFreeHandleValues(scale, rotate, box);
+  };
+
+  const focusFreeBox = (freeId) => {
+    const element = refs.freeLayer.querySelector(
+      `.free-box[data-free-id="${freeId}"]`,
+    );
+    if (element) element.focus({ preventScroll: true });
+  };
+
   const paintActions = (state) => {
     refs.selectionActions.replaceChildren();
+    if (state.selectedFreeId) {
+      const found = state.findFreeBox(state.selectedFreeId);
+      if (!found) return;
+      refs.selectionActions.append(
+        toolButton('delete-box', I18n.t('action.delete'), 'delete'),
+        toolButton('select-image', I18n.t('action.selectImage'), 'image'),
+      );
+      return;
+    }
     if (!state.selectedBoxId) return;
 
     const found = state.findBox(state.selectedBoxId);
@@ -549,6 +745,7 @@ const Render = (() => {
     refs.selectionActions = document.getElementById('selection-actions');
     refs.canvas = document.getElementById('canvas');
     refs.rows = document.getElementById('rows');
+    refs.freeLayer = document.getElementById('free-layer');
     refs.stage = document.getElementById('stage');
     refs.railLeft = document.getElementById('row-rail-left');
     refs.railRight = document.getElementById('row-rail-right');
@@ -586,7 +783,8 @@ const Render = (() => {
     currentLayout = layout;
     paintMode(state);
     paintAddGroupButtons(state.orientation === 'column');
-    refs.empty.hidden = state.rows.length > 0;
+    refs.empty.hidden =
+      state.rows.length > 0 || state.freeBoxes.length > 0;
     hideGroupBoundary();
     hideBoxBoundary();
     setGroupResizeCursor(false);
@@ -616,6 +814,7 @@ const Render = (() => {
     refs.rows.replaceChildren(fragment);
     paintRail(layout, refs.railLeft, 'left');
     paintRail(layout, refs.railRight, 'right');
+    paintFree(state);
     paintActions(state);
     paintImageChrome();
   };
@@ -627,6 +826,7 @@ const Render = (() => {
       box.classList.toggle('is-selected', selected);
       box.setAttribute('aria-pressed', String(selected));
     });
+    paintFreeSelection(state);
     paintActions(state);
     paintImageChrome();
   };
@@ -679,6 +879,8 @@ const Render = (() => {
     announce,
     toast,
     focusBox,
+    focusFreeBox,
     focusCanvas,
+    updateFreeBox,
   };
 })();

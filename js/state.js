@@ -10,7 +10,11 @@
  */
 const State = (() => {
   const rows = [];
+  // Free-form photos live above the weighted grid. They keep their own canvas
+  // coordinates, rotation, and a locked aspect ratio instead of weights.
+  const freeBoxes = [];
   let selectedBoxId = null;
+  let selectedFreeId = null;
   let canvasColor = '#ffffff';
   let borderThickness = METRICS.pad;
   let orientation = 'row';
@@ -62,6 +66,101 @@ const State = (() => {
   };
 
   const findRow = (rowId) => rows.find((row) => row.id === rowId) || null;
+
+  // --- free-form layer ----------------------------------------------------
+
+  const FREE_MIN_WIDTH = 40;
+  const FREE_SIZE_SHARE = 0.32;
+
+  const freeMaxWidth = () =>
+    Math.max(Layout.canvasW, Layout.canvasH) * 3;
+
+  const clampFreeWidth = (width) =>
+    Math.min(freeMaxWidth(), Math.max(FREE_MIN_WIDTH, width));
+
+  const createFreeBox = () => {
+    const size = Math.round(
+      Math.min(Layout.canvasW, Layout.canvasH) * FREE_SIZE_SHARE,
+    );
+    return {
+      id: uid('free'),
+      // Stored as the centre so rotation and scaling stay around the middle.
+      x: Layout.canvasW / 2,
+      y: Layout.canvasH / 2,
+      width: clampFreeWidth(size),
+      // Width ÷ height. Empty boxes are square; a photo brings its own ratio.
+      aspect: 1,
+      rotation: 0,
+      image: null,
+    };
+  };
+
+  const freeHeight = (box) => box.width / (box.aspect || 1);
+
+  const findFreeBox = (freeId) => {
+    if (!freeId) return null;
+    const index = freeBoxes.findIndex((box) => box.id === freeId);
+    return index === -1 ? null : { box: freeBoxes[index], index };
+  };
+
+  /** Add an empty square free-form box at the canvas centre. */
+  const addFreeBox = () => {
+    const box = createFreeBox();
+    freeBoxes.push(box);
+    return box;
+  };
+
+  const removeFreeBox = (freeId) => {
+    const found = findFreeBox(freeId);
+    if (!found) return null;
+    freeBoxes.splice(found.index, 1);
+    if (selectedFreeId === freeId) selectedFreeId = null;
+    return { box: found.box, index: found.index };
+  };
+
+  const restoreFreeBox = (snapshot) => {
+    if (!snapshot || !snapshot.box) return null;
+    const index = Math.min(Math.max(0, snapshot.index || 0), freeBoxes.length);
+    freeBoxes.splice(index, 0, snapshot.box);
+    selectedBoxId = null;
+    selectedFreeId = snapshot.box.id;
+    return snapshot.box;
+  };
+
+  const setFreeImage = (freeId, image) => {
+    const found = findFreeBox(freeId);
+    if (!found) {
+      Images.release(image);
+      return false;
+    }
+    Images.release(found.box.image);
+    found.box.image = image;
+    // Keep the box area while its ratio follows the photo, so swapping a
+    // landscape for a portrait photo does not make the box jump in size.
+    const aspect =
+      image.width > 0 && image.height > 0 ? image.width / image.height : 1;
+    const area = found.box.width * freeHeight(found.box);
+    found.box.aspect = aspect;
+    found.box.width = clampFreeWidth(Math.sqrt(area * aspect));
+    return true;
+  };
+
+  const setFreePosition = (freeId, x, y) => {
+    const found = findFreeBox(freeId);
+    if (!found || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+    // Keep the centre on the canvas so a dragged box can always be grabbed
+    // again; its edges may still hang over the border.
+    found.box.x = Math.min(Layout.canvasW, Math.max(0, x));
+    found.box.y = Math.min(Layout.canvasH, Math.max(0, y));
+    return true;
+  };
+
+  const setFreeScale = (freeId, width) => {
+    const found = findFreeBox(freeId);
+    if (!found || !Number.isFinite(width)) return false;
+    found.box.width = clampFreeWidth(width);
+    return true;
+  };
 
   /** Reset the photo framing without touching the image or its rotation. */
   const resetZoomPan = (box) => {
@@ -189,6 +288,7 @@ const State = (() => {
     normalizeWeights(row.boxes);
     normalizeWeights(rows);
     limitLocks(row);
+    selectedFreeId = null;
     selectedBoxId = box.id;
     return box;
   };
@@ -344,6 +444,14 @@ const State = (() => {
     return true;
   };
 
+  /** Rotate a free-form box around its centre. */
+  const setFreeRotation = (freeId, degrees) => {
+    const found = findFreeBox(freeId);
+    if (!found || !Number.isFinite(degrees)) return false;
+    found.box.rotation = normalizeAngle(degrees);
+    return true;
+  };
+
   /** Replace a row's box weights, used to preserve widths when unlocking. */
   const setRowWeights = (rowId, weights) => {
     const row = findRow(rowId);
@@ -417,12 +525,24 @@ const State = (() => {
       selectedBoxId = null;
       return false;
     }
+    selectedFreeId = null;
     selectedBoxId = boxId;
+    return true;
+  };
+
+  const selectFree = (freeId) => {
+    if (!freeId || !findFreeBox(freeId)) {
+      selectedFreeId = null;
+      return false;
+    }
+    selectedBoxId = null;
+    selectedFreeId = freeId;
     return true;
   };
 
   const clearSelection = () => {
     selectedBoxId = null;
+    selectedFreeId = null;
   };
 
   /** Canvas margin/padding color, constrained to a hex color. */
@@ -487,6 +607,12 @@ const State = (() => {
     get selectedBoxId() {
       return selectedBoxId;
     },
+    get selectedFreeId() {
+      return selectedFreeId;
+    },
+    get freeBoxes() {
+      return freeBoxes;
+    },
     get canvasColor() {
       return canvasColor;
     },
@@ -517,10 +643,20 @@ const State = (() => {
     setRowSplit,
     setBoxSplit,
     select,
+    selectFree,
     clearSelection,
     setCanvasColor,
     setBorderThickness,
     setOrientation,
     orderedBoxes,
+    findFreeBox,
+    addFreeBox,
+    removeFreeBox,
+    restoreFreeBox,
+    setFreeImage,
+    setFreePosition,
+    setFreeScale,
+    setFreeRotation,
+    freeHeight,
   };
 })();

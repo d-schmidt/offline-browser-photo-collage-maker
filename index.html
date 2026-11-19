@@ -96,6 +96,14 @@
           <div class="row-rail" id="row-rail-left" role="group" aria-label="Row actions, left side" data-i18n-aria-label="rail.left"></div>
 
           <div class="canvas-wrap">
+            <button
+              class="icon-button free-add-button"
+              id="add-free-button"
+              type="button"
+              data-icon="addBox"
+              aria-label="Add free-form photo box"
+              data-i18n-aria-label="free.add"
+            ></button>
             <section class="canvas" id="canvas" aria-label="Photo collage canvas" data-i18n-aria-label="canvas.label" tabindex="-1">
               <div class="rows" id="rows"></div>
               <img class="zoom-overlay" id="zoom-overlay" alt="" draggable="false" hidden>
@@ -119,6 +127,8 @@
               <div class="row-boundary" id="row-boundary" aria-hidden="true" hidden></div>
               <div class="box-boundary" id="box-boundary" aria-hidden="true" hidden></div>
             </section>
+
+            <div class="free-layer" id="free-layer" role="group" aria-label="Free-form photos" data-i18n-aria-label="free.layer"></div>
 
             <div class="canvas-chrome">
               <div

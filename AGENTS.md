@@ -11,22 +11,22 @@
 
 ## Current state
 
-The editor shell is functional: a start screen that picks the canvas format (9:16, 16:9, 7:9, 5:4, or 1:1), weighted rows and boxes, a row/column mode toggle, add/remove with a one-step delete undo, selection, image loading, keyboard control, group-boundary and box-boundary resizing, image-ratio locks with full-size single-image groups, per-photo zoom/pan/rotation with a selection-only ghost overlay, a browser-local shelf of the last ten deleted or replaced photos, a configurable margin color, and JPEG/PNG save/export.
+The editor shell is functional: a start screen that picks the canvas format (9:16, 16:9, 7:9, 5:4, or 1:1), weighted rows and boxes, a row/column mode toggle, add/remove with a one-step delete undo, selection, image loading, keyboard control, group-boundary and box-boundary resizing, image-ratio locks with full-size single-image groups, per-photo zoom/pan/rotation with a selection-only ghost overlay, a browser-local shelf of the last ten deleted or replaced photos, a configurable margin color, a free-form photo layer above the grid with move/scale/rotate and an overhang preview, and JPEG/PNG save/export.
 
 **Working:**
 
-- `index.html` — two-region shell with the format start screen, action bar (including the permanent row/column toggle and border-thickness slider), scaled canvas stage, add-group buttons, add-box rails, hidden file and color inputs, and live region.
-- `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, the mirrored column-mode stage, orientation-aware resize cursors, the border-thickness popover, focus/hover states, toast variants, reduced-motion handling.
+- `index.html` — two-region shell with the format start screen, action bar (including the permanent row/column toggle and border-thickness slider), scaled canvas stage, add-group buttons, add-box rails, the free-form add button and layer, hidden file and color inputs, and live region.
+- `css/styles.css` — layout tokens, format buttons, scaled canvas, boxes, side rails, the mirrored column-mode stage, the clipped free-form layer with its translucent selected-overhang controls, orientation-aware resize cursors, the border-thickness popover, focus/hover states, toast variants, reduced-motion handling.
 - `js/layout.js` — format list and canvas sizes, weight-to-pixel flow math, per-box gaps on both edges with the user-set padding/gap thickness, image-ratio locks (including full-size fitted groups), 40 px minimums, whole-pixel rounding, the transposed column layout, and the cover/zoom/pan/rotate photo rectangle shared with export.
 - `js/i18n.js` — English and German UI strings, selecting German for a `de` browser language and English otherwise, with declarative markup hooks.
-- `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, border thickness, neighbor weight splits, per-box zoom/pan/rotation that resets when the photo is replaced, and the one-step remove/restore snapshot; revokes replaced object URLs.
+- `js/state.js` — groups, boxes, weights, selection, add/remove, image assignment, exclusive square/aspect locks, row/column orientation with the structure turn, canvas margin color, border thickness, neighbor weight splits, per-box zoom/pan/rotation that resets when the photo is replaced, the free-form layer's centre/size/aspect/rotation with its own remove/restore snapshot, the one-step grid remove/restore snapshot, and free-box selection; revokes replaced object URLs.
 - `js/images.js` — file validation, `createImageBitmap`/`<img>` decoding, URL element loading for export, and object URL cleanup; keeps the original `File` on the image so it can be shelved later.
 - `js/history.js` — browser-local shelf of the last ten deleted or replaced photos in `localStorage`, deduplicated by content hash, storing downscaled JPEG copies and handing them back as image objects; survives a reload and starts empty when storage is unavailable.
-- `js/render.js` — renders the format buttons, rows/columns, boxes, contextual tools including the lock toggles, both rails, group/box boundary overlays in either orientation, the selection-only zoom and rotation circles plus the translucent full-photo ghost, the square deleted-photo thumbnails, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
-- `js/export.js` — offscreen JPEG/PNG compositing at the chosen canvas size using the chosen margin color, the same zoom/pan/rotate crop as the editor, with no selection or ghost chrome, plus download.
-- `js/main.js` — event wiring, format selection, file picker, margin-color picker, border-thickness popover with a frame-coalesced reflow, save action, orientation toggle, lock toggles, keyboard navigation/deletion, the one-step delete undo, the deleted-photo shelf, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, and canvas fit scaling.
+- `js/render.js` — renders the format buttons, rows/columns, boxes, contextual tools including the lock toggles, both rails, group/box boundary overlays in either orientation, the selection-only zoom and rotation circles plus the translucent full-photo ghost, the free-form layer with its clipped solid copies and translucent overhang/scale/rotate controls, the square deleted-photo thumbnails, empty state, and success/error toast; includes geometry-only updates during drags; announces via `aria-live`.
+- `js/export.js` — offscreen JPEG/PNG compositing at the chosen canvas size using the chosen margin color, the same zoom/pan/rotate crop as the editor, the free-form layer above the grid with its overhang clipped at the canvas edge, with no selection or ghost chrome, plus download.
+- `js/main.js` — event wiring, format selection, file picker, margin-color picker, border-thickness popover with a frame-coalesced reflow, save action, orientation toggle, lock toggles, keyboard navigation/deletion, the one-step delete undo, the deleted-photo shelf, group- and box-boundary dragging in both orientations with a 3 px threshold, drag-to-zoom on the corner circle, drag-to-rotate on the outer circle, drag-to-pan on the selected photo, free-form add/select/move/scale/rotate with keyboard support, and canvas fit scaling.
 - `serve.py` — stdlib-only local server on `http://localhost:8000`, verified to return the page and assets with `no-store`.
-- `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, margin-color, and row/column mode icons.
+- `assets/` — the supplied and locally added Material Symbols SVGs, including the placeholder, lock, margin-color, row/column mode, and free-form add-box icons.
 
 **Not built yet:** drag reordering, full collage persistence, and general undo/redo. The deleted-photo shelf and its one-step delete undo are already browser-local.
 
@@ -89,6 +89,16 @@ The canvas keeps its logical pixel size; it is visually scaled down (CSS `transf
 - **Add box:** a button beside each group, using `add_circle.svg`. In row mode the buttons sit on the left and right of the canvas, vertically centered on the row. In column mode they sit above and below the canvas, horizontally centered on the column.
 - **Add group:** buttons outside the canvas, using `add_circle.svg`. In row mode they sit above and below and add a row (top inserts at the top, bottom appends). In column mode they sit to the left and right and add a column (left inserts at the left, right appends). A new group always starts with one empty box.
 - No minimum number of groups: deleting the last box in the last group leaves an empty editor area, with the add-group buttons still usable.
+
+### Free-form layer
+
+- A **free-form photo layer** sits above the weighted grid, so its photos can overlap the rows/columns, their gaps, and each other. It is independent of row/column mode.
+- **Add free photo:** a button with `add_box.svg` at the canvas's top-left corner, outside the canvas with the same 12 px gap and 32 px size as the add-group/add-box buttons. It is always top-left, in both modes. Clicking it adds a gray empty square at the canvas centre, selects it, and shows its rotation/scale controls.
+- A free-form box has a fixed aspect ratio. It is square while empty; loading a photo adopts that photo's natural width:height ratio. Scaling keeps the ratio, and the box area is preserved when a replacement photo changes the ratio.
+- Free-form boxes are moved by dragging the photo (or its selected overhang) anywhere on the canvas; their centre is clamped to the canvas so a box can always be grabbed again, while its edges may hang over the border. They are scaled by dragging the corner circle (distance ratio) and rotated by dragging the outer circle around the centre. Arrow keys nudge the selected box by 10 logical px (Shift 1 px).
+- While selected, the part outside the canvas is shown at reduced opacity as a preview of the overhang; the part inside stays solid. When unselected, the overhang is clipped at the canvas edge, and the export always clips it. Selection borders, controls, and the translucent overhang never reach the export.
+- Free-form boxes support delete, image selection (also by double-click or Enter/Space), and the one-step delete undo, and their replaced or deleted photos join the deleted-photo shelf like grid photos.
+- Free-form boxes can be scaled and rotated from the keyboard when their controls have focus: arrows scale/rotate, and `Home` resets rotation.
 
 ### Selection and contextual actions
 
@@ -250,6 +260,13 @@ Manual test checklist:
 - Resize a box and drag a row boundary; confirm neighboring boxes/rows reflow and every other box/row keeps its size.
 - Delete every box; confirm rows disappear and add-row still works.
 - Resize the window; confirm the canvas scales without changing its logical layout.
+- The `add_box` button sits at the canvas's top-left corner with the same gap and size as the add-group/add-box buttons, and stays there in both modes. Clicking it adds a gray square at the canvas centre, selects it, and shows its corner scale circle plus the outer rotation circle.
+- Load a photo into the free-form box: the box adopts the photo's natural ratio and keeps its area. Drag it across the canvas and over grid rows; confirm it stays above the grid and overlaps both grid photos and other free-form boxes.
+- Drag the free-form box partly past the canvas edge while selected: the inside stays solid and the overhang shows at reduced opacity outside the canvas. Clear the selection: the overhang is clipped. Save a PNG/JPEG: the export matches the unselected, clipped result with no border, handles, or translucent overhang.
+- Scale a free-form box from its corner circle: the ratio stays fixed. Rotate it from the outer circle: the photo and its controls rotate together. Test both with a portrait and a landscape photo.
+- Select a free-form box and drag the photo, the overhang, or its transparent body: it moves without disturbing the grid. Click a grid box: the free-form selection clears; select the free-form box again and confirm its position, size, and rotation were kept.
+- Delete a free-form box with a photo: the undo button appears, the photo joins the shelf, and Undo restores the same position, size, rotation, and photo. Replace its photo: the previous one joins the shelf, and the box reflows to the new ratio.
+- Free-form boxes respond to arrow keys (10 px, Shift 1 px), and their focused scale/rotate circles respond to arrows and `Home`. Double-click or Enter/Space on a free-form box opens the image picker.
 
 ## Code conventions
 

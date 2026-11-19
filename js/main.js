@@ -21,6 +21,8 @@
   const marginColorButton = document.getElementById('margin-color-button');
   const marginColorInput = document.getElementById('margin-color-input');
   const rowsLayer = document.getElementById('rows');
+  const freeLayer = document.getElementById('free-layer');
+  const addFreeButton = document.getElementById('add-free-button');
   const fileInput = document.getElementById('file-input');
   const zoomHandle = document.getElementById('zoom-handle');
   const rotateHandle = document.getElementById('rotate-handle');
@@ -31,6 +33,7 @@
   const historyList = document.getElementById('history-list');
 
   let pickerBoxId = null;
+  let pickerFreeId = null;
   let fitFrame = 0;
   let editing = false;
   let layout = Layout.compute(State.rows, State.orientation);
@@ -39,6 +42,9 @@
   let panDrag = null;
   let zoomDrag = null;
   let rotateDrag = null;
+  let freeMoveDrag = null;
+  let freeScaleDrag = null;
+  let freeRotateDrag = null;
   let ignoreCanvasClickUntil = 0;
   let saveMenuOpen = false;
   let borderMenuOpen = false;
@@ -130,6 +136,11 @@
     return index === -1 ? 0 : index + 1;
   };
 
+  const freeBoxNumber = (freeId) => {
+    const index = State.freeBoxes.findIndex((box) => box.id === freeId);
+    return index === -1 ? 0 : index + 1;
+  };
+
   const selectAndFocus = (boxId) => {
     if (!State.select(boxId)) return;
     Render.paintSelection(State);
@@ -137,8 +148,17 @@
     Render.announce(I18n.t('announce.selected', { n: boxNumber(boxId) }));
   };
 
+  const selectFreeAndFocus = (freeId) => {
+    if (!State.selectFree(freeId)) return;
+    Render.paintSelection(State);
+    Render.focusFreeBox(freeId);
+    Render.announce(
+      I18n.t('announce.selectedFree', { n: freeBoxNumber(freeId) }),
+    );
+  };
+
   const deselect = () => {
-    if (!State.selectedBoxId) return;
+    if (!State.selectedBoxId && !State.selectedFreeId) return;
     State.clearSelection();
     Render.paintSelection(State);
     Render.focusCanvas();
@@ -148,6 +168,14 @@
   const openPicker = (boxId) => {
     if (!boxId) return;
     pickerBoxId = boxId;
+    pickerFreeId = null;
+    fileInput.click();
+  };
+
+  const openFreePicker = (freeId) => {
+    if (!freeId) return;
+    pickerFreeId = freeId;
+    pickerBoxId = null;
     fileInput.click();
   };
 
@@ -192,7 +220,25 @@
     return true;
   };
 
+  /** Same as applyImageToBox, but for a free-form box and its own ratio. */
+  const applyImageToFreeBox = (freeId, image) => {
+    const found = State.findFreeBox(freeId);
+    if (!found) {
+      Images.release(image);
+      return false;
+    }
+    const previous = found.box.image;
+    if (previous) History.add(previous).then(syncHistoryBar);
+    if (!State.setFreeImage(freeId, image)) return false;
+    refresh();
+    return true;
+  };
+
   const deleteSelected = () => {
+    if (State.selectedFreeId) {
+      deleteFreeSelected();
+      return;
+    }
     const boxId = State.selectedBoxId;
     if (!boxId) return;
     const number = boxNumber(boxId);
@@ -200,7 +246,7 @@
     if (!snapshot) return;
 
     discardPendingDelete();
-    pendingDelete = snapshot;
+    pendingDelete = { kind: 'grid', ...snapshot };
     updateUndoButton();
     if (snapshot.box.image) {
       History.add(snapshot.box.image).then(syncHistoryBar);
@@ -210,12 +256,44 @@
     Render.announce(I18n.t('announce.deleted', { n: number }));
   };
 
+  const deleteFreeSelected = () => {
+    const freeId = State.selectedFreeId;
+    if (!freeId) return;
+    const number = freeBoxNumber(freeId);
+    const snapshot = State.removeFreeBox(freeId);
+    if (!snapshot) return;
+
+    discardPendingDelete();
+    pendingDelete = { kind: 'free', ...snapshot };
+    updateUndoButton();
+    if (snapshot.box.image) {
+      History.add(snapshot.box.image).then(syncHistoryBar);
+    }
+    refresh();
+    Render.focusCanvas();
+    Render.announce(I18n.t('announce.freeDeleted', { n: number }));
+  };
+
   /** Restore the last removed box in place, without its ratio lock. */
   const undoDelete = () => {
     if (!pendingDelete) return;
     const snapshot = pendingDelete;
     pendingDelete = null;
     updateUndoButton();
+
+    if (snapshot.kind === 'free') {
+      const freeBox = State.restoreFreeBox(snapshot);
+      if (!freeBox) {
+        Images.release(snapshot.box.image);
+        return;
+      }
+      refresh();
+      Render.focusFreeBox(freeBox.id);
+      Render.announce(
+        I18n.t('announce.freeUndone', { n: freeBoxNumber(freeBox.id) }),
+      );
+      return;
+    }
 
     const box = State.restoreBox(snapshot);
     if (!box) {
@@ -232,6 +310,15 @@
    * structure on its own; without a selection it asks for one instead.
    */
   const addHistoryPhoto = (entry) => {
+    if (State.selectedFreeId) {
+      const freeId = State.selectedFreeId;
+      if (!applyImageToFreeBox(freeId, History.imageFor(entry))) return;
+      Render.focusFreeBox(freeId);
+      Render.announce(
+        I18n.t('announce.freeImageAdded', { n: freeBoxNumber(freeId) }),
+      );
+      return;
+    }
     const boxId = State.selectedBoxId;
     if (!boxId) {
       Render.toast(I18n.t('history.selectBox'));
@@ -308,12 +395,25 @@
 
   const handlePickedFile = async (file) => {
     const boxId = pickerBoxId;
+    const freeId = pickerFreeId;
     pickerBoxId = null;
-    if (!file || !boxId) return;
+    pickerFreeId = null;
+    if (!file || (!boxId && !freeId)) return;
 
     Render.announce(I18n.t('announce.opening'));
     try {
       const image = await Images.load(file);
+      if (freeId) {
+        if (!applyImageToFreeBox(freeId, image)) {
+          Render.toast(I18n.t('error.boxGone'), true);
+          return;
+        }
+        Render.focusFreeBox(freeId);
+        Render.announce(
+          I18n.t('announce.freeImageAdded', { n: freeBoxNumber(freeId) }),
+        );
+        return;
+      }
       if (!applyImageToBox(boxId, image)) {
         Render.toast(I18n.t('error.boxGone'), true);
         return;
@@ -411,6 +511,16 @@
         ),
       );
     }
+  };
+
+  /** Add an empty square free-form box at the canvas centre and select it. */
+  const addFreeBox = () => {
+    discardPendingDelete();
+    const box = State.addFreeBox();
+    State.selectFree(box.id);
+    refresh();
+    Render.focusFreeBox(box.id);
+    Render.announce(I18n.t('announce.freeAdded'));
   };
 
   const moveSelection = (key) => {
@@ -927,6 +1037,307 @@
     Render.announce(I18n.t('announce.rotationReset'));
   };
 
+  // --- free-form interactions ---------------------------------------------
+
+  const freeCenterClient = (box) => {
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.width > 0 ? rect.width / Layout.canvasW : 1;
+    return {
+      x: rect.left + box.x * scale,
+      y: rect.top + box.y * scale,
+    };
+  };
+
+  const stopFreeGesture = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const startFreeMove = (event, element) => {
+    if (freeMoveDrag || freeScaleDrag || freeRotateDrag) return;
+    const found = State.findFreeBox(element.dataset.freeId);
+    if (!found) return;
+    // The free layer is a sibling of the canvas, so the canvas boundary and
+    // pan gestures never see this pointerdown; leave propagation alone so
+    // global dismiss handlers still run.
+
+    // Selecting on pointerdown makes an unselected box draggable in one
+    // gesture. paintSelection updates chrome in place, so the element stays.
+    if (State.selectedFreeId !== found.box.id) {
+      State.selectFree(found.box.id);
+      Render.paintSelection(State);
+    }
+    Render.focusFreeBox(found.box.id);
+
+    freeMoveDrag = {
+      pointerId: event.pointerId,
+      freeId: found.box.id,
+      capture: element,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: found.box.x,
+      startY: found.box.y,
+      moved: false,
+    };
+    try {
+      element.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort for synthetic pointers.
+    }
+    window.addEventListener('pointermove', moveFreeMove);
+    window.addEventListener('pointerup', finishFreeMove);
+    window.addEventListener('pointercancel', finishFreeMove);
+  };
+
+  const moveFreeMove = (event) => {
+    if (!freeMoveDrag || event.pointerId !== freeMoveDrag.pointerId) return;
+
+    const dx = event.clientX - freeMoveDrag.startClientX;
+    const dy = event.clientY - freeMoveDrag.startClientY;
+    if (!freeMoveDrag.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      freeMoveDrag.moved = true;
+    }
+
+    const scale = canvasScale() || 1;
+    if (
+      !State.setFreePosition(
+        freeMoveDrag.freeId,
+        freeMoveDrag.startX + dx / scale,
+        freeMoveDrag.startY + dy / scale,
+      )
+    ) {
+      return;
+    }
+    const found = State.findFreeBox(freeMoveDrag.freeId);
+    if (found) Render.updateFreeBox(found.box);
+  };
+
+  const finishFreeMove = (event) => {
+    if (!freeMoveDrag || event.pointerId !== freeMoveDrag.pointerId) return;
+    const moved = freeMoveDrag.moved;
+    const capture = freeMoveDrag.capture;
+    freeMoveDrag = null;
+    try {
+      capture.releasePointerCapture(event.pointerId);
+    } catch {
+      // The pointer may already be released.
+    }
+    window.removeEventListener('pointermove', moveFreeMove);
+    window.removeEventListener('pointerup', finishFreeMove);
+    window.removeEventListener('pointercancel', finishFreeMove);
+    if (moved) ignoreCanvasClickUntil = performance.now() + 300;
+  };
+
+  const startFreeScale = (event, element) => {
+    if (freeMoveDrag || freeScaleDrag || freeRotateDrag) return;
+    const found = State.findFreeBox(element.dataset.freeId);
+    if (!found) return;
+    stopFreeGesture(event);
+    if (event.target instanceof HTMLElement) {
+      event.target.focus({ preventScroll: true });
+    }
+
+    const center = freeCenterClient(found.box);
+    freeScaleDrag = {
+      pointerId: event.pointerId,
+      freeId: found.box.id,
+      capture: element,
+      centerX: center.x,
+      centerY: center.y,
+      startDistance: Math.max(
+        1,
+        Math.hypot(event.clientX - center.x, event.clientY - center.y),
+      ),
+      startWidth: found.box.width,
+      moved: false,
+    };
+    try {
+      element.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort for synthetic pointers.
+    }
+    window.addEventListener('pointermove', moveFreeScale);
+    window.addEventListener('pointerup', finishFreeScale);
+    window.addEventListener('pointercancel', finishFreeScale);
+  };
+
+  const moveFreeScale = (event) => {
+    if (!freeScaleDrag || event.pointerId !== freeScaleDrag.pointerId) return;
+
+    // Dragging the corner away from the centre scales the box by the distance
+    // ratio, matching the photo zoom gesture.
+    const distance = Math.hypot(
+      event.clientX - freeScaleDrag.centerX,
+      event.clientY - freeScaleDrag.centerY,
+    );
+    const width =
+      freeScaleDrag.startWidth * (distance / freeScaleDrag.startDistance);
+    if (!freeScaleDrag.moved) {
+      if (Math.abs(width - freeScaleDrag.startWidth) < 0.5) return;
+      freeScaleDrag.moved = true;
+    }
+
+    if (!State.setFreeScale(freeScaleDrag.freeId, width)) return;
+    const found = State.findFreeBox(freeScaleDrag.freeId);
+    if (found) Render.updateFreeBox(found.box);
+  };
+
+  const finishFreeScale = (event) => {
+    if (!freeScaleDrag || event.pointerId !== freeScaleDrag.pointerId) return;
+    const moved = freeScaleDrag.moved;
+    const freeId = freeScaleDrag.freeId;
+    const capture = freeScaleDrag.capture;
+    freeScaleDrag = null;
+    try {
+      capture.releasePointerCapture(event.pointerId);
+    } catch {
+      // The pointer may already be released.
+    }
+    window.removeEventListener('pointermove', moveFreeScale);
+    window.removeEventListener('pointerup', finishFreeScale);
+    window.removeEventListener('pointercancel', finishFreeScale);
+
+    if (moved && event.type === 'pointerup') {
+      const found = State.findFreeBox(freeId);
+      if (found) {
+        Render.announce(
+          I18n.t('announce.freeScale', {
+            n: Math.round(found.box.width),
+          }),
+        );
+      }
+    }
+  };
+
+  const startFreeRotate = (event, element) => {
+    if (freeMoveDrag || freeScaleDrag || freeRotateDrag) return;
+    const found = State.findFreeBox(element.dataset.freeId);
+    if (!found) return;
+    stopFreeGesture(event);
+    if (event.target instanceof HTMLElement) {
+      event.target.focus({ preventScroll: true });
+    }
+
+    const center = freeCenterClient(found.box);
+    freeRotateDrag = {
+      pointerId: event.pointerId,
+      freeId: found.box.id,
+      capture: element,
+      center,
+      startAngle: pointerAngle(event, center),
+      startRotation: found.box.rotation,
+      moved: false,
+    };
+    try {
+      element.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort for synthetic pointers.
+    }
+    window.addEventListener('pointermove', moveFreeRotate);
+    window.addEventListener('pointerup', finishFreeRotate);
+    window.addEventListener('pointercancel', finishFreeRotate);
+  };
+
+  const moveFreeRotate = (event) => {
+    if (!freeRotateDrag || event.pointerId !== freeRotateDrag.pointerId) return;
+
+    let delta =
+      pointerAngle(event, freeRotateDrag.center) - freeRotateDrag.startAngle;
+    if (delta > 180) delta -= 360;
+    else if (delta <= -180) delta += 360;
+
+    if (!freeRotateDrag.moved) {
+      if (Math.abs(delta) < 0.5) return;
+      freeRotateDrag.moved = true;
+    }
+
+    if (
+      !State.setFreeRotation(
+        freeRotateDrag.freeId,
+        freeRotateDrag.startRotation + delta,
+      )
+    ) {
+      return;
+    }
+    const found = State.findFreeBox(freeRotateDrag.freeId);
+    if (found) Render.updateFreeBox(found.box);
+  };
+
+  const finishFreeRotate = (event) => {
+    if (!freeRotateDrag || event.pointerId !== freeRotateDrag.pointerId) return;
+    const moved = freeRotateDrag.moved;
+    const freeId = freeRotateDrag.freeId;
+    const capture = freeRotateDrag.capture;
+    freeRotateDrag = null;
+    try {
+      capture.releasePointerCapture(event.pointerId);
+    } catch {
+      // The pointer may already be released.
+    }
+    window.removeEventListener('pointermove', moveFreeRotate);
+    window.removeEventListener('pointerup', finishFreeRotate);
+    window.removeEventListener('pointercancel', finishFreeRotate);
+
+    if (moved && event.type === 'pointerup') {
+      const found = State.findFreeBox(freeId);
+      if (found) {
+        Render.announce(
+          I18n.t('announce.freeRotation', {
+            n: Math.round(found.box.rotation),
+          }),
+        );
+      }
+    }
+  };
+
+  const nudgeFreeScale = (factor) => {
+    const found = State.findFreeBox(State.selectedFreeId);
+    if (!found) return;
+    if (!State.setFreeScale(found.box.id, found.box.width * factor)) return;
+    Render.updateFreeBox(found.box);
+    Render.announce(
+      I18n.t('announce.freeScale', { n: Math.round(found.box.width) }),
+    );
+  };
+
+  const nudgeFreeRotation = (amount) => {
+    const found = State.findFreeBox(State.selectedFreeId);
+    if (!found) return;
+    if (!State.setFreeRotation(found.box.id, found.box.rotation + amount)) {
+      return;
+    }
+    Render.updateFreeBox(found.box);
+    Render.announce(
+      I18n.t('announce.freeRotation', {
+        n: Math.round(found.box.rotation),
+      }),
+    );
+  };
+
+  const resetFreeRotation = () => {
+    const found = State.findFreeBox(State.selectedFreeId);
+    if (!found) return;
+    if (!State.setFreeRotation(found.box.id, 0)) return;
+    Render.updateFreeBox(found.box);
+    Render.announce(I18n.t('announce.freeRotationReset'));
+  };
+
+  const nudgeFreePosition = (dx, dy) => {
+    const found = State.findFreeBox(State.selectedFreeId);
+    if (!found) return;
+    if (
+      !State.setFreePosition(
+        found.box.id,
+        found.box.x + dx,
+        found.box.y + dy,
+      )
+    ) {
+      return;
+    }
+    Render.updateFreeBox(found.box);
+  };
+
   const groupExtentLocked = (layoutRow) =>
     layoutRow.boxes.length === 1 && layoutRow.boxes[0].locked;
 
@@ -1358,6 +1769,7 @@
 
   addRowTop.addEventListener('click', () => addRow('start'));
   addRowBottom.addEventListener('click', () => addRow('end'));
+  addFreeButton.addEventListener('click', addFreeBox);
 
   const handlesAddBox = (event) => {
     const button = event.target.closest('button[data-action="add-box"]');
@@ -1387,6 +1799,87 @@
   railRight.addEventListener('click', handlesAddBox);
 
   undoButton.addEventListener('click', undoDelete);
+
+  freeLayer.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const handle = target.closest('.free-scale, .free-rotate');
+    if (handle) {
+      const element = handle.closest('.free-box, .free-ghost');
+      if (!element) return;
+      if (handle.classList.contains('free-scale')) {
+        startFreeScale(event, element);
+      } else {
+        startFreeRotate(event, element);
+      }
+      return;
+    }
+
+    const element = target.closest('.free-box, .free-ghost');
+    if (element) startFreeMove(event, element);
+  });
+
+  freeLayer.addEventListener('click', (event) => {
+    const element = event.target.closest('.free-box, .free-ghost');
+    if (!element) return;
+    if (State.selectedFreeId !== element.dataset.freeId) {
+      State.selectFree(element.dataset.freeId);
+      Render.paintSelection(State);
+    }
+  });
+
+  freeLayer.addEventListener('dblclick', (event) => {
+    const element = event.target.closest('.free-box, .free-ghost');
+    if (!element) return;
+    if (event.target.closest('.free-scale, .free-rotate')) return;
+    event.preventDefault();
+    const freeId = element.dataset.freeId;
+    if (State.selectedFreeId !== freeId) {
+      State.selectFree(freeId);
+      Render.paintSelection(State);
+    }
+    openFreePicker(freeId);
+  });
+
+  freeLayer.addEventListener('keydown', (event) => {
+    const handle = event.target.closest('.free-scale, .free-rotate');
+    if (handle) {
+      const isScale = handle.classList.contains('free-scale');
+      if (isScale) {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+          nudgeFreeScale(1.1);
+        } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+          nudgeFreeScale(1 / 1.1);
+        } else {
+          return;
+        }
+      } else {
+        const step = event.shiftKey ? 15 : 1;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+          nudgeFreeRotation(step);
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+          nudgeFreeRotation(-step);
+        } else if (event.key === 'Home') {
+          resetFreeRotation();
+        } else {
+          return;
+        }
+      }
+      event.preventDefault();
+      return;
+    }
+
+    const element = event.target.closest('.free-box, .free-ghost');
+    if (!element) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const freeId = element.dataset.freeId;
+      selectFreeAndFocus(freeId);
+      openFreePicker(freeId);
+    }
+  });
 
   historyList.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-history-id]');
@@ -1503,6 +1996,14 @@
     const button = event.target.closest('button[data-action]');
     if (!button) return;
 
+    if (State.selectedFreeId) {
+      if (button.dataset.action === 'delete-box') deleteSelected();
+      else if (button.dataset.action === 'select-image') {
+        openFreePicker(State.selectedFreeId);
+      }
+      return;
+    }
+
     const boxId = State.selectedBoxId;
     if (!boxId) return;
 
@@ -1533,6 +2034,8 @@
     if (performance.now() < ignoreCanvasClickUntil) return;
     if (
       event.target.closest('.canvas') ||
+      event.target.closest('.free-box') ||
+      event.target.closest('.free-ghost') ||
       event.target.closest('.rotate-handle') ||
       event.target.closest('button')
     ) {
@@ -1549,22 +2052,37 @@
     if (!editing || event.defaultPrevented || isTextEntry(event.target)) return;
 
     if (event.key === 'Escape') {
-      if (State.selectedBoxId) {
+      if (State.selectedBoxId || State.selectedFreeId) {
         event.preventDefault();
         deselect();
       }
       return;
     }
 
-    if ((event.key === 'Delete' || event.key === 'Backspace') && State.selectedBoxId) {
+    if (
+      (event.key === 'Delete' || event.key === 'Backspace') &&
+      (State.selectedBoxId || State.selectedFreeId)
+    ) {
       event.preventDefault();
       deleteSelected();
       return;
     }
 
-    if (event.key.startsWith('Arrow') && State.boxCount > 0) {
-      event.preventDefault();
-      moveSelection(event.key);
+    if (event.key.startsWith('Arrow')) {
+      if (State.selectedFreeId) {
+        event.preventDefault();
+        const step = event.shiftKey ? 1 : 10;
+        const dx =
+          event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+        const dy =
+          event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+        nudgeFreePosition(dx, dy);
+        return;
+      }
+      if (State.boxCount > 0) {
+        event.preventDefault();
+        moveSelection(event.key);
+      }
     }
   });
 

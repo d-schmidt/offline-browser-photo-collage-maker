@@ -44,6 +44,26 @@ const Export = (() => {
     ctx.restore();
   };
 
+  /**
+   * Draw one free-form box. It is rotated around its centre and stretched to
+   * its locked aspect ratio; the export canvas clips whatever hangs over the
+   * edge, exactly like the unselected preview.
+   */
+  const drawFreeBox = (ctx, image, box) => {
+    const width = box.width;
+    const height = box.width / (box.aspect || 1);
+    ctx.save();
+    ctx.translate(box.x, box.y);
+    ctx.rotate(((box.rotation || 0) * Math.PI) / 180);
+    if (image) {
+      ctx.drawImage(image, -width / 2, -height / 2, width, height);
+    } else {
+      ctx.fillStyle = PLACEHOLDER;
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+    }
+    ctx.restore();
+  };
+
   const buildCanvas = async (state) => {
     // The export uses the same padding and gaps as the editor, so the current
     // border thickness has to be in the layout before it computes geometry.
@@ -67,6 +87,13 @@ const Export = (() => {
     );
     const images = new Map(loaded);
 
+    const loadedFree = await Promise.all(
+      state.freeBoxes
+        .filter((box) => box.image)
+        .map(async (box) => [box.id, await Images.loadElement(box.image.url)]),
+    );
+    const freeImages = new Map(loadedFree);
+
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = state.canvasColor || DEFAULT_BACKGROUND;
     ctx.fillRect(0, 0, width, height);
@@ -86,6 +113,12 @@ const Export = (() => {
           ctx.fillRect(x, y, box.w, box.h);
         }
       }
+    }
+
+    // The free-form layer paints above the grid, in the same order as on
+    // screen. The canvas edge clips any overhang.
+    for (const box of state.freeBoxes) {
+      drawFreeBox(ctx, box.image ? freeImages.get(box.id) : null, box);
     }
 
     return canvas;
