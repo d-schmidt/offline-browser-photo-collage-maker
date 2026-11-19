@@ -104,6 +104,9 @@ const Export = (() => {
         const x = row.x + box.x;
         const y = row.y + box.y;
         if (box.w <= 0 || box.h <= 0) continue;
+        // A hidden photo leaves the canvas background showing in its cell;
+        // the image stays in state and the box keeps its size.
+        if (box.visible === false) continue;
 
         const image = box.image ? images.get(box.id) : null;
         if (image) {

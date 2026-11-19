@@ -563,6 +563,13 @@ button {
   background: none;
 }
 
+/* A hidden photo keeps its box and its space but shows the canvas/margin
+   color, so it reads as a transparent cut-out rather than an empty box. */
+.box.is-hidden,
+.box.is-hidden:hover {
+  background: var(--canvas-bg);
+}
+
 .box:focus-visible {
   z-index: 3;
   outline: 3px solid var(--accent);

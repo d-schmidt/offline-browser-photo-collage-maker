@@ -13,6 +13,8 @@ const ICONS = Object.freeze({
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  visibility: 'assets/visibility_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  visibilityOff: 'assets/visibility_off_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -87,18 +89,22 @@ const Render = (() => {
     button.style.height = `${layoutBox.h}px`;
 
     const hasImage = Boolean(layoutBox.image);
+    const visible = layoutBox.visible !== false;
     const locked = Boolean(layoutBox.locked);
     button.classList.toggle('has-image', hasImage);
+    button.classList.toggle('is-hidden', hasImage && !visible);
     button.classList.toggle('has-lock', locked);
     button.classList.toggle('is-selected', layoutBox.id === selectedId);
     button.setAttribute('aria-pressed', String(layoutBox.id === selectedId));
     const label = hasImage
-      ? I18n.t('box.label', { n: number })
+      ? visible
+        ? I18n.t('box.label', { n: number })
+        : I18n.t('box.labelHidden', { n: number })
       : I18n.t('box.labelEmpty', { n: number });
     button.setAttribute('aria-label', label);
     button.title = label;
 
-    if (hasImage) {
+    if (hasImage && visible) {
       const image = document.createElement('img');
       image.className = 'box-image';
       image.src = layoutBox.image.url;
@@ -114,7 +120,7 @@ const Render = (() => {
         layoutBox.rotation,
       );
       button.append(image);
-    } else {
+    } else if (!hasImage) {
       const placeholder = new Image(64, 64);
       placeholder.className = 'box-placeholder';
       placeholder.src = ICONS.addPhoto;
@@ -365,18 +371,31 @@ const Render = (() => {
     if (limitHint) aspect.title = limitHint;
     else if (ratioHint) aspect.title = ratioHint;
 
+    const visible = box ? box.visible !== false : true;
+    const visibility = toolButton(
+      'toggle-visibility',
+      I18n.t('action.visibility'),
+      visible ? 'visibility' : 'visibilityOff',
+    );
+    visibility.disabled = !hasImage;
+    visibility.setAttribute('aria-pressed', String(visible));
+    visibility.title = I18n.t(
+      visible ? 'action.hideImage' : 'action.showImage',
+    );
+
     refs.selectionActions.append(
       toolButton('delete-box', I18n.t('action.delete'), 'delete'),
       toolButton('select-image', I18n.t('action.selectImage'), 'image'),
       square,
       aspect,
+      visibility,
     );
   };
 
   const selectedPhotoTarget = () => {
     if (!currentLayout || !currentState || !currentState.selectedBoxId) return null;
     const found = currentState.findBox(currentState.selectedBoxId);
-    if (!found || !found.box.image) return null;
+    if (!found || !found.box.image || found.box.visible === false) return null;
     const layoutRow = currentLayout.rows.find((row) => row.id === found.row.id);
     if (!layoutRow) return null;
     const layoutBox = layoutRow.boxes.find((box) => box.id === found.box.id);

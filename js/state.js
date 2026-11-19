@@ -27,6 +27,7 @@ const State = (() => {
     id: uid('box'),
     weight,
     image: null,
+    visible: true,
     lock: null,
     ratio: null,
     lockSeq: 0,
@@ -302,13 +303,24 @@ const State = (() => {
     Images.release(found.box.image);
     found.box.image = image;
     // Zoom and pan belong to the photo that was on screen, so a replacement
-    // starts from the plain cover crop again.
+    // starts from the plain cover crop again. Visibility is a property of the
+    // box, not the photo, so a hidden box stays hidden.
     resetZoomPan(found.box);
     found.box.rotation = 0;
     if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
       found.box.ratio = image.width / image.height;
       enforceAspectLocks(found.row);
     }
+    return true;
+  };
+
+  /** Show or hide a grid photo without dropping its image or its space. */
+  const setBoxVisible = (boxId, visible) => {
+    const found = findBox(boxId);
+    if (!found || !found.box.image) return false;
+    const next = Boolean(visible);
+    if (found.box.visible === next) return false;
+    found.box.visible = next;
     return true;
   };
 
@@ -632,6 +644,7 @@ const State = (() => {
     removeBox,
     restoreBox,
     setImage,
+    setBoxVisible,
     canLockBox,
     canAspectLock,
     setBoxLock,

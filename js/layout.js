@@ -357,6 +357,7 @@ const Layout = (() => {
       return {
         id: row.boxes[index].id,
         image: row.boxes[index].image,
+        visible: row.boxes[index].visible !== false,
         locked: isLocked(row.boxes[index]),
         zoom: row.boxes[index].zoom,
         offsetX: row.boxes[index].offsetX,

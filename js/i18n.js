@@ -72,6 +72,7 @@ const I18n = (() => {
 
       'box.label': 'Photo box {n}',
       'box.labelEmpty': 'Empty photo box {n}',
+      'box.labelHidden': 'Hidden photo box {n}',
       'box.alt': 'Photo {n}',
 
       'free.add': 'Add free-form photo box',
@@ -88,6 +89,9 @@ const I18n = (() => {
       'action.selectImage': 'Select image',
       'action.lockSquare': 'Lock square box',
       'action.lockAspect': 'Lock image aspect ratio',
+      'action.visibility': 'Photo visibility',
+      'action.hideImage': 'Hide photo',
+      'action.showImage': 'Show photo',
       'hint.unlocked': 'At least one box in a {group} must stay unlocked',
       'hint.ratio':
         'Aspect locks in a {group} must use the same image ratio',
@@ -111,6 +115,8 @@ const I18n = (() => {
         'Aspect locks in a {group} must use the same image ratio.',
       'announce.squareOn': 'Square lock on.',
       'announce.aspectOn': 'Aspect ratio lock on.',
+      'announce.hidden': 'Photo box {n} hidden.',
+      'announce.shown': 'Photo box {n} shown.',
       'announce.opening': 'Opening image…',
       'announce.imageAdded': 'Image added to photo box {n}.',
       'announce.saving': 'Saving collage as {format}…',
@@ -209,6 +215,7 @@ const I18n = (() => {
 
       'box.label': 'Bildfeld {n}',
       'box.labelEmpty': 'Leeres Bildfeld {n}',
+      'box.labelHidden': 'Ausgeblendetes Bildfeld {n}',
       'box.alt': 'Foto {n}',
 
       'free.add': 'Freies Bildfeld hinzufügen',
@@ -225,6 +232,9 @@ const I18n = (() => {
       'action.selectImage': 'Bild auswählen',
       'action.lockSquare': 'Quadrat sperren',
       'action.lockAspect': 'Seitenverhältnis sperren',
+      'action.visibility': 'Sichtbarkeit des Fotos',
+      'action.hideImage': 'Foto ausblenden',
+      'action.showImage': 'Foto einblenden',
       'hint.unlocked': 'Mindestens ein Bildfeld pro {group} muss entsperrt bleiben',
       'hint.ratio':
         'Seitenverhältnis-Sperren in einer {group} müssen dasselbe Verhältnis verwenden',
@@ -248,6 +258,8 @@ const I18n = (() => {
         'Seitenverhältnis-Sperren in einer {group} müssen dasselbe Verhältnis verwenden.',
       'announce.squareOn': 'Quadratsperre aktiv.',
       'announce.aspectOn': 'Seitenverhältnis-Sperre aktiv.',
+      'announce.hidden': 'Bildfeld {n} ausgeblendet.',
+      'announce.shown': 'Bildfeld {n} eingeblendet.',
       'announce.opening': 'Bild wird geöffnet…',
       'announce.imageAdded': 'Bild zu Bildfeld {n} hinzugefügt.',
       'announce.saving': 'Collage wird als {format} gespeichert…',

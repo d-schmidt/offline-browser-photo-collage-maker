@@ -393,6 +393,25 @@
     );
   };
 
+  /**
+   * Hide or show a grid photo. The image and its space stay in the layout; only
+   * the rendering changes, so a hidden box remains selectable and can be shown
+   * again from the same action.
+   */
+  const toggleBoxVisibility = (boxId) => {
+    const found = State.findBox(boxId);
+    if (!found || !found.box.image) return;
+    const nextVisible = found.box.visible === false;
+    if (!State.setBoxVisible(boxId, nextVisible)) return;
+    refresh();
+    focusAction('toggle-visibility');
+    Render.announce(
+      I18n.t(nextVisible ? 'announce.shown' : 'announce.hidden', {
+        n: boxNumber(boxId),
+      }),
+    );
+  };
+
   const handlePickedFile = async (file) => {
     const boxId = pickerBoxId;
     const freeId = pickerFreeId;
@@ -687,7 +706,7 @@
   const selectedTarget = () => {
     if (!State.selectedBoxId) return null;
     const found = State.findBox(State.selectedBoxId);
-    if (!found || !found.box.image) return null;
+    if (!found || !found.box.image || found.box.visible === false) return null;
     const layoutRow = layout.rows.find((row) => row.id === found.row.id);
     const layoutBox =
       layoutRow && layoutRow.boxes.find((box) => box.id === found.box.id);
@@ -2011,6 +2030,9 @@
     else if (button.dataset.action === 'select-image') openPicker(boxId);
     else if (button.dataset.action === 'lock-square') toggleBoxLock(boxId, 'square');
     else if (button.dataset.action === 'lock-aspect') toggleBoxLock(boxId, 'aspect');
+    else if (button.dataset.action === 'toggle-visibility') {
+      toggleBoxVisibility(boxId);
+    }
   });
 
   rowsLayer.addEventListener('keydown', (event) => {
