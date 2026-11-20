@@ -1033,8 +1033,8 @@ button {
 .rotate-handle {
   position: absolute;
   z-index: 6;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   border: 2px solid var(--accent);
   border-radius: 50%;
   background: #ffffff;
@@ -1084,8 +1084,8 @@ button {
 .free-rotate {
   position: absolute;
   z-index: 7;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   border: 2px solid var(--accent);
   border-radius: 50%;
   background: #ffffff;
@@ -1215,8 +1215,9 @@ button {
   position: absolute;
   inset: 0;
   z-index: 1;
-  width: 14px;
-  height: 14px;
+  /* Match the add-button marks: 24 px inside the 2 px ring. */
+  width: 24px;
+  height: 24px;
   margin: auto;
   /* The supplied marks are light gray; force pure white on the accent disc. */
   filter: brightness(0) invert(1);
