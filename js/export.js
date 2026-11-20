@@ -140,6 +140,7 @@ const Export = (() => {
 
     const size = Layout.freeTextSize(box);
     const align = box.align || 'center';
+    const outline = Layout.textOutlineWidth(box);
     const paddingX = size * Layout.textPaddingX;
     ctx.save();
     ctx.beginPath();
@@ -167,10 +168,13 @@ const Export = (() => {
 
     lines.forEach((line, index) => {
       const y = firstY + index * lineHeight;
-      // Stroke first, then fill, matching `paint-order: stroke fill`.
-      ctx.lineWidth = Layout.textOutlineWidth(box);
-      ctx.strokeStyle = box.outline;
-      ctx.strokeText(line, textX, y);
+      // Stroke first, then fill, matching `paint-order: stroke fill`. A zero
+      // width means no outline; canvas ignores lineWidth 0, so skip the stroke.
+      if (outline > 0) {
+        ctx.lineWidth = outline;
+        ctx.strokeStyle = box.outline;
+        ctx.strokeText(line, textX, y);
+      }
       ctx.fillStyle = box.color;
       ctx.fillText(line, textX, y);
       if (box.underline) {

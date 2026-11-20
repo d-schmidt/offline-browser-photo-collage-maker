@@ -68,6 +68,10 @@
   );
   const textOutlineRow = document.getElementById('text-outline-row');
   const textOutlineChip = document.getElementById('text-outline-chip');
+  const textOutlineWidth = document.getElementById('text-outline-width');
+  const textOutlineWidthValue = document.getElementById(
+    'text-outline-width-value',
+  );
   const textBackgroundRow = document.getElementById('text-background-row');
   const textBackgroundChip = document.getElementById('text-background-chip');
   const textBackgroundOpacityRow = document.getElementById(
@@ -124,6 +128,7 @@
   let fillFrame = 0;
   let tintFrame = 0;
   let textFillFrame = 0;
+  let textOutlineFrame = 0;
   let fontSelectionToken = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
@@ -1495,6 +1500,13 @@
     textOutlineChip.style.background = box.outline;
     textColorInput.value = box.color;
     textOutlineInput.value = box.outline;
+    const outline = Math.round(Layout.textOutlineWidth(box));
+    textOutlineWidth.value = String(outline);
+    textOutlineWidthValue.textContent = I18n.t('border.value', { n: outline });
+    textOutlineWidth.setAttribute(
+      'aria-valuetext',
+      I18n.t('border.value', { n: outline }),
+    );
 
     // The background controls only make sense while the backdrop is shown; a
     // stored fill survives a toggle off so it comes back unchanged.
@@ -1569,6 +1581,19 @@
     );
   };
 
+  /** Change the outline width live, repainting at most once per frame. */
+  const applyTextOutlineWidth = (width) => {
+    const box = textColorTarget();
+    if (!box || !State.setFreeTextOutlineWidth(box.id, width)) return;
+    syncTextColorMenu();
+    if (textOutlineFrame) return;
+    textOutlineFrame = requestAnimationFrame(() => {
+      textOutlineFrame = 0;
+      refresh();
+      syncTextColorMenu();
+    });
+  };
+
   /** Store one changed text color, then keep the chips and the box in sync. */
   const applyTextColor = (which, color) => {
     const freeId = State.selectedFreeId;
@@ -1608,6 +1633,16 @@
       I18n.t('announce.textBackground', {
         color: fill.color,
         n: Math.round(fill.opacity * 100),
+      }),
+    );
+  };
+
+  const announceTextOutlineWidth = () => {
+    const box = textColorTarget();
+    if (!box) return;
+    Render.announce(
+      I18n.t('announce.textOutlineWidth', {
+        n: Math.round(Layout.textOutlineWidth(box)),
       }),
     );
   };
@@ -3192,6 +3227,12 @@
   textOutlineInput.addEventListener('input', () => {
     applyTextColor('outline', textOutlineInput.value);
   });
+
+  textOutlineWidth.addEventListener('input', () => {
+    applyTextOutlineWidth(Number(textOutlineWidth.value));
+  });
+
+  textOutlineWidth.addEventListener('change', announceTextOutlineWidth);
 
   textColorInput.addEventListener('change', () => {
     Render.announce(

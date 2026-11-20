@@ -327,6 +327,7 @@ button {
   opacity: 1;
 }
 
+.text-outline-width,
 .text-background-opacity {
   padding: 6px 8px 4px;
 }

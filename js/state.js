@@ -164,6 +164,7 @@ const State = (() => {
       bold: text,
       italic: false,
       underline: false,
+      outlineWidth: text ? Layout.defaultTextOutline : 0,
     };
     box.width = clampFreeWidth(box, box.width);
     return box;
@@ -262,6 +263,19 @@ const State = (() => {
       return false;
     }
     found.box[style] = Boolean(active);
+    return true;
+  };
+
+  /** Outline thickness in logical pixels, from none to the slider maximum. */
+  const setFreeTextOutlineWidth = (freeId, width) => {
+    const found = findFreeBox(freeId);
+    if (!found || !isTextBox(found.box) || !Number.isFinite(width)) {
+      return false;
+    }
+    found.box.outlineWidth = Math.min(
+      Layout.maxTextOutline,
+      Math.max(0, Math.round(width)),
+    );
     return true;
   };
 
@@ -368,7 +382,16 @@ const State = (() => {
   const setFreeScale = (freeId, width) => {
     const found = findFreeBox(freeId);
     if (!found || !Number.isFinite(width)) return false;
-    found.box.width = clampFreeWidth(found.box, width);
+    const next = clampFreeWidth(found.box, width);
+    const ratio = found.box.width > 0 ? next / found.box.width : 1;
+    found.box.width = next;
+    // Text scales with the box, so its outline keeps the same visual weight.
+    if (found.box.kind === 'text' && Number.isFinite(found.box.outlineWidth)) {
+      found.box.outlineWidth = Math.min(
+        Layout.maxTextOutline,
+        Math.max(0, found.box.outlineWidth * ratio),
+      );
+    }
     return true;
   };
 
@@ -1111,6 +1134,7 @@ const State = (() => {
     setFreeTextStyle,
     setFreeTextColor,
     setFreeTextOutline,
+    setFreeTextOutlineWidth,
     setFreeSquare,
     setFreePosition,
     setFreeScale,

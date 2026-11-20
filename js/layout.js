@@ -61,6 +61,10 @@ const TEXT_PADDING_Y = 0.12;
 // clear ~4 px halo at the 48 px default, enough to read a caption over a busy
 // photo in the exported image.
 const TEXT_OUTLINE_RATIO = 0.16;
+// The outline slider works in logical pixels; text boxes start at the former
+// 16%-of-type-size look and scale their outline with the box.
+const DEFAULT_TEXT_OUTLINE = 8;
+const MAX_TEXT_OUTLINE = 50;
 
 /**
  * Bundled free-form text fonts. Each entry points at a local WOFF2 file and a
@@ -682,9 +686,11 @@ const Layout = (() => {
     return Math.max(10, Math.min(innerW, innerH) * 0.14);
   };
 
-  /** Stroke width for the text outline, scaling with the type size. */
+  /** Stroke width for the text outline, in logical pixels. */
   const textOutlineWidth = (box) =>
-    Math.max(6, freeTextSize(box) * TEXT_OUTLINE_RATIO);
+    Number.isFinite(box.outlineWidth)
+      ? box.outlineWidth
+      : Math.max(6, freeTextSize(box) * TEXT_OUTLINE_RATIO);
 
   /** CSS (and canvas) family list for a text box font id. */
   const textFontStack = (id) => {
@@ -705,6 +711,8 @@ const Layout = (() => {
     defaultTextSize,
     freeTextSize,
     textOutlineWidth,
+    defaultTextOutline: DEFAULT_TEXT_OUTLINE,
+    maxTextOutline: MAX_TEXT_OUTLINE,
     textFont,
     textFontStack,
     textFonts: TEXT_FONTS,
