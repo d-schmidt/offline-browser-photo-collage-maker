@@ -55,6 +55,7 @@ otherwise.
 - **Margin color** in the action bar opens a menu with **Fill** and **Gradient**: Fill recolors the canvas padding and gaps, while Gradient offers top-to-bottom, left-to-right, radial, and random-spots paints with two editable colors. The canvas starts with the **Warm Stone** preset as a top-to-bottom gradient (`#f5f2eb` → `#dfd6c7`). While a gradient is active, both the margin menu and the color panel show 20 presets in a 4 × 5 grid; each chip previews its two colors diagonally, names itself (and its description) on hover, and applies both stops in one click. The export uses whatever is on screen.
 - **Border thickness** in the action bar opens a slider from 0 to 100 px that sets the canvas padding and every gap together. The default 5 px keeps the classic look (10 px between boxes and at the canvas edge); 0 removes all margins so the photos touch and the margin color disappears. The export uses the same thickness.
 - **Save** opens a menu for JPEG or PNG. Both download a file at the chosen canvas size named `collage-yyyy-MM-dd-HH-mm.jpg` or `.png` using the local save time; JPEG uses 85% quality. The export matches the on-screen layout in either mode.
+- Below a divider in the same menu, **JSON Export** downloads the whole work in progress as `collage-yyyy-MM-dd-HH-mm.json`, with every photo embedded at its original resolution plus the layout, margin paint, styles, text, positions, and framing. **JSON Import** restores that file exactly; an unreadable file leaves the current collage untouched. Project files get large when they contain large photos, so keep them as working files rather than sharing them.
 
 Keyboard: on the start screen, `Tab` moves between formats and `Enter` or
 `Space` starts the editor. While editing, `Tab` moves through controls, arrow keys move box selection,
@@ -66,8 +67,9 @@ focused, the arrow keys rotate by 1° (Shift for 15°) and `Home` resets. A
 selected free-form box moves with the arrow keys (10 px, Shift 1 px); its scale
 and rotation circles use the same arrow/`Home` controls.
 
-Still to come: dragging boxes to reorder, saving and restoring the whole
-collage, and general undo/redo.
+Still to come: dragging boxes to reorder, automatic persistence of the
+collage in the browser, and general undo/redo. A JSON project file already
+carries the complete collage, photos included, between sessions.
 
 ## Privacy
 

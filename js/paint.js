@@ -239,11 +239,32 @@ const Paint = (() => {
     return promise;
   };
 
+  const randomSeed = () => Math.floor(Math.random() * 0xffffffff) >>> 0;
+
+  /**
+   * Restore a saved seed so a project shows the exact spots it was exported
+   * with. Returns false for anything that is not an unsigned 32-bit integer.
+   */
+  const setSeed = (value) => {
+    const next = Number(value);
+    if (!Number.isInteger(next) || next < 0 || next > 0xffffffff) return false;
+    seed = next >>> 0;
+    cache = null;
+    return true;
+  };
+
   /** Pick a new seed and drop the bitmap, so the next paint has new shapes. */
   const shuffle = () => {
-    seed = Math.floor(Math.random() * 0xffffffff) >>> 0;
+    seed = randomSeed();
     cache = null;
   };
 
-  return { spots, shuffle };
+  return {
+    spots,
+    shuffle,
+    setSeed,
+    get seed() {
+      return seed;
+    },
+  };
 })();

@@ -91,6 +91,7 @@
   const textDialogCancel = document.getElementById('text-dialog-cancel');
   const textDialogSave = document.getElementById('text-dialog-save');
   const fileInput = document.getElementById('file-input');
+  const projectInput = document.getElementById('project-input');
   const zoomHandle = document.getElementById('zoom-handle');
   const rotateHandle = document.getElementById('rotate-handle');
   const formatScreen = document.getElementById('format-screen');
@@ -1668,6 +1669,89 @@
     }
   };
 
+  /** The start-screen format matching the live canvas size, for project files. */
+  const currentFormat = () =>
+    FORMATS.find(
+      (format) =>
+        format.canvasW === Layout.canvasW && format.canvasH === Layout.canvasH,
+    ) || {
+      id: '',
+      label: `${Layout.canvasW} × ${Layout.canvasH}`,
+      canvasW: Layout.canvasW,
+      canvasH: Layout.canvasH,
+    };
+
+  /** Download the complete collage, photos included, as a JSON project. */
+  const exportProject = async () => {
+    if (saveButton.disabled) return;
+    saveButton.disabled = true;
+    saveButton.setAttribute('aria-busy', 'true');
+    Render.announce(I18n.t('save.exporting'));
+
+    try {
+      const data = await Project.snapshot(State, {
+        format: currentFormat(),
+        spotsSeed: Paint.seed,
+      });
+      const filename = Project.download(data);
+      Render.toast(I18n.t('save.exported', { filename }));
+    } catch (error) {
+      Render.toast(error.message || I18n.t('save.exportFailed'), true);
+    } finally {
+      saveButton.disabled = false;
+      saveButton.removeAttribute('aria-busy');
+    }
+  };
+
+  /**
+   * Restore a project file. The file and all of its photos are decoded first,
+   * so an unreadable project leaves the current collage untouched; the format
+   * is applied before the state so free-form boxes clamp to the right canvas.
+   */
+  const importProjectFile = async (file) => {
+    if (!file) return;
+    Render.announce(I18n.t('save.importing'));
+    let project = null;
+    let loaded = false;
+
+    try {
+      project = await Project.parse(file);
+      // A restored caption may use a font this session has never shown yet.
+      await Promise.all(
+        project.fonts.map((fontId) => {
+          const font = Layout.textFonts.find((entry) => entry.id === fontId);
+          return font ? FontLoader.ensure(font) : null;
+        }),
+      );
+
+      if (!editing) editing = true;
+      applyFormatLayout(project.format);
+      if (stage.hidden) showEditor();
+
+      discardPendingDelete();
+      if (!State.loadProject(project)) {
+        throw new Error(I18n.t('save.importInvalid'));
+      }
+      loaded = true;
+
+      Paint.setSeed(project.canvas.spotsSeed);
+      applyCanvasPaint();
+      applyBorderThickness();
+      refresh();
+      fitCanvas();
+      Render.focusCanvas();
+      Render.toast(I18n.t('save.imported'));
+    } catch (error) {
+      // Until the state accepts them, the decoded photos belong to this call.
+      if (!loaded && project && project.images) {
+        project.images.forEach((image) => Images.release(image));
+      }
+      Render.toast(error.message || I18n.t('save.importFailed'), true);
+    } finally {
+      projectInput.value = '';
+    }
+  };
+
   const addRow = (position) => {
     // Adding a group changes the structure, so the one-step undo no longer
     // describes the current tree.
@@ -1804,6 +1888,38 @@
   };
 
   /**
+   * Apply a format's logical canvas size and the workspace class that places
+   * the deleted-photo shelf. Shared by the start screen and project imports.
+   */
+  const applyFormatLayout = (format) => {
+    Layout.setCanvasSize(format.canvasW, format.canvasH);
+    document.documentElement.style.setProperty(
+      '--canvas-w',
+      `${format.canvasW}px`,
+    );
+    document.documentElement.style.setProperty(
+      '--canvas-h',
+      `${format.canvasH}px`,
+    );
+
+    // A portrait canvas puts the deleted-photo shelf on the left; landscape
+    // and square canvases keep it along the bottom. Small screens always use
+    // the bottom, which CSS handles.
+    const landscape = format.canvasW > format.canvasH;
+    const portrait = format.canvasH > format.canvasW;
+    workspace.classList.toggle('is-landscape', landscape);
+    workspace.classList.toggle('is-portrait', portrait);
+  };
+
+  /** Reveal the editor after a format choice or a project import. */
+  const showEditor = () => {
+    formatScreen.hidden = true;
+    stage.hidden = false;
+    actionBar.hidden = false;
+    syncHistoryBar();
+  };
+
+  /**
    * Start the editor with the chosen format. The canvas keeps its logical
    * pixel size; only the CSS variables and the scale change, so the same
    * weight-based layout reflows into the new shape.
@@ -1812,9 +1928,7 @@
     if (editing) return;
     editing = true;
 
-    Layout.setCanvasSize(format.canvasW, format.canvasH);
-    document.documentElement.style.setProperty('--canvas-w', `${format.canvasW}px`);
-    document.documentElement.style.setProperty('--canvas-h', `${format.canvasH}px`);
+    applyFormatLayout(format);
     // The spots bitmap is cropped to the canvas, so it follows the format.
     applyCanvasPaint();
 
@@ -1826,19 +1940,7 @@
       false,
     );
 
-    formatScreen.hidden = true;
-    stage.hidden = false;
-    actionBar.hidden = false;
-
-    // A portrait canvas puts the deleted-photo shelf on the left; landscape
-    // and square canvases keep it along the bottom. Small screens always use
-    // the bottom, which CSS handles.
-    const landscape = format.canvasW > format.canvasH;
-    const portrait = format.canvasH > format.canvasW;
-    workspace.classList.toggle('is-landscape', landscape);
-    workspace.classList.toggle('is-portrait', portrait);
-    syncHistoryBar();
-
+    showEditor();
     refresh();
     fitCanvas();
     Render.focusCanvas();
@@ -2877,8 +2979,20 @@
   });
 
   saveMenu.addEventListener('click', (event) => {
-    const item = event.target.closest('button[data-format]');
+    const item = event.target.closest(
+      'button[data-format], button[data-project]',
+    );
     if (!item) return;
+    if (item.dataset.project === 'export') {
+      closeSaveMenu(true);
+      void exportProject();
+      return;
+    }
+    if (item.dataset.project === 'import') {
+      closeSaveMenu(true);
+      projectInput.click();
+      return;
+    }
     const format = item.dataset.format === 'jpeg' ? 'jpeg' : 'png';
     closeSaveMenu(true);
     saveCollage(format);
@@ -3662,6 +3776,10 @@
 
   fileInput.addEventListener('change', () => {
     handlePickedFile(fileInput.files && fileInput.files[0]);
+  });
+
+  projectInput.addEventListener('change', () => {
+    void importProjectFile(projectInput.files && projectInput.files[0]);
   });
 
   // --- text dialog --------------------------------------------------------

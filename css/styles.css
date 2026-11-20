@@ -525,6 +525,23 @@ button {
   background: rgb(255 255 255 / 12%);
 }
 
+/* Project files sit below the image formats, in a quieter gray so the two
+   groups read apart without another heavy label. */
+.save-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgb(255 255 255 / 14%);
+}
+
+.save-menu-item.is-muted {
+  color: #b8b8b8;
+}
+
+.save-menu-item.is-muted:hover,
+.save-menu-item.is-muted:focus-visible {
+  color: #d6d6d6;
+}
+
 /* The editor and the deleted-photo shelf share the space below the action
    bar. Landscape canvases put the shelf on the left; portrait and square
    canvases put it along the bottom. */

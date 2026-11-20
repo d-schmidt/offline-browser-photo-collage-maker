@@ -1050,6 +1050,190 @@ const State = (() => {
 
   const orderedBoxes = () => rows.flatMap((row) => row.boxes);
 
+  /**
+   * Replace the whole collage from a decoded project file. The caller has
+   * already sized the canvas and decoded every photo into the shape a box
+   * expects; every other value is clamped or defaulted here, so a hand-edited
+   * file cannot put the editor into an impossible state. The deleted-photo
+   * shelf stays browser-local: the replaced photos are released, not shelved.
+   */
+  const loadProject = (project) => {
+    if (!project || typeof project !== 'object') return false;
+
+    const numberOr = (value, fallback) => {
+      const number = typeof value === 'number' ? value : Number(value);
+      return value !== null && value !== '' && Number.isFinite(number)
+        ? number
+        : fallback;
+    };
+    const positiveOr = (value, fallback) => {
+      const number = numberOr(value, fallback);
+      return number > 0 ? number : fallback;
+    };
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const colorOr = (value, fallback) =>
+      typeof value === 'string' && isHexColor(value)
+        ? value.toLowerCase()
+        : fallback;
+    const fillOr = (value) => {
+      if (!value || typeof value !== 'object') return null;
+      const fillColor = colorOr(value.color, null);
+      const opacity = numberOr(value.opacity, NaN);
+      if (!fillColor || !Number.isFinite(opacity)) return null;
+      return { color: fillColor, opacity: clamp(opacity, 0, 1) };
+    };
+    const imageOr = (value) =>
+      value && typeof value === 'object' && typeof value.url === 'string'
+        ? value
+        : null;
+
+    for (const row of rows) {
+      for (const box of row.boxes) Images.release(box.image);
+    }
+    for (const box of freeBoxes) Images.release(box.image);
+    rows.length = 0;
+    freeBoxes.length = 0;
+    selectedBoxId = null;
+    selectedFreeId = null;
+    // Imported ids are replaced, so start the id counter from the top.
+    sequence = 0;
+    lockSequence = 0;
+
+    const canvas =
+      project.canvas && typeof project.canvas === 'object'
+        ? project.canvas
+        : {};
+    canvasMode = canvas.mode === 'fill' ? 'fill' : 'gradient';
+    canvasColor = colorOr(canvas.color, '#ffffff');
+    gradientTop = colorOr(canvas.gradientTop, '#f5f2eb');
+    gradientBottom = colorOr(canvas.gradientBottom, '#dfd6c7');
+    gradientStyle = GRADIENT_STYLES.has(canvas.gradientStyle)
+      ? canvas.gradientStyle
+      : 'vertical';
+    borderThickness = clamp(
+      Math.round(numberOr(project.borderThickness, METRICS.pad)),
+      0,
+      METRICS.maxBorder,
+    );
+    orientation = project.orientation === 'column' ? 'column' : 'row';
+
+    const defaults =
+      project.textDefaults && typeof project.textDefaults === 'object'
+        ? project.textDefaults
+        : {};
+    textDefaults = {
+      font: isTextFont(defaults.font) ? defaults.font : Layout.defaultTextFont,
+      color: colorOr(defaults.color, '#ffffff'),
+      outline: colorOr(defaults.outline, '#000000'),
+    };
+
+    for (const rawRow of Array.isArray(project.rows) ? project.rows : []) {
+      if (!rawRow || typeof rawRow !== 'object') continue;
+      const rawBoxes = Array.isArray(rawRow.boxes) ? rawRow.boxes : [];
+      if (rawBoxes.length === 0) continue;
+
+      const row = {
+        id: uid('row'),
+        weight: positiveOr(rawRow.weight, 1),
+        boxes: [],
+      };
+      for (const rawBox of rawBoxes) {
+        if (!rawBox || typeof rawBox !== 'object') continue;
+        const image = imageOr(rawBox.image);
+        const box = createBox(positiveOr(rawBox.weight, 1));
+        box.image = image;
+        box.visible = rawBox.visible !== false;
+        box.zoom = clamp(numberOr(rawBox.zoom, 1), 0.0001, METRICS.maxZoom);
+        box.offsetX = clamp(numberOr(rawBox.offsetX, 0), -1, 1);
+        box.offsetY = clamp(numberOr(rawBox.offsetY, 0), -1, 1);
+        box.rotation = normalizeAngle(numberOr(rawBox.rotation, 0));
+        box.tint = colorOr(rawBox.tint, null);
+        box.fill = fillOr(rawBox.fill);
+        const lock =
+          rawBox.lock === 'square' || rawBox.lock === 'aspect'
+            ? rawBox.lock
+            : null;
+        const ratio = numberOr(rawBox.ratio, 0);
+        if (lock && image) {
+          box.lock = lock;
+          box.ratio =
+            lock === 'square'
+              ? 1
+              : ratio > 0
+                ? ratio
+                : imageAspect(image);
+          box.lockSeq = Math.max(0, Math.round(numberOr(rawBox.lockSeq, 0)));
+        }
+        row.boxes.push(box);
+      }
+      if (row.boxes.length === 0) continue;
+      normalizeWeights(row.boxes);
+      limitLocks(row);
+      enforceAspectLocks(row);
+      rows.push(row);
+    }
+    normalizeWeights(rows);
+    for (const row of rows) {
+      for (const box of row.boxes) {
+        lockSequence = Math.max(lockSequence, box.lockSeq || 0);
+      }
+    }
+
+    for (const rawBox of Array.isArray(project.freeBoxes)
+      ? project.freeBoxes
+      : []) {
+      if (!rawBox || typeof rawBox !== 'object') continue;
+      const kind = rawBox.kind === 'text' ? 'text' : 'photo';
+      const box = createFreeBox(kind);
+      box.x = clamp(
+        numberOr(rawBox.x, Layout.canvasW / 2),
+        0,
+        Layout.canvasW,
+      );
+      box.y = clamp(
+        numberOr(rawBox.y, Layout.canvasH / 2),
+        0,
+        Layout.canvasH,
+      );
+      box.aspect = positiveOr(rawBox.aspect, 1);
+      box.border =
+        kind === 'text' ? rawBox.border === true : rawBox.border !== false;
+      box.background =
+        typeof rawBox.background === 'boolean'
+          ? rawBox.background
+          : kind === 'text';
+      // The frame is part of the minimum, so it has to be known before the
+      // saved width is clamped.
+      box.width = clampFreeWidth(box, positiveOr(rawBox.width, box.width));
+      box.rotation = normalizeAngle(numberOr(rawBox.rotation, 0));
+      box.square = rawBox.square === true;
+      box.tint = colorOr(rawBox.tint, null);
+      box.fill = fillOr(rawBox.fill);
+      box.image = kind === 'photo' ? imageOr(rawBox.image) : null;
+
+      if (kind === 'text') {
+        box.text = typeof rawBox.text === 'string' ? rawBox.text : '';
+        box.font = isTextFont(rawBox.font)
+          ? rawBox.font
+          : Layout.defaultTextFont;
+        box.color = colorOr(rawBox.color, '#ffffff');
+        box.outline = colorOr(rawBox.outline, '#000000');
+        box.align = TEXT_ALIGNS.has(rawBox.align) ? rawBox.align : 'center';
+        box.bold = typeof rawBox.bold === 'boolean' ? rawBox.bold : true;
+        box.italic = rawBox.italic === true;
+        box.underline = rawBox.underline === true;
+        box.outlineWidth = clamp(
+          numberOr(rawBox.outlineWidth, Layout.defaultTextOutline),
+          0,
+          Layout.maxTextOutline,
+        );
+      }
+      freeBoxes.push(box);
+    }
+
+    return true;
+  };
+
   // v1 default: two rows, one empty placeholder box each.
   rows.push(createRow(1), createRow(1));
 
@@ -1121,6 +1305,7 @@ const State = (() => {
     setBorderThickness,
     setOrientation,
     orderedBoxes,
+    loadProject,
     findFreeBox,
     addFreeBox,
     addTextBox,

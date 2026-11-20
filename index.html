@@ -412,15 +412,18 @@
         id="save-button"
         type="button"
         data-icon="download"
-        aria-label="Save collage as JPEG or PNG"
+        aria-label="Save or export collage"
         data-i18n-aria-label="save.button"
         aria-haspopup="menu"
         aria-expanded="false"
         aria-controls="save-menu"
       ></button>
-      <div class="save-menu" id="save-menu" role="menu" aria-label="Save format" data-i18n-aria-label="save.menu" hidden>
+      <div class="save-menu" id="save-menu" role="menu" aria-label="Save or export" data-i18n-aria-label="save.menu" hidden>
         <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="jpeg" data-i18n="save.jpeg">JPEG (.jpg)</button>
         <button class="save-menu-item" type="button" role="menuitem" tabindex="-1" data-format="png" data-i18n="save.png">PNG (.png)</button>
+        <div class="save-menu-divider" role="separator"></div>
+        <button class="save-menu-item is-muted" type="button" role="menuitem" tabindex="-1" data-project="export" data-i18n="save.jsonExport">JSON Export</button>
+        <button class="save-menu-item is-muted" type="button" role="menuitem" tabindex="-1" data-project="import" data-i18n="save.jsonImport">JSON Import</button>
       </div>
     </div>
   </header>
@@ -541,6 +544,7 @@
   </div>
 
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
+  <input class="visually-hidden" id="project-input" type="file" accept="application/json,.json" tabindex="-1">
   <input class="visually-hidden" id="text-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Text color" data-i18n-aria-label="textColor.colorInput">
   <input class="visually-hidden" id="text-outline-input" type="color" value="#000000" tabindex="-1" aria-label="Outline color" data-i18n-aria-label="textColor.outlineInput">
   <input class="visually-hidden" id="text-background-input" type="color" value="#cfcfcf" tabindex="-1" aria-label="Text background color" data-i18n-aria-label="textColor.backgroundInput">
@@ -561,6 +565,7 @@
   <script src="js/state.js"></script>
   <script src="js/render.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/project.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
