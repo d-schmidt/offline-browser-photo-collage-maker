@@ -2,7 +2,9 @@
 
 const Export = (() => {
   const DEFAULT_BACKGROUND = '#ffffff';
-  const PLACEHOLDER = '#d9d9d9';
+  // Empty cells are 20% transparent, so the canvas paint reads through the
+  // gray exactly as it does on screen.
+  const PLACEHOLDER = 'rgba(217, 217, 217, 0.8)';
 
   const pad = (value) => String(value).padStart(2, '0');
 

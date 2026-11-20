@@ -20,7 +20,7 @@ otherwise.
 - Starts with a format chooser: **9:16 Status** (1080 × 1920), **16:9 Banner**
   (1920 × 1080), **7:9 Portrait** (1080 × 1389), **5:4** (1350 × 1080), and
   **1:1 Square** (1080 × 1080). Every format keeps 1080 px on its shorter side.
-- After choosing, two groups appear, each holding one empty photo box. Empty boxes show a centered add-photo icon. Portrait and square formats start with rows; landscape formats start with columns.
+- After choosing, two groups appear, each holding one empty photo box. Empty boxes show a centered add-photo icon over their translucent gray fill, so a gradient margin shows faintly through them. Portrait and square formats start with rows; landscape formats start with columns.
 - The permanent **row/column button** in the action bar switches the layout. Column mode is the same model turned on its side: columns run left to right, boxes stack inside them, and every divider and lock constraint follows the columns.
 - **+ above/below the canvas** adds a row; **+ on either side of a row** adds a box to it. In column mode the buttons swap: **+ left/right** adds a column and **+ above/below a column** adds a box.
 - Drag the white gap between two boxes in a group to trade width (row mode) or height (column mode); a blue line and the matching resize cursor show the handle.

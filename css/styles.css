@@ -10,6 +10,9 @@
   --bar-bg: #1f1f1f;
   --text: #f2f2f2;
   --placeholder: #d9d9d9;
+  /* Empty cells paint their gray at 80% opacity, so the 20% transparency lets
+     the canvas paint read through in the editor and the export. */
+  --placeholder-fill: rgb(217 217 217 / 80%);
   --accent: #1e88e5;
   --lock-accent: #e53935;
   --bar-h: 56px;
@@ -715,7 +718,7 @@ button {
   overflow: hidden;
   border: 0;
   border-radius: 0;
-  background: var(--placeholder);
+  background: var(--placeholder-fill);
   cursor: pointer;
   appearance: none;
   transition: background-color 120ms ease;
@@ -726,7 +729,7 @@ button {
 }
 
 .box:hover {
-  background: #cfcfcf;
+  background: rgb(207 207 207 / 80%);
 }
 
 .box.has-image:hover {
@@ -851,7 +854,7 @@ button {
   display: block;
   padding: 0;
   border: 0;
-  background: var(--placeholder);
+  background: var(--placeholder-fill);
   cursor: move;
   touch-action: none;
   user-select: none;
@@ -934,7 +937,7 @@ button {
 }
 
 .free-box:hover {
-  background: #cfcfcf;
+  background: rgb(207 207 207 / 80%);
 }
 
 .free-box.has-image:hover {
