@@ -95,7 +95,11 @@ const State = (() => {
 
   // The last font, text color, and outline color the user picked, reused by
   // every new text box so a series of captions stays consistent.
-  let textDefaults = { font: 'sans', color: '#ffffff', outline: '#000000' };
+  let textDefaults = {
+    font: Layout.defaultTextFont,
+    color: '#ffffff',
+    outline: '#000000',
+  };
   const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
   const TEXT_STYLES = new Set(['bold', 'italic', 'underline']);
   const isTextFont = (id) =>
@@ -151,7 +155,7 @@ const State = (() => {
       image: null,
       // Text content and its last-used styling.
       text: '',
-      font: text ? textDefaults.font : 'sans',
+      font: text ? textDefaults.font : Layout.defaultTextFont,
       color: text ? textDefaults.color : '#ffffff',
       outline: text ? textDefaults.outline : '#000000',
       // Every new text box starts centered and bold; the style menu changes

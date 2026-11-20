@@ -124,6 +124,7 @@
   let fillFrame = 0;
   let tintFrame = 0;
   let textFillFrame = 0;
+  let fontSelectionToken = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
 
@@ -451,17 +452,24 @@
   };
 
   /** Save the words into the box the dialog was opened for. */
-  const saveTextDialog = () => {
+  const saveTextDialog = async () => {
     const freeId = textDialogId;
     if (!freeId) return;
     const value = textDialogInput.value;
     const found = State.findFreeBox(freeId);
     // The size is captured before the new words arrive, so editing keeps it.
     const size = found ? textSeedSize(found.box) : null;
+    const font = found
+      ? Layout.textFonts.find((entry) => entry.id === found.box.font)
+      : null;
     closeTextDialog(false);
     if (!State.setFreeText(freeId, value)) return;
     // A box with words hugs them; an emptied box resets to the square target.
-    if (value) fitTextBox(freeId, size);
+    if (value) {
+      // The caption may be the first use of the bundled default font.
+      if (font) await FontLoader.ensure(font);
+      fitTextBox(freeId, size);
+    }
     refresh();
     Render.focusFreeBox(freeId);
     Render.announce(
@@ -1368,56 +1376,27 @@
   const fontMenuItems = () =>
     Array.from(fontMenu.querySelectorAll('[data-font]'));
 
-  /**
-   * True when a local family is installed. The same sample is measured in the
-   * family and in a generic fallback: a missing family falls back to the same
-   * face, so identical widths mean it is not available. Nothing is loaded from
-   * the network either way.
-   */
-  const isFontAvailable = (family) => {
-    try {
-      const context = document.createElement('canvas').getContext('2d');
-      if (!context) return true;
-      const sample = 'mmmmmmmmmmlli';
-      return ['monospace', 'serif', 'sans-serif'].some((fallback) => {
-        context.font = `72px ${fallback}`;
-        const fallbackWidth = context.measureText(sample).width;
-        context.font = `72px "${family}", ${fallback}`;
-        return context.measureText(sample).width !== fallbackWidth;
-      });
-    } catch {
-      // An unreadable canvas keeps the entry visible; it still falls back.
-      return true;
-    }
-  };
-
-  /**
-   * One entry per font, each previewing its own face. The three generic
-   * families come first, then the installed ones under a separator.
-   */
+  /** One menu item per bundled font, each showing its own SVG preview. */
   const buildFontMenu = () => {
     const fragment = document.createDocumentFragment();
-    let installed = 0;
 
     for (const font of Layout.textFonts) {
-      if (!font.generic && !isFontAvailable(font.probe)) continue;
-
-      if (!font.generic && installed === 0) {
-        const separator = document.createElement('div');
-        separator.className = 'text-menu-separator';
-        separator.setAttribute('role', 'separator');
-        separator.setAttribute('aria-label', I18n.t('font.installed'));
-        fragment.append(separator);
-      }
-      if (!font.generic) installed += 1;
-
+      const label = I18n.t(font.labelKey);
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'color-menu-item font-menu-item';
       item.dataset.font = font.id;
       item.setAttribute('role', 'menuitem');
-      item.textContent = I18n.t(font.labelKey);
-      item.style.fontFamily = font.stack;
+      item.setAttribute('aria-label', label);
+      item.title = label;
+
+      const preview = document.createElement('img');
+      preview.className = 'font-preview';
+      preview.src = font.preview;
+      preview.alt = '';
+      preview.draggable = false;
+      preview.setAttribute('aria-hidden', 'true');
+      item.append(preview);
       fragment.append(item);
     }
 
@@ -1458,23 +1437,30 @@
     if (restoreFocus) fontButton.focus({ preventScroll: true });
   };
 
-  /** Switch the selected text box to another available font family. */
-  const applyTextFont = (font) => {
+  /** Load the chosen WOFF2, then switch the text box to that family. */
+  const applyTextFont = async (fontId) => {
     const freeId = State.selectedFreeId;
     const found = State.findFreeBox(freeId);
-    if (!freeId || !found) return;
+    const entry = Layout.textFonts.find((font) => font.id === fontId);
+    if (!freeId || !found || !entry) return;
     const size = textSeedSize(found.box);
-    if (!State.setFreeFont(freeId, font)) return;
-    // The words keep their size; the box refits around the new face.
-    fitTextBox(freeId, size);
+    const token = (fontSelectionToken += 1);
+    fontMenu.setAttribute('aria-busy', 'true');
+    const loaded = await FontLoader.ensure(entry);
+    if (token !== fontSelectionToken) return;
+    fontMenu.removeAttribute('aria-busy');
+    if (!loaded) {
+      Render.toast(I18n.t('font.loadFailed'), true);
+      return;
+    }
+    if (!State.setFreeFont(freeId, fontId)) return;
+    // The words keep their size; the box refits around the loaded face.
+    if (found.box.text) fitTextBox(freeId, size);
     refresh();
     closeFontMenu();
     fontButton.focus({ preventScroll: true });
-    const entry = Layout.textFonts.find((candidate) => candidate.id === font);
     Render.announce(
-      I18n.t('announce.font', {
-        font: I18n.t(entry ? entry.labelKey : 'font.sans'),
-      }),
+      I18n.t('announce.font', { font: I18n.t(entry.labelKey) }),
     );
   };
 
@@ -3128,7 +3114,7 @@
 
   fontMenu.addEventListener('click', (event) => {
     const item = event.target.closest('[data-font]');
-    if (item) applyTextFont(item.dataset.font);
+    if (item) void applyTextFont(item.dataset.font);
   });
 
   fontMenu.addEventListener('keydown', (event) => {
