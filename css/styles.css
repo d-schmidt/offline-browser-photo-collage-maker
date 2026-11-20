@@ -243,6 +243,28 @@ button {
   margin-top: 6px;
 }
 
+/* The text color menu grows to fit its background opacity slider, which only
+   appears while the selected text box shows its backdrop. */
+#text-color-menu {
+  width: 232px;
+  max-width: calc(100vw - 16px);
+}
+
+/* Both text menus open from the left edge of their button, so their width
+   stays on screen inside the left tool cluster. */
+.text-menu {
+  right: auto;
+  left: 0;
+}
+
+.text-background-opacity {
+  padding: 6px 8px 4px;
+}
+
+.text-background-opacity[hidden] {
+  display: none;
+}
+
 .save-menu[hidden],
 .border-menu[hidden],
 .color-menu[hidden],

@@ -51,8 +51,20 @@
   const textColorChip = document.getElementById('text-color-chip');
   const textOutlineRow = document.getElementById('text-outline-row');
   const textOutlineChip = document.getElementById('text-outline-chip');
+  const textBackgroundRow = document.getElementById('text-background-row');
+  const textBackgroundChip = document.getElementById('text-background-chip');
+  const textBackgroundOpacityRow = document.getElementById(
+    'text-background-opacity-row',
+  );
+  const textBackgroundOpacity = document.getElementById(
+    'text-background-opacity',
+  );
+  const textBackgroundOpacityValue = document.getElementById(
+    'text-background-opacity-value',
+  );
   const textColorInput = document.getElementById('text-color-input');
   const textOutlineInput = document.getElementById('text-outline-input');
+  const textBackgroundInput = document.getElementById('text-background-input');
   const textDialog = document.getElementById('text-dialog');
   const textDialogInput = document.getElementById('text-dialog-input');
   const textDialogCancel = document.getElementById('text-dialog-cancel');
@@ -93,6 +105,7 @@
   let spotsBusy = false;
   let spotsQueued = false;
   let fillFrame = 0;
+  let textFillFrame = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
 
@@ -747,6 +760,9 @@
     if (!State.setFreeBackground(freeId, next)) return;
     refresh();
     focusAction('free-background');
+    // The background color and opacity rows follow the same flag while their
+    // menu is open, so keep them in step with the new state.
+    if (!textColorMenu.hidden) syncTextColorMenu();
     const text = found.box.kind === 'text';
     Render.announce(
       text
@@ -1250,6 +1266,15 @@
     return found && found.box.kind === 'text' ? found.box : null;
   };
 
+  /** The same box, but only while its backdrop is shown. */
+  const textBackgroundTarget = () => {
+    const box = textColorTarget();
+    return box && box.background !== false ? box : null;
+  };
+
+  /** A text box's backdrop: its own fill or the shared placeholder gray. */
+  const currentTextFill = (box) => box.fill || State.placeholderFill;
+
   const syncTextColorMenu = () => {
     const box = textColorTarget();
     if (!box) return;
@@ -1257,6 +1282,23 @@
     textOutlineChip.style.background = box.outline;
     textColorInput.value = box.color;
     textOutlineInput.value = box.outline;
+
+    // The background controls only make sense while the backdrop is shown; a
+    // stored fill survives a toggle off so it comes back unchanged.
+    const showBackground = box.background !== false;
+    textBackgroundRow.hidden = !showBackground;
+    textBackgroundOpacityRow.hidden = !showBackground;
+    if (!showBackground) return;
+    const fill = currentTextFill(box);
+    const percent = Math.round(fill.opacity * 100);
+    textBackgroundChip.style.background = fill.color;
+    textBackgroundInput.value = fill.color;
+    textBackgroundOpacity.value = String(percent);
+    textBackgroundOpacityValue.textContent = I18n.t('fill.value', { n: percent });
+    textBackgroundOpacity.setAttribute(
+      'aria-valuetext',
+      I18n.t('fill.percent', { n: percent }),
+    );
   };
 
   const openTextColorMenu = (focusLast = false) => {
@@ -1293,6 +1335,36 @@
     if (!applied) return;
     refresh();
     syncTextColorMenu();
+  };
+
+  /**
+   * Change the selected text box's backdrop color or opacity. The slider fires
+   * continuously, so the canvas reflows at most once per frame.
+   */
+  const applyTextBackground = (patch) => {
+    const box = textBackgroundTarget();
+    if (!box) return;
+    const fill = { ...currentTextFill(box), ...patch };
+    if (!State.setFreeFill(box.id, fill.color, fill.opacity)) return;
+    syncTextColorMenu();
+    if (textFillFrame) return;
+    textFillFrame = requestAnimationFrame(() => {
+      textFillFrame = 0;
+      refresh();
+      syncTextColorMenu();
+    });
+  };
+
+  const announceTextBackground = () => {
+    const box = textBackgroundTarget();
+    if (!box) return;
+    const fill = currentTextFill(box);
+    Render.announce(
+      I18n.t('announce.textBackground', {
+        color: fill.color,
+        n: Math.round(fill.opacity * 100),
+      }),
+    );
   };
 
   const saveCollage = async (format) => {
@@ -2834,6 +2906,32 @@
       I18n.t('announce.outlineColor', { color: textOutlineInput.value }),
     );
   });
+
+  // Background controls sit at the bottom of the same menu and only show while
+  // the text box's backdrop is switched on.
+  textBackgroundRow.addEventListener('click', () => {
+    if (!textBackgroundTarget()) return;
+    syncTextColorMenu();
+    openSwatchPicker(textBackgroundInput);
+  });
+
+  textBackgroundInput.addEventListener('input', () => {
+    applyTextBackground({ color: textBackgroundInput.value });
+  });
+
+  textBackgroundInput.addEventListener('change', announceTextBackground);
+
+  textBackgroundOpacity.addEventListener('input', () => {
+    const percent = Number(textBackgroundOpacity.value);
+    textBackgroundOpacityValue.textContent = I18n.t('fill.value', { n: percent });
+    textBackgroundOpacity.setAttribute(
+      'aria-valuetext',
+      I18n.t('fill.percent', { n: percent }),
+    );
+    applyTextBackground({ opacity: percent / 100 });
+  });
+
+  textBackgroundOpacity.addEventListener('change', announceTextBackground);
 
   textColorMenuWrap.addEventListener('keydown', (event) => {
     if (textColorMenu.hidden) return;

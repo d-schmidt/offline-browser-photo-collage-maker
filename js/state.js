@@ -823,7 +823,7 @@ const State = (() => {
     return true;
   };
 
-  /** The same empty-cell paint for a free-form box. */
+  /** The same paint for an empty free-form photo box or a text backdrop. */
   const setFreeFill = (freeId, color, opacity) => {
     const found = findFreeBox(freeId);
     if (!found || found.box.image) return false;

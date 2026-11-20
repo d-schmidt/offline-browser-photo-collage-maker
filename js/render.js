@@ -370,8 +370,12 @@ const Render = (() => {
     element.classList.toggle('has-text', isText && Boolean(box.text));
     element.classList.toggle('is-text-box', isText);
     // A recolored empty free-form box paints its own color and opacity. Text
-    // boxes use the background flag instead and never take the cell fill.
-    if (!hasImage && !isText && box.fill) {
+    // boxes use the same fill for their backdrop, and only while it is shown.
+    if (
+      !hasImage &&
+      box.fill &&
+      (!isText || box.background !== false)
+    ) {
       element.style.backgroundColor = emptyFillColor(box.fill);
     }
     const label = isText

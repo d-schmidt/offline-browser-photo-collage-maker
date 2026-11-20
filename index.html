@@ -74,6 +74,25 @@
             <span class="color-menu-chip" id="text-outline-chip"></span>
             <span data-i18n="textColor.outline">Outline color</span>
           </button>
+          <button class="color-menu-item" type="button" id="text-background-row" hidden>
+            <span class="color-menu-chip" id="text-background-chip"></span>
+            <span data-i18n="textColor.background">Background color</span>
+          </button>
+          <div class="text-background-opacity" id="text-background-opacity-row" hidden>
+            <div class="border-menu-head">
+              <label class="border-menu-label" for="text-background-opacity" data-i18n="textColor.opacity">Background opacity</label>
+              <output class="border-menu-value" id="text-background-opacity-value" for="text-background-opacity">80%</output>
+            </div>
+            <input
+              class="border-range"
+              id="text-background-opacity"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="80"
+            >
+          </div>
         </div>
       </div>
       <div class="fill-menu-wrap" id="fill-menu-wrap" hidden>
@@ -388,6 +407,7 @@
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
   <input class="visually-hidden" id="text-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Text color" data-i18n-aria-label="textColor.colorInput">
   <input class="visually-hidden" id="text-outline-input" type="color" value="#000000" tabindex="-1" aria-label="Outline color" data-i18n-aria-label="textColor.outlineInput">
+  <input class="visually-hidden" id="text-background-input" type="color" value="#cfcfcf" tabindex="-1" aria-label="Text background color" data-i18n-aria-label="textColor.backgroundInput">
   <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color" data-i18n-aria-label="margin.label">
   <input class="visually-hidden" id="fill-color-input" type="color" value="#cfcfcf" tabindex="-1" aria-label="Empty box color" data-i18n-aria-label="fill.colorInput">
   <input class="visually-hidden" id="gradient-top-input" type="color" value="#f5f2eb" tabindex="-1" aria-label="First gradient color" data-i18n-aria-label="margin.gradientFirst">
