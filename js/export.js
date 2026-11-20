@@ -130,7 +130,7 @@ const Export = (() => {
     lines.forEach((line, index) => {
       const y = firstY + index * lineHeight;
       // Stroke first, then fill, matching `paint-order: stroke fill`.
-      ctx.lineWidth = 1;
+      ctx.lineWidth = Layout.textOutlineWidth(box);
       ctx.strokeStyle = box.outline;
       ctx.strokeText(line, centerX, y);
       ctx.fillStyle = box.color;

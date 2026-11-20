@@ -1062,8 +1062,9 @@ button {
   user-select: none;
 }
 
-/* Free-form text: centred, wrapped lines over the box fill. The 1 px outline
-   is a text stroke so the fill stays readable over a photo behind the box. */
+/* Free-form text: centred, wrapped lines over the box fill. The outline is a
+   text stroke sized by the layout to the type size, so it stays readable over
+   a photo behind the box. */
 .free-text {
   position: absolute;
   inset: 0;
@@ -1080,7 +1081,8 @@ button {
   overflow-wrap: break-word;
   white-space: pre-wrap;
   paint-order: stroke fill;
-  -webkit-text-stroke: 1px #000000;
+  -webkit-text-stroke-width: var(--free-text-stroke, 5px);
+  -webkit-text-stroke-color: #000000;
   pointer-events: none;
   user-select: none;
 }

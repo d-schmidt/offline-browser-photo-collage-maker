@@ -55,6 +55,10 @@ const METRICS = Object.freeze({
 // text box can be sized to the measured words exactly.
 const TEXT_LINE_HEIGHT = 1.25;
 const TEXT_PADDING = 0.35;
+// The outline is a centred text stroke with the fill painted over it, so half
+// of this width stays visible outside the glyph: 10% of the type size reads as
+// a clear halo (~2.4 px at the 48 px default) instead of a hairline.
+const TEXT_OUTLINE_RATIO = 0.1;
 
 /**
  * Free-form text fonts. Every entry is a stack of families that come with the
@@ -639,6 +643,10 @@ const Layout = (() => {
     return Math.max(10, Math.min(innerW, innerH) * 0.14);
   };
 
+  /** Stroke width for the text outline, scaling with the type size. */
+  const textOutlineWidth = (box) =>
+    Math.max(3, freeTextSize(box) * TEXT_OUTLINE_RATIO);
+
   /** CSS (and canvas) family list for a text box font id. */
   const textFontStack = (id) => {
     const font = TEXT_FONTS.find((candidate) => candidate.id === id);
@@ -650,6 +658,7 @@ const Layout = (() => {
     freeBorder,
     defaultTextSize,
     freeTextSize,
+    textOutlineWidth,
     textFontStack,
     textFonts: TEXT_FONTS,
     textLineHeight: TEXT_LINE_HEIGHT,

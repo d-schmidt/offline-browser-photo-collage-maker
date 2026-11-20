@@ -232,6 +232,10 @@ const Render = (() => {
         '--free-text-size',
         `${Layout.freeTextSize(box)}px`,
       );
+      element.style.setProperty(
+        '--free-text-stroke',
+        `${Layout.textOutlineWidth(box)}px`,
+      );
     }
   };
 
@@ -268,7 +272,7 @@ const Render = (() => {
     text.textContent = box.text;
     text.style.color = box.color;
     text.style.fontFamily = Layout.textFontStack(box.font);
-    text.style.webkitTextStroke = `1px ${box.outline}`;
+    text.style.webkitTextStrokeColor = box.outline;
     return text;
   };
 
