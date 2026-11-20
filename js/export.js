@@ -2,9 +2,13 @@
 
 const Export = (() => {
   const DEFAULT_BACKGROUND = '#ffffff';
-  // Empty cells are 20% transparent, so the canvas paint reads through the
-  // gray exactly as it does on screen.
-  const PLACEHOLDER = 'rgba(217, 217, 217, 0.8)';
+  // Empty grid cells are 20% transparent over a darker gray: 0.8 × #cfcfcf plus
+  // 0.2 of a white fill reproduces the old #d9d9d9 exactly, so the transparency
+  // only shows where the margin paint differs from white.
+  const PLACEHOLDER = 'rgba(207, 207, 207, 0.8)';
+  // An empty free-form box stays opaque, so it hides the grid and photos under
+  // it the way it did before the grid cells became translucent.
+  const FREE_PLACEHOLDER = '#d9d9d9';
 
   const pad = (value) => String(value).padStart(2, '0');
 
@@ -61,7 +65,7 @@ const Export = (() => {
     ctx.translate(box.x, box.y);
     ctx.rotate(((box.rotation || 0) * Math.PI) / 180);
     if (!image) {
-      ctx.fillStyle = PLACEHOLDER;
+      ctx.fillStyle = FREE_PLACEHOLDER;
       ctx.fillRect(left, top, width, height);
       ctx.restore();
       return;

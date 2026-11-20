@@ -10,9 +10,11 @@
   --bar-bg: #1f1f1f;
   --text: #f2f2f2;
   --placeholder: #d9d9d9;
-  /* Empty cells paint their gray at 80% opacity, so the 20% transparency lets
-     the canvas paint read through in the editor and the export. */
-  --placeholder-fill: rgb(217 217 217 / 80%);
+  /* Empty cells paint a darker gray at 80% opacity: over the white canvas
+     fill 0.8 × #cfcfcf + 0.2 × #ffffff lands back on the old #d9d9d9, so the
+     20% transparency is invisible on white and only shows on a painted margin.
+     The export uses the same pair. */
+  --placeholder-fill: rgb(207 207 207 / 80%);
   --accent: #1e88e5;
   --lock-accent: #e53935;
   --bar-h: 56px;
@@ -729,7 +731,7 @@ button {
 }
 
 .box:hover {
-  background: rgb(207 207 207 / 80%);
+  background: rgb(195 195 195 / 80%);
 }
 
 .box.has-image:hover {
@@ -854,7 +856,7 @@ button {
   display: block;
   padding: 0;
   border: 0;
-  background: var(--placeholder-fill);
+  background: var(--placeholder);
   cursor: move;
   touch-action: none;
   user-select: none;
@@ -937,7 +939,7 @@ button {
 }
 
 .free-box:hover {
-  background: rgb(207 207 207 / 80%);
+  background: #cfcfcf;
 }
 
 .free-box.has-image:hover {
