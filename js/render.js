@@ -397,15 +397,6 @@ const Render = (() => {
       const found = state.findFreeBox(state.selectedFreeId);
       if (!found) return;
       const hasImage = Boolean(found.box.image);
-      const square = toolButton(
-        'crop-square',
-        I18n.t('action.cropSquare'),
-        'lockSquare',
-      );
-      square.disabled = !hasImage;
-      square.setAttribute('aria-pressed', String(Boolean(found.box.square)));
-      square.classList.toggle('is-active', Boolean(found.box.square));
-      if (found.box.square) square.title = I18n.t('action.matchPhoto');
 
       const borderOn = found.box.border !== false;
       const border = toolButton(
@@ -416,7 +407,22 @@ const Render = (() => {
       border.setAttribute('aria-pressed', String(borderOn));
       border.classList.toggle('is-active', borderOn);
 
-      const framing = [square, border];
+      // There is no ratio to crop until a photo arrives, so the square-crop
+      // button joins the row with the image instead of sitting there disabled.
+      const framing = [];
+      if (hasImage) {
+        const square = toolButton(
+          'crop-square',
+          I18n.t('action.cropSquare'),
+          'lockSquare',
+        );
+        square.setAttribute('aria-pressed', String(Boolean(found.box.square)));
+        square.classList.toggle('is-active', Boolean(found.box.square));
+        if (found.box.square) square.title = I18n.t('action.matchPhoto');
+        framing.push(square);
+      }
+      framing.push(border);
+
       // Only a photo with transparent pixels can show a fill behind it; an
       // opaque photo would hide the background completely.
       if (hasImage && found.box.image.hasAlpha) {
@@ -497,13 +503,15 @@ const Render = (() => {
           : 'action.showBox',
     );
 
+    // A box without a photo has no ratio to lock, so the two lock buttons stay
+    // hidden rather than disabled and appear as soon as a photo is loaded.
+    const framing = hasImage ? [square, aspect, visibility] : [visibility];
+
     refs.selectionActions.append(
       toolButton('delete-box', I18n.t('action.delete'), 'delete'),
       toolButton('select-image', I18n.t('action.selectImage'), 'image'),
       actionSeparator(),
-      square,
-      aspect,
-      visibility,
+      ...framing,
     );
   };
 
