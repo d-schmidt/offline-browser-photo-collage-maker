@@ -27,6 +27,8 @@
   const gradientMenu = document.getElementById('gradient-menu');
   const gradientTopInput = document.getElementById('gradient-top-input');
   const gradientBottomInput = document.getElementById('gradient-bottom-input');
+  const colorPresets = document.getElementById('color-presets');
+  const gradientPresets = document.getElementById('gradient-presets');
   const rowsLayer = document.getElementById('rows');
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
@@ -618,19 +620,89 @@
 
   const colorMenuItems = () =>
     Array.from(colorMenu.querySelectorAll('[role="menuitem"]')).filter(
-      (item) => !item.hidden,
+      (item) => !item.closest('[hidden]'),
+    );
+
+  const gradientMenuItems = () =>
+    Array.from(gradientMenu.querySelectorAll('[role="menuitem"]')).filter(
+      (item) => !item.closest('[hidden]'),
     );
 
   const gradientStopItems = () =>
     Array.from(colorMenu.querySelectorAll('[data-gradient-stop]'));
 
   /**
+   * One chip per preset in both gradient menus. The chip paints its own two
+   * stops diagonally and carries the tooltip; the visible text stays in the
+   * surrounding menu, so a chip is a pure swatch.
+   */
+  const buildPresetChips = () => {
+    const targets = [colorPresets, gradientPresets];
+    const fragments = targets.map(() => document.createDocumentFragment());
+
+    PAINT_PRESETS.forEach((preset) => {
+      const tooltip = I18n.t('preset.tooltip', {
+        group: I18n.t(preset.group),
+        name: I18n.t(preset.name),
+        description: I18n.t(preset.description),
+      });
+      targets.forEach((target, index) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'color-preset';
+        chip.dataset.presetId = preset.id;
+        chip.setAttribute('role', 'menuitem');
+        chip.setAttribute('aria-label', tooltip);
+        chip.title = tooltip;
+        chip.style.background = `linear-gradient(135deg, ${preset.first}, ${preset.second})`;
+        fragments[index].append(chip);
+      });
+    });
+
+    targets.forEach((target, index) => target.append(fragments[index]));
+  };
+
+  /** Mark the preset that matches the live stops, if any. */
+  const syncPresetChips = () => {
+    if (State.canvasMode !== 'gradient') return;
+    const first = State.gradientTop;
+    const second = State.gradientBottom;
+    document.querySelectorAll('.color-preset').forEach((chip) => {
+      const preset = PAINT_PRESETS.find(
+        (candidate) => candidate.id === chip.dataset.presetId,
+      );
+      const active =
+        preset && preset.first === first && preset.second === second;
+      if (active) chip.setAttribute('aria-current', 'true');
+      else chip.removeAttribute('aria-current');
+    });
+  };
+
+  /** Apply both stops of a preset, leaving the gradient style untouched. */
+  const applyPreset = (presetId) => {
+    const preset = PAINT_PRESETS.find(
+      (candidate) => candidate.id === presetId,
+    );
+    if (!preset) return;
+    if (!State.setCanvasGradient(preset.first, preset.second)) return;
+    applyCanvasPaint();
+    syncColorMenu();
+    syncGradientChips();
+    syncGradientInputs();
+    Render.announce(
+      I18n.t('announce.preset', { name: I18n.t(preset.name) }),
+    );
+  };
+
+  /**
    * One stop row while Fill paints the canvas, both while a gradient does.
    * Each row previews the color it edits: the fill color, or the gradient stop.
+   * Presets only make sense with two stops, so Fill hides them.
    */
   const syncColorMenu = () => {
     const gradient = State.canvasMode === 'gradient';
     shuffleSpotsButton.hidden = !gradient || State.gradientStyle !== 'spots';
+    colorPresets.hidden = !gradient;
     gradientStopItems().forEach((item) => {
       const bottom = item.dataset.gradientStop === 'bottom';
       item.hidden = bottom && !gradient;
@@ -641,6 +713,7 @@
       if (!gradient) color = State.canvasColor;
       chip.style.background = color;
     });
+    syncPresetChips();
   };
 
   const syncMarginExpanded = () => {
@@ -788,6 +861,7 @@
       syncMarginExpanded();
     }
     syncGradientChips();
+    syncPresetChips();
     const stop = pick === 'bottom' ? 'bottom' : 'top';
     const row = gradientMenu.querySelector(`[data-gradient-pick="${stop}"]`);
     if (row) row.focus({ preventScroll: true });
@@ -2113,6 +2187,11 @@
   });
 
   colorMenu.addEventListener('click', (event) => {
+    const preset = event.target.closest('[data-preset-id]');
+    if (preset) {
+      applyPreset(preset.dataset.presetId);
+      return;
+    }
     if (event.target.closest('[data-shuffle]')) {
       shuffleSpots();
       return;
@@ -2147,6 +2226,11 @@
   // The panel rows are buttons, so they carry the whole click target; the
   // color inputs behind them stay visually hidden but keep the picker.
   gradientMenu.addEventListener('click', (event) => {
+    const preset = event.target.closest('[data-preset-id]');
+    if (preset) {
+      applyPreset(preset.dataset.presetId);
+      return;
+    }
     const row = event.target.closest('[data-gradient-pick]');
     if (!row) return;
     openSwatchPicker(
@@ -2216,9 +2300,26 @@
     if (event.key === 'Escape') {
       event.preventDefault();
       closeGradientMenu(true);
-    } else if (event.key === 'Tab') {
-      closeGradientMenu();
+      return;
     }
+    if (event.key === 'Tab') {
+      closeGradientMenu();
+      return;
+    }
+
+    const items = gradientMenuItems();
+    if (items.length === 0) return;
+    const current = items.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
+    else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else return;
+
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
   });
 
   gradientStyleMenu.addEventListener('keydown', (event) => {
@@ -2592,6 +2693,7 @@
   window.addEventListener('resize', queueFit);
 
   I18n.apply();
+  buildPresetChips();
   Render.init();
   History.load();
   syncHistoryBar();

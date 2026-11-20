@@ -266,6 +266,45 @@ button {
   padding: 4px;
 }
 
+/* Preset chips: five per row, each previewing its two stops from the
+   top-left to the bottom-right corner. Both menus share the same block. */
+.color-presets {
+  display: grid;
+  grid-template-columns: repeat(5, 26px);
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px 4px 4px;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+}
+
+.color-presets[hidden] {
+  display: none;
+}
+
+.color-preset {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.color-preset:hover {
+  border-color: rgb(255 255 255 / 55%);
+}
+
+.color-preset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Marks the preset whose two stops are exactly the canvas gradient. */
+.color-preset[aria-current='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 .border-menu-head {
   display: flex;
   align-items: baseline;

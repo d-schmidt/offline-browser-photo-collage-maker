@@ -99,6 +99,14 @@
         <button class="color-menu-item" type="button" role="menuitem" data-shuffle id="shuffle-spots" data-icon="shuffle" hidden>
           <span data-i18n="margin.shuffle">Shuffle spots</span>
         </button>
+        <div
+          class="color-presets"
+          id="color-presets"
+          role="group"
+          aria-label="Color presets"
+          data-i18n-aria-label="margin.presets"
+          hidden
+        ></div>
       </div>
       <div
         class="gradient-style-menu"
@@ -129,14 +137,21 @@
         data-i18n-aria-label="margin.gradientTitle"
         hidden
       >
-        <button class="color-menu-item" type="button" data-gradient-pick="top">
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-pick="top">
           <span class="color-menu-chip" data-gradient-swatch-chip="top"></span>
           <span data-i18n="margin.gradientFirst">First color</span>
         </button>
-        <button class="color-menu-item" type="button" data-gradient-pick="bottom">
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-pick="bottom">
           <span class="color-menu-chip" data-gradient-swatch-chip="bottom"></span>
           <span data-i18n="margin.gradientSecond">Second color</span>
         </button>
+        <div
+          class="color-presets"
+          id="gradient-presets"
+          role="group"
+          aria-label="Color presets"
+          data-i18n-aria-label="margin.presets"
+        ></div>
       </div>
     </div>
     <div class="save-menu-wrap" id="save-menu-wrap">
@@ -249,6 +264,7 @@
   <script src="js/i18n.js"></script>
   <script src="js/images.js"></script>
   <script src="js/paint.js"></script>
+  <script src="js/presets.js"></script>
   <script src="js/history.js"></script>
   <script src="js/state.js"></script>
   <script src="js/render.js"></script>
