@@ -1535,7 +1535,8 @@
       rotateDrag.moved = true;
     }
 
-    const rotation = rotateDrag.startRotation + delta;
+    // Quarter turns snap magnetically; outside the window the raw angle wins.
+    const rotation = State.snapRotation(rotateDrag.startRotation + delta);
     if (!State.setBoxRotation(rotateDrag.boxId, rotation)) return;
     clampZoomToRange(rotateDrag.boxId);
     Render.updatePhoto();
@@ -1800,7 +1801,7 @@
     if (
       !State.setFreeRotation(
         freeRotateDrag.freeId,
-        freeRotateDrag.startRotation + delta,
+        State.snapRotation(freeRotateDrag.startRotation + delta),
       )
     ) {
       return;

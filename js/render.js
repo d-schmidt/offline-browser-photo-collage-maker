@@ -20,6 +20,8 @@ const ICONS = Object.freeze({
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   rotateLeft: 'assets/rotate_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  rotateSnap:
+    'assets/rotate_90_degrees_ccw_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   zoomOutMap: 'assets/zoom_out_map_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibility: 'assets/visibility_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -45,6 +47,19 @@ const Render = (() => {
     image.className = 'icon';
     image.draggable = false;
     return image;
+  };
+
+  /**
+   * Show the quarter-turn mark while the angle sits in the magnetic snap
+   * window, so the handle matches the snap the drag is about to land on.
+   */
+  const paintRotateMark = (handle, degrees) => {
+    const mark = handle.querySelector('.handle-icon');
+    if (!mark) return;
+    const src = State.isRotationSnapped(degrees)
+      ? ICONS.rotateSnap
+      : ICONS.rotateLeft;
+    if (mark.getAttribute('src') !== src) mark.setAttribute('src', src);
   };
 
   const toolButton = (action, label, iconName) => {
@@ -210,6 +225,7 @@ const Render = (() => {
     rotate.setAttribute('aria-valuetext', I18n.t('rotate.value', {
       n: Math.round(box.rotation),
     }));
+    paintRotateMark(rotate, box.rotation);
   };
 
   /** Canvas-paint fill behind a transparent free-form photo. */
@@ -649,6 +665,7 @@ const Render = (() => {
       'aria-valuetext',
       I18n.t('rotate.value', { n: Math.round(box.rotation) }),
     );
+    paintRotateMark(refs.rotateHandle, box.rotation);
 
     const rect = Layout.imageRect(
       image,

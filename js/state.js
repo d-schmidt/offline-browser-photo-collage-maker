@@ -556,6 +556,27 @@ const State = (() => {
     return true;
   };
 
+  // Rotation handles snap magnetically to quarter turns: inside this window
+  // the angle locks to the multiple, outside it the raw pointer angle wins.
+  const ROTATION_SNAP_STEP = 90;
+  const ROTATION_SNAP_WINDOW = 5;
+
+  const nearestQuarterTurn = (degrees) =>
+    Math.round(degrees / ROTATION_SNAP_STEP) * ROTATION_SNAP_STEP;
+
+  const isRotationSnapped = (degrees) =>
+    Number.isFinite(degrees) &&
+    Math.abs(degrees - nearestQuarterTurn(degrees)) <= ROTATION_SNAP_WINDOW;
+
+  /** Magnetic rotation shared by grid photos and free-form boxes. */
+  const snapRotation = (degrees) => {
+    if (!Number.isFinite(degrees)) return degrees;
+    const snapped = nearestQuarterTurn(degrees);
+    return Math.abs(degrees - snapped) <= ROTATION_SNAP_WINDOW
+      ? snapped
+      : degrees;
+  };
+
   /** Keep rotation in the (−180, 180] range so the value stays readable. */
   const normalizeAngle = (degrees) => {
     let angle = degrees % 360;
@@ -912,6 +933,8 @@ const State = (() => {
     setFreeBackground,
     setFreeFill,
     setFreeRotation,
+    snapRotation,
+    isRotationSnapped,
     freeHeight,
   };
 })();
