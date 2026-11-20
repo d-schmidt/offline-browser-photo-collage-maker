@@ -162,15 +162,13 @@ button {
 }
 
 /* The free-form add actions fill the empty left side of the action bar and
-   yield it to the contextual tools once a box is selected. A hairline
-   separates them from the global controls that follow. */
+   yield it to the contextual tools once a box is selected. */
 .create-actions {
   display: flex;
   flex: none;
   align-items: center;
   gap: 4px;
   padding-right: 8px;
-  border-right: 1px solid rgb(255 255 255 / 18%);
 }
 
 .create-actions[hidden] {
