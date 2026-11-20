@@ -20,7 +20,7 @@ otherwise.
 - Starts with a format chooser: **9:16 Status** (1080 × 1920), **16:9 Banner**
   (1920 × 1080), **7:9 Portrait** (1080 × 1389), **5:4** (1350 × 1080), and
   **1:1 Square** (1080 × 1080). Every format keeps 1080 px on its shorter side.
-- After choosing, two groups appear, each holding one empty photo box. Empty boxes show a centered add-photo icon over their translucent gray fill, so a gradient margin shows faintly through them. Portrait and square formats start with rows; landscape formats start with columns.
+- After choosing, two groups appear, each holding one empty photo box. Empty boxes show a centered add-photo icon over their translucent gray fill: on a white canvas that still reads as the same solid gray as before, while a gradient margin shows faintly through. Portrait and square formats start with rows; landscape formats start with columns.
 - The permanent **row/column button** in the action bar switches the layout. Column mode is the same model turned on its side: columns run left to right, boxes stack inside them, and every divider and lock constraint follows the columns.
 - **+ above/below the canvas** adds a row; **+ on either side of a row** adds a box to it. In column mode the buttons swap: **+ left/right** adds a column and **+ above/below a column** adds a box.
 - Drag the white gap between two boxes in a group to trade width (row mode) or height (column mode); a blue line and the matching resize cursor show the handle.
@@ -29,7 +29,7 @@ otherwise.
 - Click a box to select it: blue 3 px border, with the contextual actions in the action bar. A red border means a lock is active.
 - Double-click a box to open the image picker for it.
 - Click the gray background around the canvas or press `Escape` to clear the selection.
-- The action bar offers **Delete box**, **Select image**, and, once the box has an image, exclusive **square** and **aspect ratio** locks. An active lock turns red; Save is always visible on the right.
+- The action bar offers **Delete box**, **Select image**, and, once the box has an image, exclusive **square** and **aspect ratio** locks (the two lock buttons are hidden while the box is still empty). An active lock turns red; Save is always visible on the right.
 - Locked boxes keep their square or image ratio when the group's cross-axis size changes; boundaries touching a locked box are disabled. In a multi-box group, at most all but one box can be locked; the remaining box fills the space left. Aspect-ratio locks must share the same image ratio within a group—the first one sets the reference. A single-box group with a locked box also locks its group-boundary handles. Clicking the active lock releases it and preserves the current size. Activating the aspect-ratio lock resets the photo's zoom and pan to the plain cover crop and hides its zoom circle until the lock is released; square locks keep zoom available. A lone aspect-locked group fills the canvas from margin to margin (top to bottom in column mode).
 - A selected box with a photo also has a **visibility toggle**. It starts with the open-eye icon; switching it off replaces the photo with the canvas/margin color while keeping the box, its image, and its occupied space. The crossed-eye button stays available, and the box remains selectable, so toggling it back restores the same framing. Hidden cells export as the margin color.
 - Photos are cropped to cover the box, centered and clipped to its edges at 1×; zooming out below 1× shows the whole rotated photo with the margin color around it.
