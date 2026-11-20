@@ -14,6 +14,7 @@ const ICONS = Object.freeze({
   background: 'assets/background_replace_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  uploadFile: 'assets/upload_file_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   editNote: 'assets/edit_note_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   brandFamily:
     'assets/brand_family_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',

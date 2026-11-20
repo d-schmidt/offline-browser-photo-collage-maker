@@ -119,6 +119,8 @@ const I18n = (() => {
         'Select a photo box first, then click a saved photo.',
 
       'format.title': 'Select format:',
+      'format.import': 'Import project',
+      'format.importButton': 'Import a JSON collage project',
       'format.aria': '{label}, {w} × {h} pixels',
       'format.selected':
         '{label} format selected, {w} by {h} pixels.',
@@ -440,6 +442,8 @@ const I18n = (() => {
         'Wähle zuerst ein Bildfeld aus und klicke dann auf ein gespeichertes Foto.',
 
       'format.title': 'Format auswählen:',
+      'format.import': 'Projekt importieren',
+      'format.importButton': 'JSON-Collage-Projekt importieren',
       'format.aria': '{label}, {w} × {h} Pixel',
       'format.selected': '{label} ausgewählt, {w} × {h} Pixel.',
       'format.selectedNamed': '{label} {name} ausgewählt, {w} × {h} Pixel.',

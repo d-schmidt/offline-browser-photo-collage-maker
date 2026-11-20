@@ -92,6 +92,7 @@
   const textDialogSave = document.getElementById('text-dialog-save');
   const fileInput = document.getElementById('file-input');
   const projectInput = document.getElementById('project-input');
+  const formatImportButton = document.getElementById('format-import-button');
   const zoomHandle = document.getElementById('zoom-handle');
   const rotateHandle = document.getElementById('rotate-handle');
   const formatScreen = document.getElementById('format-screen');
@@ -3781,6 +3782,10 @@
   projectInput.addEventListener('change', () => {
     void importProjectFile(projectInput.files && projectInput.files[0]);
   });
+
+  // The start screen can open a project without choosing a format first; the
+  // import applies the format stored in the file.
+  formatImportButton.addEventListener('click', () => projectInput.click());
 
   // --- text dialog --------------------------------------------------------
 
