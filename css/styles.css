@@ -1198,16 +1198,20 @@ button {
   background: #ffffff;
 }
 
-/* Both photo handles wear their marks on a filled accent disc instead of the
-   small dot: pan/zoom on the inner circle, rotate on the outer one. Hovering
-   flips the disc to white with a dark mark. */
+/* Both photo handle pairs wear their marks on a filled accent disc instead of
+   the small dot: expand on the zoom/scale circle, rotate on the outer one.
+   Hovering flips the disc to white with a dark mark. */
 #zoom-handle::after,
-#rotate-handle::after {
+#rotate-handle::after,
+.free-scale::after,
+.free-rotate::after {
   inset: 0;
 }
 
 #zoom-handle .handle-icon,
-#rotate-handle .handle-icon {
+#rotate-handle .handle-icon,
+.free-scale .handle-icon,
+.free-rotate .handle-icon {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -1222,7 +1226,11 @@ button {
 #zoom-handle:hover .handle-icon,
 #zoom-handle:focus-visible .handle-icon,
 #rotate-handle:hover .handle-icon,
-#rotate-handle:focus-visible .handle-icon {
+#rotate-handle:focus-visible .handle-icon,
+.free-scale:hover .handle-icon,
+.free-scale:focus-visible .handle-icon,
+.free-rotate:hover .handle-icon,
+.free-rotate:focus-visible .handle-icon {
   filter: brightness(0);
 }
 

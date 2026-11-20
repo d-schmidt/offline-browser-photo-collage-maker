@@ -234,6 +234,8 @@ const Render = (() => {
       container.append(image);
       return;
     }
+    // A recolored empty cell hides the add-photo hint just like a grid cell.
+    if (box.fill) return;
     const placeholder = new Image(64, 64);
     placeholder.className = 'box-placeholder';
     placeholder.src = ICONS.addPhoto;
@@ -263,6 +265,14 @@ const Render = (() => {
     rotate.tabIndex = 0;
     rotate.setAttribute('aria-label', I18n.t('free.rotate'));
     rotate.title = I18n.t('free.rotateTitle');
+
+    // The free-form handles wear the same marks as the photo handles.
+    const scaleMark = iconElement('zoomOutMap');
+    scaleMark.classList.add('handle-icon');
+    scale.append(scaleMark);
+    const rotateMark = iconElement('rotateLeft');
+    rotateMark.classList.add('handle-icon');
+    rotate.append(rotateMark);
 
     paintFreeHandleValues(scale, rotate, box);
     element.append(scale, rotate);
@@ -294,6 +304,10 @@ const Render = (() => {
 
     const hasImage = Boolean(box.image);
     element.classList.toggle('has-image', hasImage);
+    // A recolored empty free-form box paints its own color and opacity.
+    if (!hasImage && box.fill) {
+      element.style.backgroundColor = emptyFillColor(box.fill);
+    }
     const label = hasImage
       ? I18n.t('free.label', { n: number })
       : I18n.t('free.labelEmpty', { n: number });
@@ -436,11 +450,13 @@ const Render = (() => {
   const paintActions = (state) => {
     // Availability is resolved before the branches so a repaint (for example
     // while the opacity slider moves) keeps an open menu open.
-    const fillTarget = state.selectedBoxId
-      ? state.findBox(state.selectedBoxId)
-      : null;
+    const selectedFill = state.selectedFreeId
+      ? state.findFreeBox(state.selectedFreeId)
+      : state.selectedBoxId
+        ? state.findBox(state.selectedBoxId)
+        : null;
     const fillBox =
-      fillTarget && !fillTarget.box.image ? fillTarget.box : null;
+      selectedFill && !selectedFill.box.image ? selectedFill.box : null;
     showFillControls(Boolean(fillBox), fillBox ? fillBox.id : null);
     if (!state.selectedBoxId && !state.selectedFreeId) setActionTools([]);
     if (state.selectedFreeId) {

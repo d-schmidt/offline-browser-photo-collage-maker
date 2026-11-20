@@ -130,6 +130,8 @@ const State = (() => {
       // Fill the box with the canvas paint instead of showing the grid through
       // a transparent photo. Off until the action is used.
       background: false,
+      // Empty-cell color and opacity; null keeps the shared placeholder values.
+      fill: null,
       image: null,
     };
     box.width = clampFreeWidth(box, box.width);
@@ -712,6 +714,20 @@ const State = (() => {
     return true;
   };
 
+  /** The same empty-cell paint for a free-form box. */
+  const setFreeFill = (freeId, color, opacity) => {
+    const found = findFreeBox(freeId);
+    if (!found || found.box.image) return false;
+    if (!isHexColor(color)) return false;
+    const alpha = Number(opacity);
+    if (!Number.isFinite(alpha)) return false;
+    found.box.fill = {
+      color: color.toLowerCase(),
+      opacity: Math.min(1, Math.max(0, alpha)),
+    };
+    return true;
+  };
+
   const mixChannel = (from, to, share) =>
     Math.round(from + (to - from) * share);
 
@@ -894,6 +910,7 @@ const State = (() => {
     setFreeScale,
     setFreeBorder,
     setFreeBackground,
+    setFreeFill,
     setFreeRotation,
     freeHeight,
   };

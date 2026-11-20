@@ -101,7 +101,7 @@ const Export = (() => {
           border,
         );
       }
-      ctx.fillStyle = PLACEHOLDER;
+      ctx.fillStyle = box.fill ? boxFillStyle(box.fill) : PLACEHOLDER;
       ctx.fillRect(
         left + border,
         top + border,

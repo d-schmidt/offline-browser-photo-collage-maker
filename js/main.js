@@ -933,9 +933,11 @@
     }
   };
 
-  /** The selected grid box while it is still empty, else null. */
+  /** The selected box while it is still empty (grid or free-form), else null. */
   const fillTarget = () => {
-    const found = State.findBox(State.selectedBoxId);
+    const found = State.selectedFreeId
+      ? State.findFreeBox(State.selectedFreeId)
+      : State.findBox(State.selectedBoxId);
     if (!found || found.box.image) return null;
     return found.box;
   };
@@ -983,7 +985,10 @@
     const box = fillTarget();
     if (!box) return;
     const fill = { ...currentFill(box), ...patch };
-    if (!State.setBoxFill(box.id, fill.color, fill.opacity)) return;
+    const saved = State.selectedFreeId
+      ? State.setFreeFill(box.id, fill.color, fill.opacity)
+      : State.setBoxFill(box.id, fill.color, fill.opacity);
+    if (!saved) return;
     fillColorChip.style.background = fill.color;
     if (fillFrame) return;
     fillFrame = requestAnimationFrame(() => {
