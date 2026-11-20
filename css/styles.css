@@ -259,11 +259,26 @@ button {
   margin-top: 6px;
 }
 
-/* The text color menu grows to fit its background opacity slider, which only
-   appears while the selected text box shows its backdrop. */
+/* The text style menu grows to fit its alignment buttons and background
+   opacity slider, which only appears while the selected text box shows its
+   backdrop. */
 #text-color-menu {
   width: 232px;
   max-width: calc(100vw - 16px);
+}
+
+/* Alignment is a compact icon-only row above the color controls. */
+.text-align-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 4px;
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid rgb(255 255 255 / 14%);
+}
+
+.text-align-button[aria-pressed='true'] {
+  background: rgb(255 255 255 / 18%);
 }
 
 /* Both text menus open from the left edge of their button, so their width
@@ -1106,9 +1121,9 @@ button {
   user-select: none;
 }
 
-/* Free-form text: centred, wrapped lines over the box fill. The outline is a
-   text stroke sized by the layout to the type size, so it stays readable over
-   a photo behind the box. */
+/* Free-form text: wrapped lines over the box fill. The outline is a text stroke
+   sized by the layout to the type size, so it stays readable over a photo
+   behind the box. */
 .free-text {
   position: absolute;
   inset: 0;
@@ -1129,6 +1144,16 @@ button {
   -webkit-text-stroke-color: #000000;
   pointer-events: none;
   user-select: none;
+}
+
+.free-text[data-align='left'] {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.free-text[data-align='right'] {
+  justify-content: flex-end;
+  text-align: right;
 }
 
 .free-slot .box-placeholder {

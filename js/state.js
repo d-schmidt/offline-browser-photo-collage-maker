@@ -96,6 +96,7 @@ const State = (() => {
   // The last font, text color, and outline color the user picked, reused by
   // every new text box so a series of captions stays consistent.
   let textDefaults = { font: 'sans', color: '#ffffff', outline: '#000000' };
+  const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
   const isTextFont = (id) =>
     Layout.textFonts.some((font) => font.id === id);
 
@@ -152,6 +153,8 @@ const State = (() => {
       font: text ? textDefaults.font : 'sans',
       color: text ? textDefaults.color : '#ffffff',
       outline: text ? textDefaults.outline : '#000000',
+      // Every new text box starts centered; the style menu changes it per box.
+      align: 'center',
     };
     box.width = clampFreeWidth(box, box.width);
     return box;
@@ -230,6 +233,16 @@ const State = (() => {
     if (!found || !isTextBox(found.box) || !isTextFont(font)) return false;
     found.box.font = font;
     textDefaults = { ...textDefaults, font };
+    return true;
+  };
+
+  /** Horizontal alignment of a text box's lines. */
+  const setFreeTextAlign = (freeId, align) => {
+    const found = findFreeBox(freeId);
+    if (!found || !isTextBox(found.box) || !TEXT_ALIGNS.has(align)) {
+      return false;
+    }
+    found.box.align = align;
     return true;
   };
 
@@ -1075,6 +1088,7 @@ const State = (() => {
     clearFreeImage,
     setFreeText,
     setFreeFont,
+    setFreeTextAlign,
     setFreeTextColor,
     setFreeTextOutline,
     setFreeSquare,

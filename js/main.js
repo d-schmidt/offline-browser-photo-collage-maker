@@ -58,6 +58,10 @@
   const textColorMenu = document.getElementById('text-color-menu');
   const textColorRow = document.getElementById('text-color-row');
   const textColorChip = document.getElementById('text-color-chip');
+  const textAlignRow = document.getElementById('text-align-row');
+  const textAlignButtons = Array.from(
+    textAlignRow.querySelectorAll('[data-text-align]'),
+  );
   const textOutlineRow = document.getElementById('text-outline-row');
   const textOutlineChip = document.getElementById('text-outline-chip');
   const textBackgroundRow = document.getElementById('text-background-row');
@@ -1488,6 +1492,11 @@
   const syncTextColorMenu = () => {
     const box = textColorTarget();
     if (!box) return;
+    const align = box.align || 'center';
+    textAlignButtons.forEach((button) => {
+      const active = button.dataset.textAlign === align;
+      button.setAttribute('aria-pressed', String(active));
+    });
     textColorChip.style.background = box.color;
     textOutlineChip.style.background = box.outline;
     textColorInput.value = box.color;
@@ -1532,6 +1541,22 @@
     textColorMenu.hidden = true;
     textColorButton.setAttribute('aria-expanded', 'false');
     if (restoreFocus) textColorButton.focus({ preventScroll: true });
+  };
+
+  /** Store a text box's horizontal alignment and keep the menu in sync. */
+  const applyTextAlign = (align) => {
+    const freeId = State.selectedFreeId;
+    if (!freeId || !State.setFreeTextAlign(freeId, align)) return;
+    refresh();
+    syncTextColorMenu();
+    const valueKey = {
+      left: 'textColor.alignLeftValue',
+      center: 'textColor.alignCenterValue',
+      right: 'textColor.alignRightValue',
+    }[align];
+    Render.announce(
+      I18n.t('announce.textAlign', { align: I18n.t(valueKey) }),
+    );
   };
 
   /** Store one changed text color, then keep the chips and the box in sync. */
@@ -3119,6 +3144,13 @@
       event.preventDefault();
       openTextColorMenu(event.key === 'ArrowUp');
     }
+  });
+
+  // The icon-only alignment row changes the selected text box in place.
+  textAlignRow.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-text-align]');
+    if (!button) return;
+    applyTextAlign(button.dataset.textAlign);
   });
 
   // Each row opens its own picker; the picker previews live on the canvas.

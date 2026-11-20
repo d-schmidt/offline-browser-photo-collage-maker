@@ -132,7 +132,7 @@ const Export = (() => {
     return lines;
   };
 
-  /** Outlined, centred text lines inside the border of a free-form text box. */
+  /** Outlined text lines inside the border of a free-form text box. */
   const drawFreeText = (ctx, box, left, top, width, height, border) => {
     const innerW = width - 2 * border;
     const innerH = height - 2 * border;
@@ -140,23 +140,29 @@ const Export = (() => {
 
     const size = Layout.freeTextSize(box);
     const family = Layout.textFontStack(box.font);
+    const align = box.align || 'center';
+    const paddingX = size * Layout.textPaddingX;
     ctx.save();
     ctx.beginPath();
     ctx.rect(left + border, top + border, innerW, innerH);
     ctx.clip();
     ctx.font = `${size}px ${family}`;
-    ctx.textAlign = 'center';
+    ctx.textAlign = align;
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
 
-    const paddingX = size * Layout.textPaddingX;
     const lines = wrapText(
       ctx,
       box.text,
       Math.max(0, innerW - 2 * paddingX),
     );
     const lineHeight = size * Layout.textLineHeight;
-    const centerX = left + border + innerW / 2;
+    const textX =
+      align === 'left'
+        ? left + border + paddingX
+        : align === 'right'
+          ? left + border + innerW - paddingX
+          : left + border + innerW / 2;
     const centerY = top + border + innerH / 2;
     const firstY = centerY - ((lines.length - 1) / 2) * lineHeight;
 
@@ -165,9 +171,9 @@ const Export = (() => {
       // Stroke first, then fill, matching `paint-order: stroke fill`.
       ctx.lineWidth = Layout.textOutlineWidth(box);
       ctx.strokeStyle = box.outline;
-      ctx.strokeText(line, centerX, y);
+      ctx.strokeText(line, textX, y);
       ctx.fillStyle = box.color;
-      ctx.fillText(line, centerX, y);
+      ctx.fillText(line, textX, y);
     });
     ctx.restore();
   };

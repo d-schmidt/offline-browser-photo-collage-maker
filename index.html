@@ -73,7 +73,7 @@
           id="text-color-button"
           type="button"
           data-icon="colors"
-          aria-label="Change text colors"
+          aria-label="Change text style"
           data-i18n-aria-label="action.textColor"
           aria-haspopup="dialog"
           aria-expanded="false"
@@ -83,10 +83,45 @@
           class="text-menu"
           id="text-color-menu"
           role="dialog"
-          aria-label="Text colors"
+          aria-label="Text style"
           data-i18n-aria-label="textColor.title"
           hidden
         >
+          <div
+            class="text-align-row"
+            id="text-align-row"
+            role="group"
+            aria-label="Text alignment"
+            data-i18n-aria-label="textColor.align"
+          >
+            <button
+              class="icon-button text-align-button"
+              type="button"
+              data-text-align="left"
+              data-icon="alignLeft"
+              aria-label="Align text left"
+              data-i18n-aria-label="textColor.alignLeft"
+              aria-pressed="false"
+            ></button>
+            <button
+              class="icon-button text-align-button"
+              type="button"
+              data-text-align="center"
+              data-icon="alignCenter"
+              aria-label="Center text"
+              data-i18n-aria-label="textColor.alignCenter"
+              aria-pressed="true"
+            ></button>
+            <button
+              class="icon-button text-align-button"
+              type="button"
+              data-text-align="right"
+              data-icon="alignRight"
+              aria-label="Align text right"
+              data-i18n-aria-label="textColor.alignRight"
+              aria-pressed="false"
+            ></button>
+          </div>
           <button class="color-menu-item" type="button" id="text-color-row">
             <span class="color-menu-chip" id="text-color-chip"></span>
             <span data-i18n="textColor.text">Text color</span>

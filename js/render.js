@@ -4,6 +4,12 @@ const ICONS = Object.freeze({
   add: 'assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   addBox: 'assets/add_box_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   addPhoto: 'assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  alignCenter:
+    'assets/align_horizontal_center_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  alignLeft:
+    'assets/align_horizontal_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  alignRight:
+    'assets/align_horizontal_right_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderStyle: 'assets/border_style_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   background: 'assets/background_replace_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -344,10 +350,11 @@ const Render = (() => {
     return fill;
   };
 
-  /** Centred, 1 px outlined text lines inside a free-form text box. */
+  /** Outlined text lines inside a free-form text box. */
   const buildFreeText = (box) => {
     const text = document.createElement('div');
     text.className = 'free-text';
+    text.dataset.align = box.align || 'center';
     text.textContent = box.text;
     text.style.color = box.color;
     text.style.fontFamily = Layout.textFontStack(box.font);
