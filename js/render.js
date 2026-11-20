@@ -554,9 +554,14 @@ const Render = (() => {
     // A box without a photo has no ratio to lock, so the two lock buttons stay
     // hidden rather than disabled and appear as soon as a photo is loaded.
     const framing = hasImage ? [square, aspect, visibility] : [visibility];
+    // The same button removes the whole box only while it is empty; with a
+    // photo it lifts the photo and leaves the empty cell behind.
+    const deleteLabel = I18n.t(
+      hasImage ? 'action.removePhoto' : 'action.delete',
+    );
 
     setActionTools([
-      toolButton('delete-box', I18n.t('action.delete'), 'delete'),
+      toolButton('delete-box', deleteLabel, 'delete'),
       toolButton('select-image', I18n.t('action.selectImage'), 'image'),
       actionSeparator(),
       ...framing,

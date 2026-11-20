@@ -322,6 +322,34 @@
     return true;
   };
 
+  /**
+   * A filled grid box keeps its cell and only loses its photo: the photo joins
+   * the shelf and the box returns to the empty cell it was before, including
+   * any color and opacity the user gave it.
+   */
+  const removeBoxPhoto = (found) => {
+    const { box, row } = found;
+    const boxId = box.id;
+    const number = boxNumber(boxId);
+
+    // A ratio lock cannot survive without a photo, so freeze the current pixel
+    // extents first, exactly like releasing the lock by hand does.
+    if (box.lock === 'aspect' && row.boxes.length === 1) preserveGroupExtents();
+    const column = isColumnMode();
+    const placedRow = layout.rows.find((candidate) => candidate.id === row.id);
+    const sizes = placedRow
+      ? placedRow.boxes.map((candidate) => (column ? candidate.h : candidate.w))
+      : [];
+
+    History.add(box.image).then(syncHistoryBar);
+    if (!State.clearImage(boxId)) return;
+    if (sizes.length === row.boxes.length) State.setRowWeights(row.id, sizes);
+
+    refresh();
+    Render.focusBox(boxId);
+    Render.announce(I18n.t('announce.photoRemoved', { n: number }));
+  };
+
   const deleteSelected = () => {
     if (State.selectedFreeId) {
       deleteFreeSelected();
@@ -329,6 +357,11 @@
     }
     const boxId = State.selectedBoxId;
     if (!boxId) return;
+    const found = State.findBox(boxId);
+    if (found && found.box.image) {
+      removeBoxPhoto(found);
+      return;
+    }
     const number = boxNumber(boxId);
     const snapshot = State.removeBox(boxId);
     if (!snapshot) return;

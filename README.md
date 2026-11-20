@@ -29,7 +29,7 @@ otherwise.
 - Click a box to select it: blue 3 px border, with the contextual actions in the action bar. A red border means a lock is active.
 - Double-click a box to open the image picker for it.
 - Click the gray background around the canvas or press `Escape` to clear the selection.
-- The action bar offers **Delete box**, **Select image**, a color menu for an empty box's fill (color plus opacity), and, once the box has an image, exclusive **square** and **aspect ratio** locks (the two lock buttons are hidden while the box is still empty). An active lock turns red; Save is always visible on the right.
+- The action bar offers **Delete box** (**Remove photo** while the box holds a photo: the photo goes to the shelf and the box returns to its empty, colored cell), **Select image**, a color menu for an empty box's fill (color plus opacity), and, once the box has an image, exclusive **square** and **aspect ratio** locks (the two lock buttons are hidden while the box is still empty). An active lock turns red; Save is always visible on the right.
 - Locked boxes keep their square or image ratio when the group's cross-axis size changes; boundaries touching a locked box are disabled. In a multi-box group, at most all but one box can be locked; the remaining box fills the space left. Aspect-ratio locks must share the same image ratio within a group—the first one sets the reference. A single-box group with a locked box also locks its group-boundary handles. Clicking the active lock releases it and preserves the current size. Activating the aspect-ratio lock resets the photo's zoom and pan to the plain cover crop and hides its zoom circle until the lock is released; square locks keep zoom available. A lone aspect-locked group fills the canvas from margin to margin (top to bottom in column mode).
 - A selected box with a photo also has a **visibility toggle**. It starts with the open-eye icon; switching it off replaces the photo with the canvas/margin color while keeping the box, its image, and its occupied space. The crossed-eye button stays available, and the box remains selectable, so toggling it back restores the same framing. Hidden cells export as the margin color.
 - Photos are cropped to cover the box, centered and clipped to its edges at 1×; zooming out below 1× shows the whole rotated photo with the margin color around it.
@@ -37,11 +37,11 @@ otherwise.
 - A **free-form photo layer** sits above the rows/columns. The square-plus button at the canvas's top-left corner adds a gray empty square at the centre; load a photo and the box takes the photo's natural ratio. Drag the box to move it anywhere (over the grid and over other free-form boxes), drag the corner circle to scale it, and drag the outer circle to rotate it. While selected, any part hanging outside the canvas is previewed at reduced opacity; unselected and in the export it is cut at the canvas edge. A transparent PNG also gets a **Fill photo background** toggle beside its crop and border actions: it is off by default, and switching it on fills the box behind the photo with the canvas paint, so the grid no longer shows through. Free-form boxes support the same delete/undo and deleted-photo shelf as grid photos.
 - Deleting every box in a group removes the group; the empty state keeps the
   add-group buttons available.
-- Deleting a box puts an **Undo** button at the left of the action bar. It
-  restores only the last deleted box, in its old place, with its photo and
-  framing but without a ratio lock. Adding a box or group, deleting another
+- Deleting an empty box puts an **Undo** button at the left of the action bar. It
+  restores only the last deleted box, in its old place, with its empty-cell color
+  but without a ratio lock. Adding a box or group, deleting another
   box, or switching row/column mode removes the undo.
-- The last ten deleted or replaced photos are kept in the browser (deduplicated
+- The last ten deleted, removed, or replaced photos are kept in the browser (deduplicated
   and downscaled, so they survive a reload). They appear as square thumbnails
   in a second bar — on the left for a portrait format on a wide screen, and
   along the bottom for landscape and square formats or any small screen. Select
@@ -56,7 +56,8 @@ otherwise.
 
 Keyboard: on the start screen, `Tab` moves between formats and `Enter` or
 `Space` starts the editor. While editing, `Tab` moves through controls, arrow keys move box selection,
-`Delete`/`Backspace` deletes the selected box, `Enter`/`Space` opens the image
+`Delete`/`Backspace` deletes the selected box (or only its photo, when it has
+one), `Enter`/`Space` opens the image
 picker, and `Escape` clears the selection. With the zoom circle focused, the
 arrow keys zoom in and out and `Home` resets the zoom. With the rotation circle
 focused, the arrow keys rotate by 1° (Shift for 15°) and `Home` resets. A
@@ -69,7 +70,7 @@ collage, and general undo/redo.
 ## Privacy
 
 Files you select are read in memory through `URL.createObjectURL` and are never
-sent anywhere. Deleted or replaced photos are copied into your browser's
+sent anywhere. Deleted, removed, or replaced photos are copied into your browser's
 `localStorage` as small JPEGs for the recovery shelf; clearing site data removes
 them. The page makes no network requests, uses no CDN, and needs no
 dependencies.

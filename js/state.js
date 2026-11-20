@@ -421,6 +421,24 @@ const State = (() => {
     return true;
   };
 
+  /**
+   * Drop a grid box's photo and return the cell to the empty state it had
+   * before, keeping its own fill. The framing and the ratio lock belong to the
+   * photo, so they go with it.
+   */
+  const clearImage = (boxId) => {
+    const found = findBox(boxId);
+    if (!found || !found.box.image) return false;
+    Images.release(found.box.image);
+    found.box.image = null;
+    resetZoomPan(found.box);
+    found.box.rotation = 0;
+    found.box.lock = null;
+    found.box.ratio = null;
+    found.box.lockSeq = 0;
+    return true;
+  };
+
   /** A multi-box row always keeps at least one box free to absorb the rest. */
   const canLockBox = (boxId) => {
     const found = findBox(boxId);
@@ -845,6 +863,7 @@ const State = (() => {
     removeBox,
     restoreBox,
     setImage,
+    clearImage,
     setBoxVisible,
     canLockBox,
     canAspectLock,

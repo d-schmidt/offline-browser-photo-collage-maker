@@ -153,6 +153,7 @@ const I18n = (() => {
       'free.size': '{n} pixels',
 
       'action.delete': 'Delete box',
+      'action.removePhoto': 'Remove photo',
       'action.selectImage': 'Select image',
       'action.lockSquare': 'Lock square box',
       'action.lockAspect': 'Lock image aspect ratio',
@@ -179,6 +180,7 @@ const I18n = (() => {
       'announce.selectedFree': 'Free-form photo box {n} selected.',
       'announce.deselected': 'Selection cleared.',
       'announce.deleted': 'Photo box {n} deleted.',
+      'announce.photoRemoved': 'Photo removed from photo box {n}.',
       'announce.undone': 'Photo box {n} restored.',
       'announce.historyAdded': 'Deleted photo added to photo box {n}.',
       'announce.historyCleared': 'Deleted-photo shelf cleared.',
@@ -384,6 +386,7 @@ const I18n = (() => {
       'free.size': '{n} Pixel',
 
       'action.delete': 'Bildfeld löschen',
+      'action.removePhoto': 'Foto entfernen',
       'action.selectImage': 'Bild auswählen',
       'action.lockSquare': 'Quadrat sperren',
       'action.lockAspect': 'Seitenverhältnis sperren',
@@ -410,6 +413,7 @@ const I18n = (() => {
       'announce.selectedFree': 'Freies Bildfeld {n} ausgewählt.',
       'announce.deselected': 'Auswahl aufgehoben.',
       'announce.deleted': 'Bildfeld {n} gelöscht.',
+      'announce.photoRemoved': 'Foto aus Bildfeld {n} entfernt.',
       'announce.undone': 'Bildfeld {n} wiederhergestellt.',
       'announce.historyAdded': 'Gelöschtes Foto zu Bildfeld {n} hinzugefügt.',
       'announce.historyCleared': 'Gelöschte Fotos entfernt.',
