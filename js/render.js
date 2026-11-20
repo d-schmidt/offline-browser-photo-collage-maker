@@ -8,6 +8,11 @@ const ICONS = Object.freeze({
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   colorFill: 'assets/format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  colors: 'assets/colors_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  gradient: 'assets/gradient_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  shuffle: 'assets/shuffle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  vignette: 'assets/vignette_2_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  blur: 'assets/blur_on_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   image: 'assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -101,15 +106,15 @@ const Render = (() => {
     const visible = layoutBox.visible !== false;
     const locked = Boolean(layoutBox.locked);
     button.classList.toggle('has-image', hasImage);
-    button.classList.toggle('is-hidden', hasImage && !visible);
+    button.classList.toggle('is-hidden', !visible);
     button.classList.toggle('has-lock', locked);
     button.classList.toggle('is-selected', layoutBox.id === selectedId);
     button.setAttribute('aria-pressed', String(layoutBox.id === selectedId));
-    const label = hasImage
-      ? visible
+    const label = !visible
+      ? I18n.t('box.labelHidden', { n: number })
+      : hasImage
         ? I18n.t('box.label', { n: number })
-        : I18n.t('box.labelHidden', { n: number })
-      : I18n.t('box.labelEmpty', { n: number });
+        : I18n.t('box.labelEmpty', { n: number });
     button.setAttribute('aria-label', label);
     button.title = label;
 
@@ -129,7 +134,7 @@ const Render = (() => {
         layoutBox.rotation,
       );
       button.append(image);
-    } else if (!hasImage) {
+    } else if (!hasImage && visible) {
       const placeholder = new Image(64, 64);
       placeholder.className = 'box-placeholder';
       placeholder.src = ICONS.addPhoto;
@@ -148,13 +153,24 @@ const Render = (() => {
    */
   const applyFreeStyles = (element, box) => {
     const border = Layout.freeBorder(box);
+    const height = box.width / (box.aspect || 1);
     element.style.left = `${box.x}px`;
     element.style.top = `${box.y}px`;
     element.style.width = `${box.width}px`;
-    element.style.height = `${box.width / (box.aspect || 1)}px`;
+    element.style.height = `${height}px`;
     element.style.transform = `translate(-50%, -50%) rotate(${box.rotation}deg)`;
     element.style.setProperty('--free-border', `${border}px`);
     element.classList.toggle('has-border', border > 0);
+    // The ring samples a solid fallback for the overhang, while its paint child
+    // counter-rotates so the canvas image stays aligned when the box turns.
+    element.style.setProperty('--free-frame', State.canvasColorAt(box.x, box.y));
+    const paint = element.querySelector('.free-frame-paint');
+    if (paint) {
+      paint.style.left = `${-(box.x - box.width / 2)}px`;
+      paint.style.top = `${-(box.y - height / 2)}px`;
+      paint.style.transformOrigin = `${box.x}px ${box.y}px`;
+      paint.style.transform = `rotate(${-box.rotation}deg)`;
+    }
   };
 
   const paintFreeHandleValues = (scale, rotate, box) => {
@@ -217,6 +233,16 @@ const Render = (() => {
     element.append(scale, rotate);
   };
 
+  /** Ring layer that shows the canvas paint through a free-form border. */
+  const buildFreeFrame = () => {
+    const frame = document.createElement('div');
+    frame.className = 'free-frame';
+    const paint = document.createElement('div');
+    paint.className = 'free-frame-paint';
+    frame.append(paint);
+    return frame;
+  };
+
   /** The clipped, always-solid copy of a free-form box. */
   const buildFreeBox = (box, number, selected) => {
     const slot = document.createElement('div');
@@ -238,8 +264,9 @@ const Render = (() => {
       : I18n.t('free.labelEmpty', { n: number });
     element.setAttribute('aria-label', label);
     element.title = label;
-    applyFreeStyles(element, box);
     freeContent(box, element);
+    if (Layout.freeBorder(box) > 0) element.append(buildFreeFrame());
+    applyFreeStyles(element, box);
 
     slot.append(element);
     return slot;
@@ -258,13 +285,14 @@ const Render = (() => {
     ghost.className = 'free-ghost';
     ghost.dataset.freeId = box.id;
     ghost.classList.toggle('has-image', Boolean(box.image));
-    applyFreeStyles(ghost, box);
 
     const body = document.createElement('div');
     body.className = 'free-ghost-body';
     freeContent(box, body);
+    if (Layout.freeBorder(box) > 0) body.append(buildFreeFrame());
 
     ghost.append(body);
+    applyFreeStyles(ghost, box);
     attachFreeHandles(ghost, box);
     layer.append(ghost);
     return layer;
@@ -329,6 +357,18 @@ const Render = (() => {
       `.free-box[data-free-id="${freeId}"]`,
     );
     if (element) element.focus({ preventScroll: true });
+  };
+
+  /** Re-sample the free-form frame colors after the margin paint changes. */
+  const repaintFreeFrames = () => {
+    if (!currentState) return;
+    currentState.freeBoxes.forEach((box) => {
+      refs.freeLayer
+        .querySelectorAll(
+          `.free-box[data-free-id="${box.id}"], .free-ghost[data-free-id="${box.id}"]`,
+        )
+        .forEach((element) => applyFreeStyles(element, box));
+    });
   };
 
   const paintActions = (state) => {
@@ -412,10 +452,15 @@ const Render = (() => {
       I18n.t('action.visibility'),
       visible ? 'visibility' : 'visibilityOff',
     );
-    visibility.disabled = !hasImage;
     visibility.setAttribute('aria-pressed', String(visible));
     visibility.title = I18n.t(
-      visible ? 'action.hideImage' : 'action.showImage',
+      hasImage
+        ? visible
+          ? 'action.hideImage'
+          : 'action.showImage'
+        : visible
+          ? 'action.hideBox'
+          : 'action.showBox',
     );
 
     refs.selectionActions.append(
@@ -827,6 +872,10 @@ const Render = (() => {
         const icon = iconElement(name);
         // The line-weight mark reads as a vertical border thickness.
         if (name === 'borderWeight') icon.classList.add('is-rotated-cw');
+        // The left-to-right gradient style is the icon turned on its side.
+        if (button.dataset.rotate === 'ccw') {
+          icon.classList.add('is-rotated-ccw');
+        }
         button.append(icon);
       }
       button.title = button.getAttribute('aria-label') || '';
@@ -935,6 +984,7 @@ const Render = (() => {
     toast,
     focusBox,
     focusFreeBox,
+    repaintFreeFrames,
     focusCanvas,
     updateFreeBox,
   };

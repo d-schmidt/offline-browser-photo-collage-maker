@@ -525,15 +525,14 @@ const Layout = (() => {
 
   /**
    * Optional frame around a free-form photo. Free-form boxes have no grid gap,
-   * so the frame borrows the classic separation between two grid photos: one
-   * margin on each side, i.e. twice the current border thickness. The frame
-   * gives way as the box shrinks so at least a 40 px photo stays visible.
+   * so the frame keeps the classic separation between two grid photos: one
+   * margin on each side, i.e. twice the current border thickness. State keeps
+   * every free box large enough for this frame plus the 40 px photo minimum,
+   * so the frame width is never squeezed.
    */
   const freeBorder = (box) => {
     if (box.border === false || !box.image || thickness <= 0) return 0;
-    const height = box.width / (box.aspect || 1);
-    const maximum = Math.max(0, (Math.min(box.width, height) - minBoxW) / 2);
-    return Math.round(Math.min(2 * thickness, maximum));
+    return 2 * thickness;
   };
 
   return {

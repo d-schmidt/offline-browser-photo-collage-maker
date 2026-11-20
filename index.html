@@ -62,7 +62,83 @@
         >
       </div>
     </div>
-    <button class="icon-button" id="margin-color-button" type="button" data-icon="colorFill" aria-label="Change margin color" data-i18n-aria-label="margin.change"></button>
+    <div class="color-menu-wrap" id="color-menu-wrap">
+      <button
+        class="icon-button"
+        id="margin-color-button"
+        type="button"
+        data-icon="colorFill"
+        aria-label="Change margin color or gradient"
+        data-i18n-aria-label="margin.change"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="color-menu"
+      ></button>
+      <div
+        class="color-menu"
+        id="color-menu"
+        role="menu"
+        aria-label="Margin paint"
+        data-i18n-aria-label="margin.menu"
+        hidden
+      >
+        <button class="color-menu-item" type="button" role="menuitem" data-paint="fill" data-icon="colors">
+          <span data-i18n="margin.fill">Fill</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" data-paint="gradient" data-icon="gradient">
+          <span data-i18n="margin.gradient">Gradient</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-stop="top" hidden>
+          <span class="color-menu-chip" data-gradient-chip="top"></span>
+          <span data-i18n="margin.gradientFirst">First color</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-stop="bottom" hidden>
+          <span class="color-menu-chip" data-gradient-chip="bottom"></span>
+          <span data-i18n="margin.gradientSecond">Second color</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" data-shuffle id="shuffle-spots" data-icon="shuffle" hidden>
+          <span data-i18n="margin.shuffle">Shuffle spots</span>
+        </button>
+      </div>
+      <div
+        class="gradient-style-menu"
+        id="gradient-style-menu"
+        role="menu"
+        aria-label="Gradient style"
+        data-i18n-aria-label="margin.gradientStyle"
+        hidden
+      >
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="vertical" data-icon="gradient">
+          <span data-i18n="gradient.style.vertical">Top to bottom</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="horizontal" data-icon="gradient" data-rotate="ccw">
+          <span data-i18n="gradient.style.horizontal">Left to right</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="radial" data-icon="vignette">
+          <span data-i18n="gradient.style.radial">Radial</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="spots" data-icon="blur">
+          <span data-i18n="gradient.style.spots">Random spots</span>
+        </button>
+      </div>
+      <div
+        class="gradient-menu"
+        id="gradient-menu"
+        role="group"
+        aria-label="Gradient colors"
+        data-i18n-aria-label="margin.gradientTitle"
+        hidden
+      >
+        <button class="color-menu-item" type="button" data-gradient-pick="top">
+          <span class="color-menu-chip" data-gradient-swatch-chip="top"></span>
+          <span data-i18n="margin.gradientFirst">First color</span>
+        </button>
+        <button class="color-menu-item" type="button" data-gradient-pick="bottom">
+          <span class="color-menu-chip" data-gradient-swatch-chip="bottom"></span>
+          <span data-i18n="margin.gradientSecond">Second color</span>
+        </button>
+      </div>
+    </div>
     <div class="save-menu-wrap" id="save-menu-wrap">
       <button
         class="icon-button"
@@ -164,11 +240,14 @@
 
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
   <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color" data-i18n-aria-label="margin.label">
+  <input class="visually-hidden" id="gradient-top-input" type="color" value="#f5f2eb" tabindex="-1" aria-label="First gradient color" data-i18n-aria-label="margin.gradientFirst">
+  <input class="visually-hidden" id="gradient-bottom-input" type="color" value="#dfd6c7" tabindex="-1" aria-label="Second gradient color" data-i18n-aria-label="margin.gradientSecond">
   <div class="visually-hidden" id="live-region" role="status" aria-live="polite"></div>
 
   <script src="js/layout.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/images.js"></script>
+  <script src="js/paint.js"></script>
   <script src="js/history.js"></script>
   <script src="js/state.js"></script>
   <script src="js/render.js"></script>

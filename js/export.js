@@ -45,11 +45,11 @@ const Export = (() => {
   };
 
   /**
-   * Draw one free-form box. Its optional frame uses the canvas color, the photo
-   * is cover-cropped to the area that remains, and the whole box rotates
-   * around its centre. The export canvas clips whatever hangs over the edge.
+   * Draw one free-form box. Its optional frame is a ring cut through the canvas
+   * paint, the photo is cover-cropped to the inner area, and the whole box
+   * rotates around its centre. The export canvas clips any overhang.
    */
-  const drawFreeBox = (ctx, image, box, background) => {
+  const drawFreeBox = (ctx, image, box, paint, frameColor) => {
     const width = box.width;
     const height = box.width / (box.aspect || 1);
     const left = -width / 2;
@@ -65,8 +65,24 @@ const Export = (() => {
       return;
     }
     if (border > 0) {
-      ctx.fillStyle = background;
+      // Cut a ring in the box's rotated space, then draw the canvas paint with
+      // the rotation removed so the frame stays aligned with the background.
+      // The sampled color fills the part over the canvas edge.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(left, top, width, height);
+      ctx.rect(
+        left + border,
+        top + border,
+        width - 2 * border,
+        height - 2 * border,
+      );
+      ctx.clip('evenodd');
+      ctx.fillStyle = frameColor;
       ctx.fillRect(left, top, width, height);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(paint, 0, 0);
+      ctx.restore();
     }
     const innerW = width - 2 * border;
     const innerH = height - 2 * border;
@@ -90,6 +106,56 @@ const Export = (() => {
       );
     }
     ctx.restore();
+  };
+
+  /**
+   * Build a canvas-sized copy of the margin paint. The editor's CSS uses the
+   * same definitions; random spots reuse the generated bitmap, so the export
+   * shows the exact pattern from the screen. Free-form frames are cut through
+   * this canvas.
+   */
+  const buildPaintCanvas = (state, width, height) => {
+    if (state.canvasMode !== 'gradient') {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = state.canvasColor || DEFAULT_BACKGROUND;
+      ctx.fillRect(0, 0, width, height);
+      return canvas;
+    }
+
+    const first = state.gradientTop;
+    const second = state.gradientBottom;
+    if (state.gradientStyle === 'spots') {
+      return Paint.spots(width, height, first, second).canvas;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    let paint;
+    if (state.gradientStyle === 'horizontal') {
+      paint = ctx.createLinearGradient(0, 0, width, 0);
+    } else if (state.gradientStyle === 'radial') {
+      paint = ctx.createRadialGradient(
+        width / 2,
+        height / 2,
+        0,
+        width / 2,
+        height / 2,
+        Math.hypot(width / 2, height / 2),
+      );
+    } else {
+      paint = ctx.createLinearGradient(0, 0, 0, height);
+    }
+    // The circular style is second color in the centre, first in the corners.
+    paint.addColorStop(0, state.gradientStyle === 'radial' ? second : first);
+    paint.addColorStop(1, state.gradientStyle === 'radial' ? first : second);
+    ctx.fillStyle = paint;
+    ctx.fillRect(0, 0, width, height);
+    return canvas;
   };
 
   const buildCanvas = async (state) => {
@@ -123,8 +189,8 @@ const Export = (() => {
     const freeImages = new Map(loadedFree);
 
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = state.canvasColor || DEFAULT_BACKGROUND;
-    ctx.fillRect(0, 0, width, height);
+    const paint = buildPaintCanvas(state, width, height);
+    ctx.drawImage(paint, 0, 0);
 
     for (const row of layout.rows) {
       for (const box of row.boxes) {
@@ -153,7 +219,8 @@ const Export = (() => {
         ctx,
         box.image ? freeImages.get(box.id) : null,
         box,
-        state.canvasColor || DEFAULT_BACKGROUND,
+        paint,
+        state.canvasColorAt(box.x, box.y),
       );
     }
 

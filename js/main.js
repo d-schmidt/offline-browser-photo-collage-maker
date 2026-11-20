@@ -20,6 +20,13 @@
   const borderValue = document.getElementById('border-value');
   const marginColorButton = document.getElementById('margin-color-button');
   const marginColorInput = document.getElementById('margin-color-input');
+  const colorMenuWrap = document.getElementById('color-menu-wrap');
+  const colorMenu = document.getElementById('color-menu');
+  const shuffleSpotsButton = document.getElementById('shuffle-spots');
+  const gradientStyleMenu = document.getElementById('gradient-style-menu');
+  const gradientMenu = document.getElementById('gradient-menu');
+  const gradientTopInput = document.getElementById('gradient-top-input');
+  const gradientBottomInput = document.getElementById('gradient-bottom-input');
   const rowsLayer = document.getElementById('rows');
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
@@ -48,7 +55,11 @@
   let ignoreCanvasClickUntil = 0;
   let saveMenuOpen = false;
   let borderMenuOpen = false;
+  let colorMenuOpen = false;
+  let gradientStyleMenuOpen = false;
+  let gradientMenuOpen = false;
   let borderFrame = 0;
+  let paintFrame = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
 
@@ -98,9 +109,74 @@
     }
   };
 
-  const applyCanvasColor = () => {
-    document.documentElement.style.setProperty('--canvas-bg', State.canvasColor);
+  /**
+   * The CSS paint image for the canvas margin: none for a plain fill, or one
+   * of the gradient styles. Random spots become a generated bitmap so their
+   * blurred discs are identical on screen and in the export.
+   */
+  const canvasPaintImage = () => {
+    if (State.canvasMode !== 'gradient') return 'none';
+    const first = State.gradientTop;
+    const second = State.gradientBottom;
+    if (State.gradientStyle === 'horizontal') {
+      return `linear-gradient(90deg, ${first}, ${second})`;
+    }
+    if (State.gradientStyle === 'radial') {
+      return `radial-gradient(circle at 50% 50%, ${second}, ${first})`;
+    }
+    if (State.gradientStyle === 'spots') {
+      const url = Paint.spotsUrl(
+        Layout.canvasW,
+        Layout.canvasH,
+        first,
+        second,
+      );
+      return `url("${url}")`;
+    }
+    return `linear-gradient(180deg, ${first}, ${second})`;
+  };
+
+  /**
+   * The canvas margin paints either one color or a gradient. Free-form frames
+   * use the same paint image, aligned to the canvas, so the frame continues
+   * the background instead of showing one sampled color.
+   */
+  const applyCanvasPaint = () => {
+    const style = document.documentElement.style;
+    const image = canvasPaintImage();
+    const paint =
+      image === 'none'
+        ? State.canvasColor
+        : State.gradientStyle === 'spots'
+          ? `${image} center / 100% 100% no-repeat`
+          : image;
+    style.setProperty('--canvas-paint-image', image);
+    style.setProperty('--canvas-paint', paint);
+    if (State.canvasMode === 'gradient') {
+      style.setProperty(
+        '--canvas-swatch',
+        `linear-gradient(90deg, ${State.gradientTop} 50%, ${State.gradientBottom} 50%)`,
+      );
+    } else {
+      style.setProperty('--canvas-swatch', State.canvasColor);
+    }
+    // Kept for chrome that needs one concrete color (free-form frame fallback).
+    style.setProperty('--canvas-bg', State.canvasColor);
     marginColorInput.value = State.canvasColor;
+    Render.repaintFreeFrames();
+  };
+
+  /** Spots are expensive to build, so live swatch drags repaint once a frame. */
+  const queueCanvasPaint = () => {
+    if (State.canvasMode === 'gradient' && State.gradientStyle === 'spots') {
+      if (paintFrame) return;
+      paintFrame = requestAnimationFrame(() => {
+        paintFrame = 0;
+        applyCanvasPaint();
+      });
+      return;
+    }
+    applyCanvasPaint();
   };
 
   /**
@@ -394,13 +470,13 @@
   };
 
   /**
-   * Hide or show a grid photo. The image and its space stay in the layout; only
+   * Hide or show a grid box. Its image and its space stay in the layout; only
    * the rendering changes, so a hidden box remains selectable and can be shown
-   * again from the same action.
+   * again from the same action. Empty boxes hide their placeholder too.
    */
   const toggleBoxVisibility = (boxId) => {
     const found = State.findBox(boxId);
-    if (!found || !found.box.image) return;
+    if (!found) return;
     const nextVisible = found.box.visible === false;
     if (!State.setBoxVisible(boxId, nextVisible)) return;
     refresh();
@@ -486,6 +562,8 @@
   const openSaveMenu = (focusLast = false) => {
     if (saveMenuOpen || saveButton.disabled) return;
     closeBorderMenu();
+    closeColorMenu();
+    closeGradientMenu();
     saveMenuOpen = true;
     saveMenu.hidden = false;
     saveButton.setAttribute('aria-expanded', 'true');
@@ -505,6 +583,8 @@
   const openBorderMenu = () => {
     if (borderMenuOpen) return;
     closeSaveMenu();
+    closeColorMenu();
+    closeGradientMenu();
     borderMenuOpen = true;
     borderMenu.hidden = false;
     borderButton.setAttribute('aria-expanded', 'true');
@@ -517,6 +597,207 @@
     borderMenu.hidden = true;
     borderButton.setAttribute('aria-expanded', 'false');
     if (restoreFocus) borderButton.focus({ preventScroll: true });
+  };
+
+  const colorMenuItems = () =>
+    Array.from(colorMenu.querySelectorAll('[role="menuitem"]')).filter(
+      (item) => !item.hidden,
+    );
+
+  const gradientStopItems = () =>
+    Array.from(colorMenu.querySelectorAll('[data-gradient-stop]'));
+
+  /**
+   * One stop row while Fill paints the canvas, both while a gradient does.
+   * Each row previews the color it edits: the fill color, or the gradient stop.
+   */
+  const syncColorMenu = () => {
+    const gradient = State.canvasMode === 'gradient';
+    shuffleSpotsButton.hidden = !gradient || State.gradientStyle !== 'spots';
+    gradientStopItems().forEach((item) => {
+      const bottom = item.dataset.gradientStop === 'bottom';
+      item.hidden = bottom && !gradient;
+      const chip = item.querySelector('[data-gradient-chip]');
+      if (!chip) return;
+      let color = State.gradientTop;
+      if (bottom) color = State.gradientBottom;
+      if (!gradient) color = State.canvasColor;
+      chip.style.background = color;
+    });
+  };
+
+  const syncMarginExpanded = () => {
+    const open = colorMenuOpen || gradientStyleMenuOpen || gradientMenuOpen;
+    marginColorButton.setAttribute('aria-expanded', String(open));
+  };
+
+  const openColorMenu = (focusLast = false) => {
+    if (colorMenuOpen) return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    syncColorMenu();
+    colorMenuOpen = true;
+    colorMenu.hidden = false;
+    syncMarginExpanded();
+    const items = colorMenuItems();
+    const item = focusLast ? items[items.length - 1] : items[0];
+    if (item) item.focus({ preventScroll: true });
+  };
+
+  const closeColorMenu = (restoreFocus = false) => {
+    if (!colorMenuOpen) return;
+    colorMenuOpen = false;
+    colorMenu.hidden = true;
+    syncMarginExpanded();
+    if (restoreFocus) marginColorButton.focus({ preventScroll: true });
+  };
+
+  const gradientStyleItems = () =>
+    Array.from(gradientStyleMenu.querySelectorAll('[data-gradient-style]'));
+
+  /** Mark the active gradient style, so the menu reflects the canvas. */
+  const paintGradientStyleMenu = () => {
+    gradientStyleItems().forEach((item) => {
+      if (item.dataset.gradientStyle === State.gradientStyle) {
+        item.setAttribute('aria-current', 'true');
+      } else {
+        item.removeAttribute('aria-current');
+      }
+    });
+  };
+
+  const openGradientStyleMenu = () => {
+    closeColorMenu();
+    closeSaveMenu();
+    closeBorderMenu();
+    closeGradientMenu();
+    if (gradientStyleMenuOpen) return;
+    paintGradientStyleMenu();
+    gradientStyleMenuOpen = true;
+    gradientStyleMenu.hidden = false;
+    syncMarginExpanded();
+    const current =
+      gradientStyleMenu.querySelector(
+        `[data-gradient-style="${State.gradientStyle}"]`,
+      ) || gradientStyleItems()[0];
+    if (current) current.focus({ preventScroll: true });
+  };
+
+  const closeGradientStyleMenu = (restoreFocus = false) => {
+    if (!gradientStyleMenuOpen) return;
+    gradientStyleMenuOpen = false;
+    gradientStyleMenu.hidden = true;
+    syncMarginExpanded();
+    if (restoreFocus) marginColorButton.focus({ preventScroll: true });
+  };
+
+  /** Apply a gradient style, then offer its two colors. */
+  const chooseGradientStyle = (style) => {
+    // The gradient keeps its own pair of stops, so leaving Fill does not drag
+    // the solid color into both swatches.
+    const first = State.gradientTop;
+    const second = State.gradientBottom;
+    if (!State.setCanvasGradient(first, second, style)) return;
+    applyCanvasPaint();
+    closeGradientStyleMenu();
+    openGradientMenu();
+    Render.announce(
+      I18n.t('announce.gradientStyle', {
+        style: I18n.t(`gradient.style.${style}`),
+      }),
+    );
+  };
+
+  /** Re-roll the seeded spots bitmap without touching the style or colors. */
+  const shuffleSpots = () => {
+    if (State.canvasMode !== 'gradient' || State.gradientStyle !== 'spots') {
+      return;
+    }
+    Paint.shuffle();
+    applyCanvasPaint();
+    Render.announce(I18n.t('announce.shuffleSpots'));
+  };
+
+  /** Seed the two swatches with the live gradient (or the current fill). */
+  const syncGradientInputs = () => {
+    const gradient = State.canvasMode === 'gradient';
+    gradientTopInput.value = gradient ? State.gradientTop : State.canvasColor;
+    gradientBottomInput.value = gradient
+      ? State.gradientBottom
+      : State.canvasColor;
+  };
+
+  /**
+   * Open the system color picker for the swatch inputs. Called from a click, so
+   * the browser still has the gesture it requires; an engine without
+   * `showPicker` falls back to a plain click on the input.
+   */
+  const openSwatchPicker = (input) => {
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+        return;
+      }
+    } catch {
+      // A refused picker falls through to the click path.
+    }
+    input.click();
+  };
+
+  /** Preview each stop in the panel's chip, like the base menu rows do. */
+  const syncGradientChips = () => {
+    gradientMenu
+      .querySelectorAll('[data-gradient-swatch-chip]')
+      .forEach((chip) => {
+        chip.style.background =
+          chip.dataset.gradientSwatchChip === 'bottom'
+            ? State.gradientBottom
+            : State.gradientTop;
+      });
+  };
+
+  /** Show the two stop rows, optionally opening one picker right away. */
+  const openGradientMenu = (pick = null) => {
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeSaveMenu();
+    closeBorderMenu();
+    if (!gradientMenuOpen) {
+      syncGradientInputs();
+      gradientMenuOpen = true;
+      gradientMenu.hidden = false;
+      syncMarginExpanded();
+    }
+    syncGradientChips();
+    const stop = pick === 'bottom' ? 'bottom' : 'top';
+    const row = gradientMenu.querySelector(`[data-gradient-pick="${stop}"]`);
+    if (row) row.focus({ preventScroll: true });
+    if (pick) {
+      openSwatchPicker(stop === 'bottom' ? gradientBottomInput : gradientTopInput);
+    }
+  };
+
+  const closeGradientMenu = (restoreFocus = false) => {
+    if (!gradientMenuOpen) return;
+    gradientMenuOpen = false;
+    gradientMenu.hidden = true;
+    syncMarginExpanded();
+    if (restoreFocus) marginColorButton.focus({ preventScroll: true });
+  };
+
+  const openMarginPicker = () => {
+    marginColorInput.value = State.canvasColor;
+    try {
+      if (typeof marginColorInput.showPicker === 'function') {
+        marginColorInput.showPicker();
+      } else {
+        marginColorInput.click();
+      }
+    } catch {
+      marginColorInput.click();
+    }
   };
 
   const saveCollage = async (format) => {
@@ -1766,6 +2047,14 @@
     if (borderMenuOpen && !borderMenuWrap.contains(event.target)) {
       closeBorderMenu();
     }
+    if (
+      (colorMenuOpen || gradientStyleMenuOpen || gradientMenuOpen) &&
+      !colorMenuWrap.contains(event.target)
+    ) {
+      closeColorMenu();
+      closeGradientStyleMenu();
+      closeGradientMenu();
+    }
   });
 
   borderButton.addEventListener('click', () => {
@@ -1798,25 +2087,148 @@
   });
 
   marginColorButton.addEventListener('click', () => {
-    try {
-      if (typeof marginColorInput.showPicker === 'function') {
-        marginColorInput.showPicker();
-      } else {
-        marginColorInput.click();
-      }
-    } catch {
-      marginColorInput.click();
+    if (colorMenuOpen) closeColorMenu(true);
+    else if (gradientStyleMenuOpen) closeGradientStyleMenu(true);
+    else if (gradientMenuOpen) closeGradientMenu(true);
+    else openColorMenu();
+  });
+
+  colorMenu.addEventListener('click', (event) => {
+    if (event.target.closest('[data-shuffle]')) {
+      shuffleSpots();
+      return;
     }
+    const stop = event.target.closest('[data-gradient-stop]');
+    if (stop) {
+      if (State.canvasMode === 'gradient') {
+        openGradientMenu(stop.dataset.gradientStop);
+      } else {
+        // The single row in Fill mode edits the solid canvas color.
+        closeColorMenu();
+        openMarginPicker();
+      }
+      return;
+    }
+    const item = event.target.closest('[data-paint]');
+    if (!item) return;
+    if (item.dataset.paint === 'gradient') {
+      openGradientStyleMenu();
+      return;
+    }
+    closeColorMenu();
+    openMarginPicker();
+  });
+
+  gradientStyleMenu.addEventListener('click', (event) => {
+    const item = event.target.closest('[data-gradient-style]');
+    if (!item) return;
+    chooseGradientStyle(item.dataset.gradientStyle);
+  });
+
+  // The panel rows are buttons, so they carry the whole click target; the
+  // color inputs behind them stay visually hidden but keep the picker.
+  gradientMenu.addEventListener('click', (event) => {
+    const row = event.target.closest('[data-gradient-pick]');
+    if (!row) return;
+    openSwatchPicker(
+      row.dataset.gradientPick === 'bottom'
+        ? gradientBottomInput
+        : gradientTopInput,
+    );
   });
 
   marginColorInput.addEventListener('input', () => {
-    if (State.setCanvasColor(marginColorInput.value)) applyCanvasColor();
+    if (State.setCanvasColor(marginColorInput.value)) queueCanvasPaint();
   });
 
   marginColorInput.addEventListener('change', () => {
     Render.announce(
       I18n.t('announce.marginColor', { color: State.canvasColor }),
     );
+  });
+
+  const applyGradient = () => {
+    const top = gradientTopInput.value;
+    const bottom = gradientBottomInput.value;
+    if (!State.setCanvasGradient(top, bottom)) return;
+    syncGradientChips();
+    queueCanvasPaint();
+  };
+
+  gradientTopInput.addEventListener('input', applyGradient);
+  gradientBottomInput.addEventListener('input', applyGradient);
+
+  // Both stops are announced on commit, not on every live swatch update.
+  const announceGradient = () => {
+    Render.announce(
+      I18n.t('announce.gradient', {
+        top: State.gradientTop,
+        bottom: State.gradientBottom,
+      }),
+    );
+  };
+
+  gradientTopInput.addEventListener('change', announceGradient);
+  gradientBottomInput.addEventListener('change', announceGradient);
+
+  colorMenu.addEventListener('keydown', (event) => {
+    const items = colorMenuItems();
+    if (items.length === 0) return;
+    const current = items.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
+    else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeColorMenu(true);
+      return;
+    } else if (event.key === 'Tab') {
+      closeColorMenu();
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
+  });
+
+  gradientMenu.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeGradientMenu(true);
+    } else if (event.key === 'Tab') {
+      closeGradientMenu();
+    }
+  });
+
+  gradientStyleMenu.addEventListener('keydown', (event) => {
+    const items = gradientStyleItems();
+    if (items.length === 0) return;
+    const current = items.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
+    else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeGradientStyleMenu(true);
+      return;
+    } else if (event.key === 'Tab') {
+      closeGradientStyleMenu();
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
+  });
+
+  marginColorButton.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      openColorMenu(event.key === 'ArrowUp');
+    }
   });
 
   addRowTop.addEventListener('click', () => addRow('start'));
@@ -2152,7 +2564,7 @@
   Render.init();
   History.load();
   syncHistoryBar();
-  applyCanvasColor();
+  applyCanvasPaint();
   applyBorderThickness();
   Render.paintFormats(FORMATS, chooseFormat);
   refresh();

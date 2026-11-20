@@ -16,6 +16,17 @@ const State = (() => {
   let selectedBoxId = null;
   let selectedFreeId = null;
   let canvasColor = '#ffffff';
+  // The canvas margin is either one color or a two-stop gradient.
+  let canvasMode = 'fill';
+  let gradientTop = '#f5f2eb';
+  let gradientBottom = '#dfd6c7';
+  let gradientStyle = 'vertical';
+  const GRADIENT_STYLES = new Set([
+    'vertical',
+    'horizontal',
+    'radial',
+    'spots',
+  ]);
   let borderThickness = METRICS.pad;
   let orientation = 'row';
   let sequence = 0;
@@ -70,25 +81,42 @@ const State = (() => {
 
   // --- free-form layer ----------------------------------------------------
 
+  // 40 px is the smallest photo side a free-form box may keep, matching the
+  // grid box minimum. The frame is added on top of it.
   const FREE_MIN_WIDTH = 40;
   const FREE_SIZE_SHARE = 0.32;
 
   const freeMaxWidth = () =>
     Math.max(Layout.canvasW, Layout.canvasH) * 3;
 
-  const clampFreeWidth = (width) =>
-    Math.min(freeMaxWidth(), Math.max(FREE_MIN_WIDTH, width));
+  // The visible frame per side around a free-form photo: two margins, matching
+  // the gap between two grid photos.
+  const freeFrame = (box) =>
+    box.border !== false && box.image && borderThickness > 0
+      ? 2 * borderThickness
+      : 0;
+
+  /**
+   * Width limit for a free-form box. The 40 px photo minimum applies to both
+   * inner sides, and the frame keeps its full width around it, so the box
+   * cannot shrink until the frame or the photo would be squeezed.
+   */
+  const clampFreeWidth = (box, width) => {
+    const inner = FREE_MIN_WIDTH + 2 * freeFrame(box);
+    const minimum = inner * Math.max(1, box.aspect || 1);
+    return Math.min(freeMaxWidth(), Math.max(minimum, width));
+  };
 
   const createFreeBox = () => {
     const size = Math.round(
       Math.min(Layout.canvasW, Layout.canvasH) * FREE_SIZE_SHARE,
     );
-    return {
+    const box = {
       id: uid('free'),
       // Stored as the centre so rotation and scaling stay around the middle.
       x: Layout.canvasW / 2,
       y: Layout.canvasH / 2,
-      width: clampFreeWidth(size),
+      width: Math.max(FREE_MIN_WIDTH, size),
       // Width ÷ height. Empty boxes are square; a photo brings its own ratio.
       aspect: 1,
       rotation: 0,
@@ -98,6 +126,8 @@ const State = (() => {
       border: true,
       image: null,
     };
+    box.width = clampFreeWidth(box, box.width);
+    return box;
   };
 
   const freeHeight = (box) => box.width / (box.aspect || 1);
@@ -113,7 +143,7 @@ const State = (() => {
   const resizeFreeToAspect = (box, aspect) => {
     const area = box.width * freeHeight(box);
     box.aspect = aspect;
-    box.width = clampFreeWidth(Math.sqrt(area * aspect));
+    box.width = clampFreeWidth(box, Math.sqrt(area * aspect));
   };
 
   const findFreeBox = (freeId) => {
@@ -140,6 +170,7 @@ const State = (() => {
   const restoreFreeBox = (snapshot) => {
     if (!snapshot || !snapshot.box) return null;
     const index = Math.min(Math.max(0, snapshot.index || 0), freeBoxes.length);
+    snapshot.box.width = clampFreeWidth(snapshot.box, snapshot.box.width);
     freeBoxes.splice(index, 0, snapshot.box);
     selectedBoxId = null;
     selectedFreeId = snapshot.box.id;
@@ -189,7 +220,7 @@ const State = (() => {
   const setFreeScale = (freeId, width) => {
     const found = findFreeBox(freeId);
     if (!found || !Number.isFinite(width)) return false;
-    found.box.width = clampFreeWidth(width);
+    found.box.width = clampFreeWidth(found.box, width);
     return true;
   };
 
@@ -198,6 +229,11 @@ const State = (() => {
     const found = findFreeBox(freeId);
     if (!found) return false;
     found.box.border = Boolean(border);
+    // Turning the frame on can make the current width too small for both the
+    // frame and a 40 px photo, so the box grows to the new minimum.
+    if (found.box.border) {
+      found.box.width = clampFreeWidth(found.box, found.box.width);
+    }
     return true;
   };
 
@@ -341,10 +377,11 @@ const State = (() => {
     Images.release(found.box.image);
     found.box.image = image;
     // Zoom and pan belong to the photo that was on screen, so a replacement
-    // starts from the plain cover crop again. Visibility is a property of the
-    // box, not the photo, so a hidden box stays hidden.
+    // starts from the plain cover crop again. Loading a photo into a hidden
+    // box reveals it, because the new photo was explicitly picked for it.
     resetZoomPan(found.box);
     found.box.rotation = 0;
+    found.box.visible = true;
     if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
       found.box.ratio = image.width / image.height;
       enforceAspectLocks(found.row);
@@ -352,10 +389,10 @@ const State = (() => {
     return true;
   };
 
-  /** Show or hide a grid photo without dropping its image or its space. */
+  /** Show or hide a grid box without dropping its image or its space. */
   const setBoxVisible = (boxId, visible) => {
     const found = findBox(boxId);
-    if (!found || !found.box.image) return false;
+    if (!found) return false;
     const next = Boolean(visible);
     if (found.box.visible === next) return false;
     found.box.visible = next;
@@ -595,11 +632,81 @@ const State = (() => {
     selectedFreeId = null;
   };
 
-  /** Canvas margin/padding color, constrained to a hex color. */
+  const isHexColor = (value) =>
+    typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+
+  /** Solid canvas margin/padding color; picking one leaves gradient mode. */
   const setCanvasColor = (value) => {
-    if (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)) return false;
+    if (!isHexColor(value)) return false;
     canvasColor = value.toLowerCase();
+    canvasMode = 'fill';
     return true;
+  };
+
+  /**
+   * Two-stop canvas gradient. The style decides the axis or shape that carries
+   * the first color to the second.
+   */
+  const setCanvasGradient = (top, bottom, style = gradientStyle) => {
+    if (!isHexColor(top) || !isHexColor(bottom)) return false;
+    if (!GRADIENT_STYLES.has(style)) return false;
+    gradientTop = top.toLowerCase();
+    gradientBottom = bottom.toLowerCase();
+    gradientStyle = style;
+    canvasMode = 'gradient';
+    return true;
+  };
+
+  const mixChannel = (from, to, share) =>
+    Math.round(from + (to - from) * share);
+
+  const hexChannels = (value) => [
+    parseInt(value.slice(1, 3), 16),
+    parseInt(value.slice(3, 5), 16),
+    parseInt(value.slice(5, 7), 16),
+  ];
+
+  const channelsHex = (channels) =>
+    `#${channels
+      .map((channel) => channel.toString(16).padStart(2, '0'))
+      .join('')}`;
+
+  const mixColors = (from, to, share) => {
+    const start = hexChannels(from);
+    const end = hexChannels(to);
+    return channelsHex(
+      start.map((channel, index) =>
+        mixChannel(channel, end[index], Math.min(1, Math.max(0, share))),
+      ),
+    );
+  };
+
+  /**
+   * The margin paint at a canvas point, so chrome that cannot host a CSS
+   * gradient (a free-form frame, the export's frame fill) lines up with the
+   * background behind it. Random spots have no closed form, so their frame
+   * takes the midpoint of the two colors.
+   */
+  const canvasColorAt = (x = 0, y = 0) => {
+    if (canvasMode !== 'gradient') return canvasColor;
+    if (gradientStyle === 'horizontal') {
+      return mixColors(gradientTop, gradientBottom, x / (Layout.canvasW || 1));
+    }
+    if (gradientStyle === 'radial') {
+      const dx = (Number(x) || 0) - Layout.canvasW / 2;
+      const dy = (Number(y) || 0) - Layout.canvasH / 2;
+      const corner = Math.hypot(Layout.canvasW / 2, Layout.canvasH / 2) || 1;
+      // Second color at the centre, first color in the corners.
+      return mixColors(
+        gradientBottom,
+        gradientTop,
+        Math.hypot(dx, dy) / corner,
+      );
+    }
+    if (gradientStyle === 'spots') {
+      return mixColors(gradientTop, gradientBottom, 0.5);
+    }
+    return mixColors(gradientTop, gradientBottom, y / (Layout.canvasH || 1));
   };
 
   /**
@@ -612,6 +719,11 @@ const State = (() => {
     const next = Math.min(METRICS.maxBorder, Math.max(0, Math.round(pixels)));
     if (next === borderThickness) return false;
     borderThickness = next;
+    // A thicker frame raises the free-form minimum, so keep those boxes at a
+    // size that still fits the frame and the 40 px photo.
+    freeBoxes.forEach((box) => {
+      box.width = clampFreeWidth(box, box.width);
+    });
     return true;
   };
 
@@ -666,6 +778,18 @@ const State = (() => {
     get canvasColor() {
       return canvasColor;
     },
+    get canvasMode() {
+      return canvasMode;
+    },
+    get gradientTop() {
+      return gradientTop;
+    },
+    get gradientBottom() {
+      return gradientBottom;
+    },
+    get gradientStyle() {
+      return gradientStyle;
+    },
     get borderThickness() {
       return borderThickness;
     },
@@ -697,6 +821,8 @@ const State = (() => {
     selectFree,
     clearSelection,
     setCanvasColor,
+    setCanvasGradient,
+    canvasColorAt,
     setBorderThickness,
     setOrientation,
     orderedBoxes,
