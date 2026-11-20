@@ -29,6 +29,14 @@
   const gradientBottomInput = document.getElementById('gradient-bottom-input');
   const colorPresets = document.getElementById('color-presets');
   const gradientPresets = document.getElementById('gradient-presets');
+  const fillMenuWrap = document.getElementById('fill-menu-wrap');
+  const fillButton = document.getElementById('fill-button');
+  const fillMenu = document.getElementById('fill-menu');
+  const fillColorRow = document.getElementById('fill-color-row');
+  const fillColorChip = document.getElementById('fill-color-chip');
+  const fillColorInput = document.getElementById('fill-color-input');
+  const fillOpacity = document.getElementById('fill-opacity');
+  const fillOpacityValue = document.getElementById('fill-opacity-value');
   const rowsLayer = document.getElementById('rows');
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
@@ -63,6 +71,7 @@
   let gradientMenuOpen = false;
   let borderFrame = 0;
   let paintFrame = 0;
+  let fillFrame = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
 
@@ -889,6 +898,78 @@
     } catch {
       marginColorInput.click();
     }
+  };
+
+  /** The selected grid box while it is still empty, else null. */
+  const fillTarget = () => {
+    const found = State.findBox(State.selectedBoxId);
+    if (!found || found.box.image) return null;
+    return found.box;
+  };
+
+  /** A cell's effective paint: its own values or the shared start values. */
+  const currentFill = (box) => box.fill || State.placeholderFill;
+
+  const syncFillMenu = () => {
+    const box = fillTarget();
+    if (!box) return;
+    const fill = currentFill(box);
+    const percent = Math.round(fill.opacity * 100);
+    fillColorChip.style.background = fill.color;
+    fillColorInput.value = fill.color;
+    fillOpacity.value = String(percent);
+    fillOpacityValue.textContent = I18n.t('fill.value', { n: percent });
+    fillOpacity.setAttribute(
+      'aria-valuetext',
+      I18n.t('fill.percent', { n: percent }),
+    );
+  };
+
+  const openFillMenu = () => {
+    if (!fillTarget()) return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    syncFillMenu();
+    fillMenu.hidden = false;
+    fillButton.setAttribute('aria-expanded', 'true');
+    fillColorRow.focus({ preventScroll: true });
+  };
+
+  const closeFillMenu = (restoreFocus = false) => {
+    if (fillMenu.hidden) return;
+    fillMenu.hidden = true;
+    fillButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) fillButton.focus({ preventScroll: true });
+  };
+
+  /** Store one changed value and repaint the cell once per frame. */
+  const applyFill = (patch) => {
+    const box = fillTarget();
+    if (!box) return;
+    const fill = { ...currentFill(box), ...patch };
+    if (!State.setBoxFill(box.id, fill.color, fill.opacity)) return;
+    fillColorChip.style.background = fill.color;
+    if (fillFrame) return;
+    fillFrame = requestAnimationFrame(() => {
+      fillFrame = 0;
+      refresh();
+      syncFillMenu();
+    });
+  };
+
+  const announceFill = () => {
+    const box = fillTarget();
+    if (!box) return;
+    const fill = currentFill(box);
+    Render.announce(
+      I18n.t('announce.fill', {
+        color: fill.color,
+        n: Math.round(fill.opacity * 100),
+      }),
+    );
   };
 
   const saveCollage = async (format) => {
@@ -2148,6 +2229,9 @@
       closeGradientStyleMenu();
       closeGradientMenu();
     }
+    if (!fillMenu.hidden && !fillMenuWrap.contains(event.target)) {
+      closeFillMenu();
+    }
   });
 
   borderButton.addEventListener('click', () => {
@@ -2273,6 +2357,46 @@
 
   gradientTopInput.addEventListener('change', announceGradient);
   gradientBottomInput.addEventListener('change', announceGradient);
+
+  fillButton.addEventListener('click', () => {
+    if (fillMenu.hidden) openFillMenu();
+    else closeFillMenu(true);
+  });
+
+  // The row edits the cell color; the input previews live, like the margin
+  // stop rows do.
+  fillColorRow.addEventListener('click', () => {
+    if (!fillTarget()) return;
+    syncFillMenu();
+    openSwatchPicker(fillColorInput);
+  });
+
+  fillColorInput.addEventListener('input', () => {
+    applyFill({ color: fillColorInput.value });
+  });
+
+  fillOpacity.addEventListener('input', () => {
+    const percent = Number(fillOpacity.value);
+    fillOpacityValue.textContent = I18n.t('fill.value', { n: percent });
+    fillOpacity.setAttribute(
+      'aria-valuetext',
+      I18n.t('fill.percent', { n: percent }),
+    );
+    applyFill({ opacity: percent / 100 });
+  });
+
+  fillColorInput.addEventListener('change', announceFill);
+  fillOpacity.addEventListener('change', announceFill);
+
+  fillMenuWrap.addEventListener('keydown', (event) => {
+    if (fillMenu.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeFillMenu(true);
+    } else if (event.key === 'Tab') {
+      closeFillMenu();
+    }
+  });
 
   colorMenu.addEventListener('keydown', (event) => {
     const items = colorMenuItems();

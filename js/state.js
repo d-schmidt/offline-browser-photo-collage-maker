@@ -13,6 +13,9 @@ const State = (() => {
   // Free-form photos live above the weighted grid. They keep their own canvas
   // coordinates, rotation, and a locked aspect ratio instead of weights.
   const freeBoxes = [];
+  // The default paint of an empty grid cell: the gray that reads as #d9d9d9
+  // over a white canvas, at 80% opacity. A box can override both values.
+  const PLACEHOLDER_FILL = Object.freeze({ color: '#cfcfcf', opacity: 0.8 });
   let selectedBoxId = null;
   let selectedFreeId = null;
   let canvasColor = '#ffffff';
@@ -46,6 +49,8 @@ const State = (() => {
     offsetX: 0,
     offsetY: 0,
     rotation: 0,
+    // Null until the empty cell is recolored; the defaults live in CSS.
+    fill: null,
   });
 
   const createRow = (weight) => ({
@@ -674,6 +679,23 @@ const State = (() => {
     return true;
   };
 
+  /**
+   * Recolor an empty grid cell. The values only matter while the box has no
+   * photo: a loaded image covers the cell and ignores them from then on.
+   */
+  const setBoxFill = (boxId, color, opacity) => {
+    const found = findBox(boxId);
+    if (!found || found.box.image) return false;
+    if (!isHexColor(color)) return false;
+    const alpha = Number(opacity);
+    if (!Number.isFinite(alpha)) return false;
+    found.box.fill = {
+      color: color.toLowerCase(),
+      opacity: Math.min(1, Math.max(0, alpha)),
+    };
+    return true;
+  };
+
   const mixChannel = (from, to, share) =>
     Math.round(from + (to - from) * share);
 
@@ -839,6 +861,8 @@ const State = (() => {
     clearSelection,
     setCanvasColor,
     setCanvasGradient,
+    setBoxFill,
+    placeholderFill: PLACEHOLDER_FILL,
     canvasColorAt,
     setBorderThickness,
     setOrientation,

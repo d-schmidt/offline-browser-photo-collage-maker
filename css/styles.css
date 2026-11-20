@@ -168,10 +168,15 @@ button {
 
 .save-menu-wrap,
 .border-menu-wrap,
-.color-menu-wrap {
+.color-menu-wrap,
+.fill-menu-wrap {
   position: relative;
   display: flex;
   flex: none;
+}
+
+.fill-menu-wrap[hidden] {
+  display: none;
 }
 
 /* Popovers that drop below the action-bar buttons. The action bar is a
@@ -180,7 +185,8 @@ button {
 .border-menu,
 .color-menu,
 .gradient-style-menu,
-.gradient-menu {
+.gradient-menu,
+.fill-menu {
   position: absolute;
   top: calc(100% + 12px);
   right: 0;
@@ -207,11 +213,33 @@ button {
   padding: 10px 12px 12px;
 }
 
+/* The empty-cell menu pairs one color row with an opacity slider. It opens
+   from the left edge of its button, which sits in the left tool cluster. */
+.fill-menu {
+  left: 0;
+  right: auto;
+  width: 232px;
+  max-width: calc(100vw - 16px);
+  padding: 4px 4px 10px;
+}
+
+.fill-menu .border-menu-head,
+.fill-menu .border-range {
+  margin-right: 8px;
+  margin-left: 8px;
+  width: calc(100% - 16px);
+}
+
+.fill-menu .border-menu-head {
+  margin-top: 6px;
+}
+
 .save-menu[hidden],
 .border-menu[hidden],
 .color-menu[hidden],
 .gradient-style-menu[hidden],
-.gradient-menu[hidden] {
+.gradient-menu[hidden],
+.fill-menu[hidden] {
   display: none;
 }
 
@@ -728,6 +756,12 @@ button {
 
 .box.has-image {
   background: none;
+}
+
+/* A recolored empty cell paints its own color, so the hover hint comes from a
+   slight dim instead of the shared gray. */
+.box.has-fill:hover {
+  filter: brightness(0.94);
 }
 
 .box:hover {

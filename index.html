@@ -18,7 +18,47 @@
       data-i18n-aria-label="undo.button"
       hidden
     ></button>
-    <div class="action-bar-tools" id="selection-actions"></div>
+    <div class="action-bar-tools" id="selection-actions">
+      <div class="fill-menu-wrap" id="fill-menu-wrap" hidden>
+        <button
+          class="icon-button"
+          id="fill-button"
+          type="button"
+          data-icon="colors"
+          aria-label="Empty box color"
+          data-i18n-aria-label="fill.button"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="fill-menu"
+        ></button>
+        <div
+          class="fill-menu"
+          id="fill-menu"
+          role="dialog"
+          aria-label="Empty box color and opacity"
+          data-i18n-aria-label="fill.title"
+          hidden
+        >
+          <button class="color-menu-item" type="button" id="fill-color-row">
+            <span class="color-menu-chip" id="fill-color-chip"></span>
+            <span data-i18n="fill.color">Color</span>
+          </button>
+          <div class="border-menu-head">
+            <label class="border-menu-label" for="fill-opacity" data-i18n="fill.opacity">Opacity</label>
+            <output class="border-menu-value" id="fill-opacity-value" for="fill-opacity">80%</output>
+          </div>
+          <input
+            class="border-range"
+            id="fill-opacity"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value="80"
+          >
+        </div>
+      </div>
+    </div>
     <button
       class="icon-button"
       id="orientation-button"
@@ -256,6 +296,7 @@
 
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
   <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color" data-i18n-aria-label="margin.label">
+  <input class="visually-hidden" id="fill-color-input" type="color" value="#cfcfcf" tabindex="-1" aria-label="Empty box color" data-i18n-aria-label="fill.colorInput">
   <input class="visually-hidden" id="gradient-top-input" type="color" value="#f5f2eb" tabindex="-1" aria-label="First gradient color" data-i18n-aria-label="margin.gradientFirst">
   <input class="visually-hidden" id="gradient-bottom-input" type="color" value="#dfd6c7" tabindex="-1" aria-label="Second gradient color" data-i18n-aria-label="margin.gradientSecond">
   <div class="visually-hidden" id="live-region" role="status" aria-live="polite"></div>

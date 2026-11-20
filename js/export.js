@@ -10,6 +10,13 @@ const Export = (() => {
   // it the way it did before the grid cells became translucent.
   const FREE_PLACEHOLDER = '#d9d9d9';
 
+  /** The paint of an empty grid cell that was recolored through its menu. */
+  const boxFillStyle = (fill) => {
+    const channel = (offset) =>
+      parseInt(fill.color.slice(offset, offset + 2), 16);
+    return `rgba(${channel(1)}, ${channel(3)}, ${channel(5)}, ${fill.opacity})`;
+  };
+
   const pad = (value) => String(value).padStart(2, '0');
 
   /** Local-time download name: collage-yyyy-MM-dd-HH-mm.<extension> */
@@ -226,7 +233,7 @@ const Export = (() => {
         if (image) {
           drawPhoto(ctx, image, box, x, y);
         } else {
-          ctx.fillStyle = PLACEHOLDER;
+          ctx.fillStyle = box.fill ? boxFillStyle(box.fill) : PLACEHOLDER;
           ctx.fillRect(x, y, box.w, box.h);
         }
       }

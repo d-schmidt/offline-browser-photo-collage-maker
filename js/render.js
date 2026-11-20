@@ -93,6 +93,13 @@ const Render = (() => {
       : '';
   };
 
+  /** The CSS color of a recolored empty cell. */
+  const emptyFillColor = (fill) => {
+    const channel = (offset) =>
+      parseInt(fill.color.slice(offset, offset + 2), 16);
+    return `rgba(${channel(1)}, ${channel(3)}, ${channel(5)}, ${fill.opacity})`;
+  };
+
   const buildBox = (layoutBox, number, selectedId) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -109,7 +116,13 @@ const Render = (() => {
     button.classList.toggle('has-image', hasImage);
     button.classList.toggle('is-hidden', !visible);
     button.classList.toggle('has-lock', locked);
+    button.classList.toggle('has-fill', Boolean(layoutBox.fill) && visible);
     button.classList.toggle('is-selected', layoutBox.id === selectedId);
+    // A recolored empty cell paints its own color over the default gray. A
+    // hidden cell stays a transparent cut-out, so it keeps no inline paint.
+    if (!hasImage && visible && layoutBox.fill) {
+      button.style.backgroundColor = emptyFillColor(layoutBox.fill);
+    }
     button.setAttribute('aria-pressed', String(layoutBox.id === selectedId));
     const label = !visible
       ? I18n.t('box.labelHidden', { n: number })
@@ -135,7 +148,7 @@ const Render = (() => {
         layoutBox.rotation,
       );
       button.append(image);
-    } else if (!hasImage && visible) {
+    } else if (!hasImage && visible && !layoutBox.fill) {
       const placeholder = new Image(64, 64);
       placeholder.className = 'box-placeholder';
       placeholder.src = ICONS.addPhoto;
@@ -391,8 +404,43 @@ const Render = (() => {
     });
   };
 
+  /**
+   * The empty-cell color menu only exists for an empty grid box. Hiding it, or
+   * moving the selection to another box, also closes the popover so its values
+   * never belong to the previous cell.
+   */
+  const showFillControls = (available, boxId = null) => {
+    refs.fillWrap.hidden = !available;
+    const sameBox = available && boxId === refs.fillBoxId;
+    refs.fillBoxId = available ? boxId : null;
+    if (sameBox) return;
+    refs.fillMenu.hidden = true;
+    refs.fillButton.setAttribute('aria-expanded', 'false');
+  };
+
+  /**
+   * Rebuild the tool row while keeping the persistent fill menu in place: the
+   * menu wrapper stays a child of the row, so repainting never closes it.
+   */
+  const setActionTools = (nodes) => {
+    Array.from(refs.selectionActions.children).forEach((child) => {
+      if (child !== refs.fillWrap) child.remove();
+    });
+    for (const node of nodes) {
+      refs.selectionActions.insertBefore(node, refs.fillWrap);
+    }
+  };
+
   const paintActions = (state) => {
-    refs.selectionActions.replaceChildren();
+    // Availability is resolved before the branches so a repaint (for example
+    // while the opacity slider moves) keeps an open menu open.
+    const fillTarget = state.selectedBoxId
+      ? state.findBox(state.selectedBoxId)
+      : null;
+    const fillBox =
+      fillTarget && !fillTarget.box.image ? fillTarget.box : null;
+    showFillControls(Boolean(fillBox), fillBox ? fillBox.id : null);
+    if (!state.selectedBoxId && !state.selectedFreeId) setActionTools([]);
     if (state.selectedFreeId) {
       const found = state.findFreeBox(state.selectedFreeId);
       if (!found) return;
@@ -437,12 +485,12 @@ const Render = (() => {
         framing.push(background);
       }
 
-      refs.selectionActions.append(
+      setActionTools([
         toolButton('delete-box', I18n.t('action.delete'), 'delete'),
         toolButton('select-image', I18n.t('action.selectImage'), 'image'),
         actionSeparator(),
         ...framing,
-      );
+      ]);
       return;
     }
     if (!state.selectedBoxId) return;
@@ -507,12 +555,12 @@ const Render = (() => {
     // hidden rather than disabled and appear as soon as a photo is loaded.
     const framing = hasImage ? [square, aspect, visibility] : [visibility];
 
-    refs.selectionActions.append(
+    setActionTools([
       toolButton('delete-box', I18n.t('action.delete'), 'delete'),
       toolButton('select-image', I18n.t('action.selectImage'), 'image'),
       actionSeparator(),
       ...framing,
-    );
+    ]);
   };
 
   const selectedPhotoTarget = () => {
@@ -905,6 +953,9 @@ const Render = (() => {
     refs.toast = document.getElementById('toast');
     refs.live = document.getElementById('live-region');
     refs.historyList = document.getElementById('history-list');
+    refs.fillWrap = document.getElementById('fill-menu-wrap');
+    refs.fillMenu = document.getElementById('fill-menu');
+    refs.fillButton = document.getElementById('fill-button');
 
     // Static controls only carry a data-icon name; the long asset paths live
     // in ICONS alone. The orientation button is painted per mode instead.
