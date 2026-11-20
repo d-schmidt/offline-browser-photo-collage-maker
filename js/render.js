@@ -19,6 +19,7 @@ const ICONS = Object.freeze({
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  rotateLeft: 'assets/rotate_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibility: 'assets/visibility_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibilityOff: 'assets/visibility_off_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -961,6 +962,11 @@ const Render = (() => {
     refs.fillWrap = document.getElementById('fill-menu-wrap');
     refs.fillMenu = document.getElementById('fill-menu');
     refs.fillButton = document.getElementById('fill-button');
+
+    // The rotation handle wears the rotate mark on its accent disc.
+    const rotateMark = iconElement('rotateLeft');
+    rotateMark.classList.add('handle-icon');
+    refs.rotateHandle.append(rotateMark);
 
     // Static controls only carry a data-icon name; the long asset paths live
     // in ICONS alone. The orientation button is painted per mode instead.
