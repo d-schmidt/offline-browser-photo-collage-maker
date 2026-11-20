@@ -4,6 +4,7 @@ const ICONS = Object.freeze({
   add: 'assets/add_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   addBox: 'assets/add_box_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   addPhoto: 'assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  borderStyle: 'assets/border_style_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   colorFill: 'assets/format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -47,6 +48,14 @@ const Render = (() => {
     button.title = label;
     button.append(iconElement(iconName));
     return button;
+  };
+
+  /** A 1 px rule between the structural actions and the ratio actions. */
+  const actionSeparator = () => {
+    const divider = document.createElement('span');
+    divider.className = 'action-divider';
+    divider.setAttribute('aria-hidden', 'true');
+    return divider;
   };
 
   /** Position the photo inside a box in logical pixels; the box clips it. */
@@ -138,11 +147,14 @@ const Render = (() => {
    * and rotated around that centre, so moving and scaling stay intuitive.
    */
   const applyFreeStyles = (element, box) => {
+    const border = Layout.freeBorder(box);
     element.style.left = `${box.x}px`;
     element.style.top = `${box.y}px`;
     element.style.width = `${box.width}px`;
     element.style.height = `${box.width / (box.aspect || 1)}px`;
     element.style.transform = `translate(-50%, -50%) rotate(${box.rotation}deg)`;
+    element.style.setProperty('--free-border', `${border}px`);
+    element.classList.toggle('has-border', border > 0);
   };
 
   const paintFreeHandleValues = (scale, rotate, box) => {
@@ -324,9 +336,32 @@ const Render = (() => {
     if (state.selectedFreeId) {
       const found = state.findFreeBox(state.selectedFreeId);
       if (!found) return;
+      const hasImage = Boolean(found.box.image);
+      const square = toolButton(
+        'crop-square',
+        I18n.t('action.cropSquare'),
+        'lockSquare',
+      );
+      square.disabled = !hasImage;
+      square.setAttribute('aria-pressed', String(Boolean(found.box.square)));
+      square.classList.toggle('is-active', Boolean(found.box.square));
+      if (found.box.square) square.title = I18n.t('action.matchPhoto');
+
+      const borderOn = found.box.border !== false;
+      const border = toolButton(
+        'free-border',
+        I18n.t('action.border'),
+        'borderStyle',
+      );
+      border.setAttribute('aria-pressed', String(borderOn));
+      border.classList.toggle('is-active', borderOn);
+
       refs.selectionActions.append(
         toolButton('delete-box', I18n.t('action.delete'), 'delete'),
         toolButton('select-image', I18n.t('action.selectImage'), 'image'),
+        actionSeparator(),
+        square,
+        border,
       );
       return;
     }
@@ -386,6 +421,7 @@ const Render = (() => {
     refs.selectionActions.append(
       toolButton('delete-box', I18n.t('action.delete'), 'delete'),
       toolButton('select-image', I18n.t('action.selectImage'), 'image'),
+      actionSeparator(),
       square,
       aspect,
       visibility,

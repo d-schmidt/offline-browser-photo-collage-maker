@@ -45,21 +45,49 @@ const Export = (() => {
   };
 
   /**
-   * Draw one free-form box. It is rotated around its centre and stretched to
-   * its locked aspect ratio; the export canvas clips whatever hangs over the
-   * edge, exactly like the unselected preview.
+   * Draw one free-form box. Its optional frame uses the canvas color, the photo
+   * is cover-cropped to the area that remains, and the whole box rotates
+   * around its centre. The export canvas clips whatever hangs over the edge.
    */
-  const drawFreeBox = (ctx, image, box) => {
+  const drawFreeBox = (ctx, image, box, background) => {
     const width = box.width;
     const height = box.width / (box.aspect || 1);
+    const left = -width / 2;
+    const top = -height / 2;
+    const border = Layout.freeBorder(box);
     ctx.save();
     ctx.translate(box.x, box.y);
     ctx.rotate(((box.rotation || 0) * Math.PI) / 180);
-    if (image) {
-      ctx.drawImage(image, -width / 2, -height / 2, width, height);
-    } else {
+    if (!image) {
       ctx.fillStyle = PLACEHOLDER;
-      ctx.fillRect(-width / 2, -height / 2, width, height);
+      ctx.fillRect(left, top, width, height);
+      ctx.restore();
+      return;
+    }
+    if (border > 0) {
+      ctx.fillStyle = background;
+      ctx.fillRect(left, top, width, height);
+    }
+    const innerW = width - 2 * border;
+    const innerH = height - 2 * border;
+    const sourceW = image.naturalWidth || image.width;
+    const sourceH = image.naturalHeight || image.height;
+    if (innerW > 0 && innerH > 0 && sourceW > 0 && sourceH > 0) {
+      // The editor fills the photo with `object-fit: cover`; mirror that crop.
+      const cover = Math.max(innerW / sourceW, innerH / sourceH);
+      const cropW = innerW / cover;
+      const cropH = innerH / cover;
+      ctx.drawImage(
+        image,
+        (sourceW - cropW) / 2,
+        (sourceH - cropH) / 2,
+        cropW,
+        cropH,
+        left + border,
+        top + border,
+        innerW,
+        innerH,
+      );
     }
     ctx.restore();
   };
@@ -121,7 +149,12 @@ const Export = (() => {
     // The free-form layer paints above the grid, in the same order as on
     // screen. The canvas edge clips any overhang.
     for (const box of state.freeBoxes) {
-      drawFreeBox(ctx, box.image ? freeImages.get(box.id) : null, box);
+      drawFreeBox(
+        ctx,
+        box.image ? freeImages.get(box.id) : null,
+        box,
+        state.canvasColor || DEFAULT_BACKGROUND,
+      );
     }
 
     return canvas;

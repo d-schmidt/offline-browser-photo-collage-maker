@@ -135,6 +135,16 @@ button {
   min-width: 0;
 }
 
+/* A hairline rule splitting the structural actions (delete, select image)
+   from the framing actions (ratio locks, visibility). */
+.action-divider {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: rgb(255 255 255 / 18%);
+}
+
 .save-menu-wrap,
 .border-menu-wrap {
   position: relative;
@@ -664,6 +674,10 @@ button {
   background: none;
 }
 
+.free-ghost.has-image.has-border .free-ghost-body {
+  background: var(--canvas-bg);
+}
+
 .free-ghost::after {
   position: absolute;
   inset: 0;
@@ -690,6 +704,12 @@ button {
   background: none;
 }
 
+/* The optional free-form frame uses the canvas/margin color, so a bordered
+   photo keeps the same white edge as a grid photo. */
+.free-box.has-image.has-border {
+  background: var(--canvas-bg);
+}
+
 .free-box:hover {
   background: #cfcfcf;
 }
@@ -698,17 +718,24 @@ button {
   background: none;
 }
 
+.free-box.has-image.has-border:hover {
+  background: var(--canvas-bg);
+}
+
 .free-box:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: -3px;
 }
 
+/* `--free-border` is set inline per box by Render; it insets the photo inside
+   the box so the margin color shows through as a frame. */
 .free-box-image {
   position: absolute;
-  inset: 0;
+  top: var(--free-border, 0);
+  left: var(--free-border, 0);
   display: block;
-  width: 100%;
-  height: 100%;
+  width: calc(100% - 2 * var(--free-border, 0px));
+  height: calc(100% - 2 * var(--free-border, 0px));
   object-fit: cover;
   pointer-events: none;
   user-select: none;

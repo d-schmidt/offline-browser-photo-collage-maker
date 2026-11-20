@@ -92,11 +92,29 @@ const State = (() => {
       // Width ÷ height. Empty boxes are square; a photo brings its own ratio.
       aspect: 1,
       rotation: 0,
+      // Set by the square crop action: keep 1:1 instead of the photo ratio.
+      square: false,
+      // Free-form photos keep the usual margin frame unless it is switched off.
+      border: true,
       image: null,
     };
   };
 
   const freeHeight = (box) => box.width / (box.aspect || 1);
+
+  const imageAspect = (image) =>
+    image && image.width > 0 && image.height > 0
+      ? image.width / image.height
+      : 1;
+
+  /**
+   * Change a free-form box ratio while its area, and so its weight, stays put.
+   */
+  const resizeFreeToAspect = (box, aspect) => {
+    const area = box.width * freeHeight(box);
+    box.aspect = aspect;
+    box.width = clampFreeWidth(Math.sqrt(area * aspect));
+  };
 
   const findFreeBox = (freeId) => {
     if (!freeId) return null;
@@ -137,12 +155,24 @@ const State = (() => {
     Images.release(found.box.image);
     found.box.image = image;
     // Keep the box area while its ratio follows the photo, so swapping a
-    // landscape for a portrait photo does not make the box jump in size.
-    const aspect =
-      image.width > 0 && image.height > 0 ? image.width / image.height : 1;
-    const area = found.box.width * freeHeight(found.box);
-    found.box.aspect = aspect;
-    found.box.width = clampFreeWidth(Math.sqrt(area * aspect));
+    // landscape for a portrait photo does not make the box jump in size. An
+    // active square crop outranks the new photo's own ratio.
+    resizeFreeToAspect(found.box, found.box.square ? 1 : imageAspect(image));
+    return true;
+  };
+
+  /**
+   * Crop a free-form box to a square, or return it to its photo's own ratio.
+   * Only a box with a photo can be cropped; an empty box is already square.
+   */
+  const setFreeSquare = (freeId, square) => {
+    const found = findFreeBox(freeId);
+    if (!found || !found.box.image) return false;
+    found.box.square = Boolean(square);
+    resizeFreeToAspect(
+      found.box,
+      found.box.square ? 1 : imageAspect(found.box.image),
+    );
     return true;
   };
 
@@ -160,6 +190,14 @@ const State = (() => {
     const found = findFreeBox(freeId);
     if (!found || !Number.isFinite(width)) return false;
     found.box.width = clampFreeWidth(width);
+    return true;
+  };
+
+  /** Show or hide the margin frame around a free-form photo. */
+  const setFreeBorder = (freeId, border) => {
+    const found = findFreeBox(freeId);
+    if (!found) return false;
+    found.box.border = Boolean(border);
     return true;
   };
 
@@ -667,8 +705,10 @@ const State = (() => {
     removeFreeBox,
     restoreFreeBox,
     setFreeImage,
+    setFreeSquare,
     setFreePosition,
     setFreeScale,
+    setFreeBorder,
     setFreeRotation,
     freeHeight,
   };

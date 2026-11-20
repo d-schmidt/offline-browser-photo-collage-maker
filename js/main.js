@@ -412,6 +412,39 @@
     );
   };
 
+  /**
+   * Crop a free-form box to a square, or restore its photo's own ratio. The
+   * area (and so the visual weight) stays put either way.
+   */
+  const toggleFreeSquare = (freeId) => {
+    const found = State.findFreeBox(freeId);
+    if (!found || !found.box.image) return;
+    const next = !found.box.square;
+    if (!State.setFreeSquare(freeId, next)) return;
+    refresh();
+    focusAction('crop-square');
+    Render.announce(
+      I18n.t(next ? 'announce.freeSquareOn' : 'announce.freeSquareOff', {
+        n: freeBoxNumber(freeId),
+      }),
+    );
+  };
+
+  /** Show or hide the margin frame that keeps a free-form photo readable. */
+  const toggleFreeBorder = (freeId) => {
+    const found = State.findFreeBox(freeId);
+    if (!found) return;
+    const next = found.box.border === false;
+    if (!State.setFreeBorder(freeId, next)) return;
+    refresh();
+    focusAction('free-border');
+    Render.announce(
+      I18n.t(next ? 'announce.freeBorderOn' : 'announce.freeBorderOff', {
+        n: freeBoxNumber(freeId),
+      }),
+    );
+  };
+
   const handlePickedFile = async (file) => {
     const boxId = pickerBoxId;
     const freeId = pickerFreeId;
@@ -2019,6 +2052,10 @@
       if (button.dataset.action === 'delete-box') deleteSelected();
       else if (button.dataset.action === 'select-image') {
         openFreePicker(State.selectedFreeId);
+      } else if (button.dataset.action === 'crop-square') {
+        toggleFreeSquare(State.selectedFreeId);
+      } else if (button.dataset.action === 'free-border') {
+        toggleFreeBorder(State.selectedFreeId);
       }
       return;
     }
