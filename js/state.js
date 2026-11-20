@@ -19,8 +19,8 @@ const State = (() => {
   let selectedBoxId = null;
   let selectedFreeId = null;
   let canvasColor = '#ffffff';
-  // The canvas margin is either one color or a two-stop gradient.
-  let canvasMode = 'fill';
+  // The canvas margin starts as the Warm Stone preset, painted top to bottom.
+  let canvasMode = 'gradient';
   let gradientTop = '#f5f2eb';
   let gradientBottom = '#dfd6c7';
   let gradientStyle = 'vertical';
