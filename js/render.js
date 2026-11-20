@@ -603,6 +603,10 @@ const Render = (() => {
   };
 
   const paintActions = (state) => {
+    // The free-form add actions only fill the empty left side of the bar; a
+    // selected box replaces them with its contextual tools.
+    const hasSelection = Boolean(state.selectedBoxId || state.selectedFreeId);
+    refs.createActions.hidden = hasSelection;
     // Availability is resolved before the branches so a repaint (for example
     // while the opacity slider moves) keeps an open menu open.
     const selectedFill = state.selectedFreeId
@@ -639,7 +643,7 @@ const Render = (() => {
       isTextSelected,
       isTextSelected ? selectedFree.box.id : null,
     );
-    if (!state.selectedBoxId && !state.selectedFreeId) {
+    if (!hasSelection) {
       setActionTools([]);
       return;
     }
@@ -1233,6 +1237,7 @@ const Render = (() => {
   };
 
   const init = () => {
+    refs.createActions = document.getElementById('create-actions');
     refs.selectionActions = document.getElementById('selection-actions');
     refs.canvas = document.getElementById('canvas');
     refs.rows = document.getElementById('rows');
