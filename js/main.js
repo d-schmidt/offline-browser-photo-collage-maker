@@ -1501,6 +1501,7 @@
     const target = selectedTarget();
     if (!target) return;
 
+    Render.setRotateSnap(false);
     event.preventDefault();
     event.stopPropagation();
     rotateHandle.focus({ preventScroll: true });
@@ -1536,7 +1537,9 @@
     }
 
     // Quarter turns snap magnetically; outside the window the raw angle wins.
-    const rotation = State.snapRotation(rotateDrag.startRotation + delta);
+    const raw = rotateDrag.startRotation + delta;
+    Render.setRotateSnap(State.isRotationSnapped(raw));
+    const rotation = State.snapRotation(raw);
     if (!State.setBoxRotation(rotateDrag.boxId, rotation)) return;
     clampZoomToRange(rotateDrag.boxId);
     Render.updatePhoto();
@@ -1549,6 +1552,7 @@
     const found = State.findBox(rotateDrag.boxId);
     const rotation = found ? found.box.rotation : 0;
     rotateDrag = null;
+    Render.setRotateSnap(false);
     try {
       rotateHandle.releasePointerCapture(event.pointerId);
     } catch {
@@ -1760,6 +1764,7 @@
     if (freeMoveDrag || freeScaleDrag || freeRotateDrag) return;
     const found = State.findFreeBox(element.dataset.freeId);
     if (!found) return;
+    Render.setRotateSnap(false);
     stopFreeGesture(event);
     if (event.target instanceof HTMLElement) {
       event.target.focus({ preventScroll: true });
@@ -1798,11 +1803,10 @@
       freeRotateDrag.moved = true;
     }
 
+    const raw = freeRotateDrag.startRotation + delta;
+    Render.setRotateSnap(State.isRotationSnapped(raw));
     if (
-      !State.setFreeRotation(
-        freeRotateDrag.freeId,
-        State.snapRotation(freeRotateDrag.startRotation + delta),
-      )
+      !State.setFreeRotation(freeRotateDrag.freeId, State.snapRotation(raw))
     ) {
       return;
     }
@@ -1816,6 +1820,7 @@
     const freeId = freeRotateDrag.freeId;
     const capture = freeRotateDrag.capture;
     freeRotateDrag = null;
+    Render.setRotateSnap(false);
     try {
       capture.releasePointerCapture(event.pointerId);
     } catch {

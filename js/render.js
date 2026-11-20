@@ -39,6 +39,9 @@ const Render = (() => {
   let announceToken = 0;
   let currentState = null;
   let currentLayout = null;
+  // Only an in-flight rotation drag shows the snap mark; idle handles keep the
+  // regular rotate mark even when the stored angle sits on a quarter turn.
+  let rotateSnapActive = false;
 
   const iconElement = (name) => {
     const image = new Image(24, 24);
@@ -50,16 +53,27 @@ const Render = (() => {
   };
 
   /**
-   * Show the quarter-turn mark while the angle sits in the magnetic snap
-   * window, so the handle matches the snap the drag is about to land on.
+   * While a rotation drag is inside the magnetic snap window the handle wears
+   * the quarter-turn mark; otherwise it keeps the regular rotate mark.
    */
-  const paintRotateMark = (handle, degrees) => {
+  const paintRotateMark = (handle) => {
     const mark = handle.querySelector('.handle-icon');
     if (!mark) return;
-    const src = State.isRotationSnapped(degrees)
-      ? ICONS.rotateSnap
-      : ICONS.rotateLeft;
+    const src = rotateSnapActive ? ICONS.rotateSnap : ICONS.rotateLeft;
     if (mark.getAttribute('src') !== src) mark.setAttribute('src', src);
+  };
+
+  /** Toggle the drag-only snap mark on every rotation handle on screen. */
+  const setRotateSnap = (active) => {
+    const next = Boolean(active);
+    if (rotateSnapActive === next) return;
+    rotateSnapActive = next;
+    if (refs.rotateHandle) paintRotateMark(refs.rotateHandle);
+    if (refs.freeLayer) {
+      refs.freeLayer
+        .querySelectorAll('.free-rotate')
+        .forEach((handle) => paintRotateMark(handle));
+    }
   };
 
   const toolButton = (action, label, iconName) => {
@@ -225,7 +239,7 @@ const Render = (() => {
     rotate.setAttribute('aria-valuetext', I18n.t('rotate.value', {
       n: Math.round(box.rotation),
     }));
-    paintRotateMark(rotate, box.rotation);
+    paintRotateMark(rotate);
   };
 
   /** Canvas-paint fill behind a transparent free-form photo. */
@@ -665,7 +679,7 @@ const Render = (() => {
       'aria-valuetext',
       I18n.t('rotate.value', { n: Math.round(box.rotation) }),
     );
-    paintRotateMark(refs.rotateHandle, box.rotation);
+    paintRotateMark(refs.rotateHandle);
 
     const rect = Layout.imageRect(
       image,
@@ -1129,5 +1143,6 @@ const Render = (() => {
     repaintFreeFrames,
     focusCanvas,
     updateFreeBox,
+    setRotateSnap,
   };
 })();

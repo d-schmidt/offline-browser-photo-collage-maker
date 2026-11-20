@@ -9,6 +9,10 @@
   --canvas-swatch: linear-gradient(90deg, #f5f2eb 50%, #dfd6c7 50%);
   --page-bg: #2b2b2b;
   --bar-bg: #1f1f1f;
+  /* Opaque equivalents of the action-bar button hover/active washes, so the
+     canvas handles can match them over photos instead of over the bar. */
+  --bar-hover: #3a3a3a;
+  --bar-active: #4c4c4c;
   --text: #f2f2f2;
   --placeholder: #d9d9d9;
   /* Empty cells paint a darker gray at 80% opacity: over the white canvas
@@ -61,11 +65,11 @@ button {
 }
 
 .icon-button:hover {
-  background: rgb(255 255 255 / 12%);
+  background: var(--bar-hover);
 }
 
 .icon-button:active {
-  background: rgb(255 255 255 / 20%);
+  background: var(--bar-active);
 }
 
 .icon-button:focus-visible {
@@ -1032,13 +1036,14 @@ button {
    cancels the canvas scale so they stay 18 px and easy to grab. */
 .zoom-handle,
 .rotate-handle {
+  --handle-bg: var(--bar-bg);
   position: absolute;
   z-index: 6;
   width: 28px;
   height: 28px;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--handle-bg);
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--handle-bg);
   box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
   pointer-events: auto;
   touch-action: none;
@@ -1083,13 +1088,14 @@ button {
    canvas scale. */
 .free-scale,
 .free-rotate {
+  --handle-bg: var(--bar-bg);
   position: absolute;
   z-index: 7;
   width: 28px;
   height: 28px;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--handle-bg);
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--handle-bg);
   box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
   pointer-events: auto;
   touch-action: none;
@@ -1136,7 +1142,7 @@ button {
   position: absolute;
   inset: 5px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--handle-bg);
   content: "";
 }
 
@@ -1144,16 +1150,18 @@ button {
 .free-scale:focus-visible,
 .free-rotate:hover,
 .free-rotate:focus-visible {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgb(30 136 229 / 35%);
-  outline: none;
+  --handle-bg: var(--bar-hover);
 }
 
-.free-scale:hover::after,
-.free-scale:focus-visible::after,
-.free-rotate:hover::after,
-.free-rotate:focus-visible::after {
-  background: #ffffff;
+.free-scale:focus-visible,
+.free-rotate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.free-scale:active,
+.free-rotate:active {
+  --handle-bg: var(--bar-active);
 }
 
 /* Invisible 40 × 40 px grab areas keep the touch target finger sized while the
@@ -1179,7 +1187,7 @@ button {
   position: absolute;
   inset: 5px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--handle-bg);
   content: "";
 }
 
@@ -1187,21 +1195,22 @@ button {
 .zoom-handle:focus-visible,
 .rotate-handle:hover,
 .rotate-handle:focus-visible {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgb(30 136 229 / 35%);
-  outline: none;
+  --handle-bg: var(--bar-hover);
 }
 
-.zoom-handle:hover::after,
-.zoom-handle:focus-visible::after,
-.rotate-handle:hover::after,
-.rotate-handle:focus-visible::after {
-  background: #ffffff;
+.zoom-handle:focus-visible,
+.rotate-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* Both photo handle pairs wear their marks on a filled accent disc instead of
-   the small dot: expand on the zoom/scale circle, rotate on the outer one.
-   Hovering flips the disc to white with a dark mark. */
+.zoom-handle:active,
+.rotate-handle:active {
+  --handle-bg: var(--bar-active);
+}
+
+/* Both handle pairs wear their marks on a disc filled with the action-bar
+   color; hovering lightens it, pressing deepens it, and the mark stays light. */
 #zoom-handle::after,
 #rotate-handle::after,
 .free-scale::after,
@@ -1220,20 +1229,8 @@ button {
   width: 24px;
   height: 24px;
   margin: auto;
-  /* The supplied marks are light gray; force pure white on the accent disc. */
-  filter: brightness(0) invert(1);
+  /* The supplied #e3e3e3 marks already match the action-bar icons. */
   pointer-events: none;
-}
-
-#zoom-handle:hover .handle-icon,
-#zoom-handle:focus-visible .handle-icon,
-#rotate-handle:hover .handle-icon,
-#rotate-handle:focus-visible .handle-icon,
-.free-scale:hover .handle-icon,
-.free-scale:focus-visible .handle-icon,
-.free-rotate:hover .handle-icon,
-.free-rotate:focus-visible .handle-icon {
-  filter: brightness(0);
 }
 
 .zoom-handle[hidden],
