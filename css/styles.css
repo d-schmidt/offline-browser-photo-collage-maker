@@ -891,7 +891,8 @@ button {
   display: block;
   padding: 0;
   border: 0;
-  background: var(--placeholder);
+  /* The same translucent gray as an empty grid cell. */
+  background: var(--placeholder-fill);
   cursor: move;
   touch-action: none;
   user-select: none;
@@ -978,7 +979,7 @@ button {
 }
 
 .free-box:hover {
-  background: #cfcfcf;
+  background: rgb(195 195 195 / 80%);
 }
 
 .free-box.has-image:hover {

@@ -2,13 +2,10 @@
 
 const Export = (() => {
   const DEFAULT_BACKGROUND = '#ffffff';
-  // Empty grid cells are 20% transparent over a darker gray: 0.8 × #cfcfcf plus
-  // 0.2 of a white fill reproduces the old #d9d9d9 exactly, so the transparency
+  // Empty grid cells and empty free-form boxes share one translucent gray: 0.8
+  // × #cfcfcf over a white canvas reads as the old #d9d9d9, so the transparency
   // only shows where the margin paint differs from white.
   const PLACEHOLDER = 'rgba(207, 207, 207, 0.8)';
-  // An empty free-form box stays opaque, so it hides the grid and photos under
-  // it the way it did before the grid cells became translucent.
-  const FREE_PLACEHOLDER = '#d9d9d9';
 
   /** The paint of an empty grid cell that was recolored through its menu. */
   const boxFillStyle = (fill) => {
@@ -104,7 +101,7 @@ const Export = (() => {
           border,
         );
       }
-      ctx.fillStyle = FREE_PLACEHOLDER;
+      ctx.fillStyle = PLACEHOLDER;
       ctx.fillRect(
         left + border,
         top + border,
