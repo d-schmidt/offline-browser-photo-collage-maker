@@ -188,6 +188,9 @@ const State = (() => {
     }
     Images.release(found.box.image);
     found.box.image = image;
+    // A new photo starts without the painted fill; the old photo's
+    // transparency is not a property of the replacement.
+    found.box.background = false;
     // Keep the box area while its ratio follows the photo, so swapping a
     // landscape for a portrait photo does not make the box jump in size. An
     // active square crop outranks the new photo's own ratio.
