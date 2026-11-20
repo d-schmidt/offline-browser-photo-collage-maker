@@ -20,7 +20,7 @@ const ICONS = Object.freeze({
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   rotateLeft: 'assets/rotate_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
-  panZoom: 'assets/pan_zoom_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  zoomOutMap: 'assets/zoom_out_map_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibility: 'assets/visibility_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibilityOff: 'assets/visibility_off_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -969,7 +969,7 @@ const Render = (() => {
     rotateMark.classList.add('handle-icon');
     refs.rotateHandle.append(rotateMark);
 
-    const zoomMark = iconElement('panZoom');
+    const zoomMark = iconElement('zoomOutMap');
     zoomMark.classList.add('handle-icon');
     refs.zoomHandle.append(zoomMark);
 
