@@ -8,6 +8,7 @@
 const FontLoader = (() => {
   const injected = new Set();
   const pending = new Map();
+  const primed = new Map();
   let faceStyle = null;
 
   const ensureStyle = () => {
@@ -36,6 +37,35 @@ const FontLoader = (() => {
     ensureStyle().append(document.createTextNode(rule));
   };
 
+  /**
+   * Pin a loaded face to the document with one off-screen glyph. A bundled face
+   * the page stops using can be evicted, and the next canvas measurement then
+   * silently falls back to the generic family. Fitting a caption with those
+   * fallback metrics makes its line wrap and overflow the box. Keeping a glyph
+   * in the family rendered keeps the real face available to the measurement.
+   */
+  const prime = (font) => {
+    if (primed.has(font.id)) return;
+    const node = document.createElement('span');
+    node.textContent = '.';
+    node.setAttribute('aria-hidden', 'true');
+    node.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: -10000px',
+      'font-size: 8px',
+      'font-weight: 700',
+      'white-space: pre',
+      'pointer-events: none',
+      'user-select: none',
+      `font-family: "${font.family}"`,
+    ].join(';');
+    (document.body || document.documentElement).append(node);
+    // Force layout so the face is used for layout, not merely declared.
+    void node.offsetWidth;
+    primed.set(font.id, node);
+  };
+
   /** Resolve once the bundled face is ready, or false if it cannot load. */
   const ensure = (font) => {
     if (!font || !font.url || !font.family) return Promise.resolve(false);
@@ -52,6 +82,7 @@ const FontLoader = (() => {
       .then((loaded) => {
         // A failed attempt stays retryable on the next selection.
         if (!loaded) pending.delete(font.id);
+        else prime(font);
         return loaded;
       });
     pending.set(font.id, promise);
