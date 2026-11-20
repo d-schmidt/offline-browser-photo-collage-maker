@@ -43,9 +43,10 @@ otherwise.
   box, or switching row/column mode removes the undo.
 - The last ten deleted or replaced photos are kept in the browser (deduplicated
   and downscaled, so they survive a reload). They appear as square thumbnails
-  in a second bar — on the left for landscape formats, along the bottom for
-  portrait and square formats. Select a box, then click a thumbnail to put that
-  photo into it; the shelf never changes the layout on its own.
+  in a second bar — on the left for a portrait format on a wide screen, and
+  along the bottom for landscape and square formats or any small screen. Select
+  a box, then click a thumbnail to put that photo into it; the shelf never
+  changes the layout on its own.
 - The canvas (1080 px on its shorter side, longer side set by the chosen
   format) scales to fit the window without changing its layout.
 - **Margin color** in the action bar opens the system color picker and recolors the canvas padding and gaps; the export uses the same color.

@@ -335,11 +335,11 @@ button {
   min-height: 0;
 }
 
-.workspace.is-landscape {
+.workspace.is-portrait {
   flex-direction: row;
 }
 
-.workspace.is-landscape .history-bar {
+.workspace.is-portrait .history-bar {
   order: -1;
 }
 
@@ -347,17 +347,17 @@ button {
   flex: none;
   width: 100%;
   height: var(--bar-h);
+  border-top: 1px solid rgb(255 255 255 / 8%);
   background: var(--bar-bg);
 }
 
-.workspace.is-landscape .history-bar {
+/* Only a portrait canvas moves the shelf to the left; landscape and square
+   canvases keep it along the bottom. Narrow screens override this below. */
+.workspace.is-portrait .history-bar {
   width: var(--bar-h);
   height: auto;
+  border-top: 0;
   border-right: 1px solid rgb(255 255 255 / 8%);
-}
-
-.workspace.is-portrait .history-bar {
-  border-top: 1px solid rgb(255 255 255 / 8%);
 }
 
 .history-bar[hidden] {
@@ -380,7 +380,7 @@ button {
   display: none;
 }
 
-.workspace.is-landscape .history-list {
+.workspace.is-portrait .history-list {
   flex-direction: column;
 }
 
@@ -526,6 +526,23 @@ button {
   .format-button .icon {
     width: 32px;
     height: 32px;
+  }
+
+  /* Small screens keep the shelf along the bottom, even for a portrait canvas. */
+  .workspace.is-portrait {
+    flex-direction: column;
+  }
+
+  .workspace.is-portrait .history-bar {
+    order: 0;
+    width: 100%;
+    height: var(--bar-h);
+    border-top: 1px solid rgb(255 255 255 / 8%);
+    border-right: 0;
+  }
+
+  .workspace.is-portrait .history-list {
+    flex-direction: row;
   }
 }
 

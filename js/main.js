@@ -986,11 +986,13 @@
     stage.hidden = false;
     actionBar.hidden = false;
 
-    // Landscape formats keep the deleted-photo shelf on the left; portrait and
-    // square formats put it along the bottom.
+    // A portrait canvas puts the deleted-photo shelf on the left; landscape
+    // and square canvases keep it along the bottom. Small screens always use
+    // the bottom, which CSS handles.
     const landscape = format.canvasW > format.canvasH;
+    const portrait = format.canvasH > format.canvasW;
     workspace.classList.toggle('is-landscape', landscape);
-    workspace.classList.toggle('is-portrait', !landscape);
+    workspace.classList.toggle('is-portrait', portrait);
     syncHistoryBar();
 
     refresh();
