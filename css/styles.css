@@ -372,7 +372,12 @@ button {
   height: 100%;
   padding: 8px;
   overflow: auto;
-  scrollbar-width: thin;
+  /* The shelf still scrolls, but the scrollbar itself stays hidden. */
+  scrollbar-width: none;
+}
+
+.history-list::-webkit-scrollbar {
+  display: none;
 }
 
 .workspace.is-landscape .history-list {
