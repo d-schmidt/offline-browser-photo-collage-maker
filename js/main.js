@@ -402,12 +402,15 @@
         widest = Math.max(widest, context.measureText(line || ' ').width);
       }
     }
-    const padding = size * Layout.textPadding;
+    const paddingX = size * Layout.textPaddingX;
+    const paddingY = size * Layout.textPaddingY;
     return {
       // A pixel of slack keeps a measured line from wrapping in the DOM.
-      width: widest + 2 * padding + 2 * border + 1,
+      width: widest + 2 * paddingX + 2 * border + 1,
       height:
-        lines.length * size * Layout.textLineHeight + 2 * padding + 2 * border,
+        lines.length * size * Layout.textLineHeight +
+        2 * paddingY +
+        2 * border,
     };
   };
 

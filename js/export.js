@@ -120,8 +120,12 @@ const Export = (() => {
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
 
-    const padding = size * Layout.textPadding;
-    const lines = wrapText(ctx, box.text, Math.max(0, innerW - 2 * padding));
+    const paddingX = size * Layout.textPaddingX;
+    const lines = wrapText(
+      ctx,
+      box.text,
+      Math.max(0, innerW - 2 * paddingX),
+    );
     const lineHeight = size * Layout.textLineHeight;
     const centerX = left + border + innerW / 2;
     const centerY = top + border + innerH / 2;

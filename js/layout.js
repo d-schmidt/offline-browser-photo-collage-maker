@@ -51,10 +51,11 @@ const METRICS = Object.freeze({
 });
 
 // Text layout shared by the editor CSS, the fit measurement, and the export:
-// every line is 1.25 em tall and the words sit in 0.35 em of padding, so a
-// text box can be sized to the measured words exactly.
-const TEXT_LINE_HEIGHT = 1.25;
-const TEXT_PADDING = 0.35;
+// the words sit in 0.28 em side padding and 0.12 em top/bottom padding with a
+// 1.2 line height, so a fitted box stays snug around its lines.
+const TEXT_LINE_HEIGHT = 1.2;
+const TEXT_PADDING_X = 0.28;
+const TEXT_PADDING_Y = 0.12;
 // The outline is a centred text stroke with the fill painted over it, so half
 // of this width stays visible outside the glyph: 10% of the type size reads as
 // a clear halo (~2.4 px at the 48 px default) instead of a hairline.
@@ -622,14 +623,17 @@ const Layout = (() => {
   /**
    * Font size for a free-form text box. The size is derived from the box
    * height and the number of explicit lines, so a fitted box hugs its words:
-   * the text block plus the 0.35 em padding fills the inner height exactly.
-   * Scaling the box therefore scales the words with it.
+   * the line boxes plus the 0.12 em top/bottom padding fill the inner height
+   * exactly. Scaling the box therefore scales the words with it.
    */
   const freeTextSize = (box) => {
     const border = freeBorder(box);
     const innerH = Math.max(0, box.width / (box.aspect || 1) - 2 * border);
     const lines = Math.max(1, String(box.text || '').split('\n').length);
-    return Math.max(1, innerH / (lines * TEXT_LINE_HEIGHT + 2 * TEXT_PADDING));
+    return Math.max(
+      1,
+      innerH / (lines * TEXT_LINE_HEIGHT + 2 * TEXT_PADDING_Y),
+    );
   };
 
   /**
@@ -662,7 +666,8 @@ const Layout = (() => {
     textFontStack,
     textFonts: TEXT_FONTS,
     textLineHeight: TEXT_LINE_HEIGHT,
-    textPadding: TEXT_PADDING,
+    textPaddingX: TEXT_PADDING_X,
+    textPaddingY: TEXT_PADDING_Y,
     imageRect,
     zoomRange,
     maxZoom,
