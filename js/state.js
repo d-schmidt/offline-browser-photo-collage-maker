@@ -94,12 +94,10 @@ const State = (() => {
   const freeMaxWidth = () =>
     Math.max(Layout.canvasW, Layout.canvasH) * 3;
 
-  // The visible frame per side around a free-form photo: two margins, matching
-  // the gap between two grid photos.
+  // The visible frame per side around a free-form box: two margins, matching
+  // the gap between two grid photos. It frames an empty cell as well.
   const freeFrame = (box) =>
-    box.border !== false && box.image && borderThickness > 0
-      ? 2 * borderThickness
-      : 0;
+    box.border !== false && borderThickness > 0 ? 2 * borderThickness : 0;
 
   /**
    * Width limit for a free-form box. The 40 px photo minimum applies to both

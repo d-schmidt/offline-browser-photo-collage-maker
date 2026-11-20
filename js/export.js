@@ -58,6 +58,28 @@ const Export = (() => {
   };
 
   /**
+   * Ring of canvas paint around a free-form box, drawn in its rotated space and
+   * then canvas-aligned. The sampled color fills the part over the canvas edge.
+   */
+  const drawFreeFrame = (ctx, paint, frameColor, rect, border) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.left, rect.top, rect.width, rect.height);
+    ctx.rect(
+      rect.left + border,
+      rect.top + border,
+      rect.width - 2 * border,
+      rect.height - 2 * border,
+    );
+    ctx.clip('evenodd');
+    ctx.fillStyle = frameColor;
+    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(paint, 0, 0);
+    ctx.restore();
+  };
+
+  /**
    * Draw one free-form box. Its optional frame is a ring cut through the canvas
    * paint, the photo is cover-cropped to the inner area, and the whole box
    * rotates around its centre. The export canvas clips any overhang.
@@ -72,30 +94,34 @@ const Export = (() => {
     ctx.translate(box.x, box.y);
     ctx.rotate(((box.rotation || 0) * Math.PI) / 180);
     if (!image) {
+      // An empty box is framed like a photo, with the placeholder inside it.
+      if (border > 0) {
+        drawFreeFrame(
+          ctx,
+          paint,
+          frameColor,
+          { left, top, width, height },
+          border,
+        );
+      }
       ctx.fillStyle = FREE_PLACEHOLDER;
-      ctx.fillRect(left, top, width, height);
-      ctx.restore();
-      return;
-    }
-    if (border > 0) {
-      // Cut a ring in the box's rotated space, then draw the canvas paint with
-      // the rotation removed so the frame stays aligned with the background.
-      // The sampled color fills the part over the canvas edge.
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(left, top, width, height);
-      ctx.rect(
+      ctx.fillRect(
         left + border,
         top + border,
         width - 2 * border,
         height - 2 * border,
       );
-      ctx.clip('evenodd');
-      ctx.fillStyle = frameColor;
-      ctx.fillRect(left, top, width, height);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.drawImage(paint, 0, 0);
       ctx.restore();
+      return;
+    }
+    if (border > 0) {
+      drawFreeFrame(
+        ctx,
+        paint,
+        frameColor,
+        { left, top, width, height },
+        border,
+      );
     }
     const innerW = width - 2 * border;
     const innerH = height - 2 * border;

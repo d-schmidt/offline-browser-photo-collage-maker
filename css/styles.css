@@ -872,7 +872,8 @@ button {
   background: none;
 }
 
-.free-ghost.has-image.has-border .free-ghost-body {
+.free-ghost.has-image.has-border .free-ghost-body,
+.free-ghost.has-border .free-ghost-body {
   border: var(--free-border, 0px) solid var(--free-frame, var(--canvas-bg));
 }
 
@@ -904,9 +905,13 @@ button {
 
 /* The optional free-form frame is a border band, not a filled box, so a
    transparent photo shows the grid or canvas paint underneath while the frame
-   keeps the canvas paint. */
+   keeps the canvas paint. An empty cell is framed the same way. */
+.free-box.has-border,
 .free-box.has-image.has-border {
   border: var(--free-border, 0px) solid var(--free-frame, var(--canvas-bg));
+}
+
+.free-box.has-image.has-border {
   background: none;
 }
 
@@ -942,8 +947,8 @@ button {
 }
 
 @supports ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
-  .free-box.has-image.has-border,
-  .free-ghost.has-image.has-border .free-ghost-body {
+  .free-box.has-border,
+  .free-ghost.has-border .free-ghost-body {
     border-color: transparent;
   }
 

@@ -532,7 +532,7 @@ const Layout = (() => {
    * so the frame width is never squeezed.
    */
   const freeBorder = (box) => {
-    if (box.border === false || !box.image || thickness <= 0) return 0;
+    if (box.border === false || thickness <= 0) return 0;
     return 2 * thickness;
   };
 
