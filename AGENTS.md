@@ -365,7 +365,7 @@ Defaults chosen for v1 — change them here before implementation if wrong:
 1. **Drag semantics:** reorder by weight, not free placement. Free positioning would conflict with the flex-flow requirement.
 2. **Canvas size:** 1080 px on the shorter side, longer side from the chosen format (9:16, 16:9, 7:9, 5:4, or 1:1), matching the export target.
 3. **Resize axes:** in row mode, boxes resize horizontally and rows vertically; column mode swaps those axes. The mode toggle owns the choice, so there are no per-box vertical handles.
-4. **Persistence and undo/redo:** full collage persistence and general undo/redo are still planned. The deleted-photo shelf and its one-step delete undo are part of v1; the weight-based state keeps broader persistence cheap to add later.
+4. **Persistence and undo/redo:** JSON project files are the explicit persistence mechanism for now; automatic browser persistence and general undo/redo are still planned. The deleted-photo shelf and its one-step delete undo are part of v1; the weight-based state keeps broader persistence cheap to add later.
 
 ## Git
 
