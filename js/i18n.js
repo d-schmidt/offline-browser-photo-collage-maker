@@ -143,7 +143,7 @@ const I18n = (() => {
       'box.alt': 'Photo {n}',
 
       'free.add': 'Add free-form photo box',
-      'free.layer': 'Free-form photos',
+      'free.layer': 'Free-form layer',
       'free.label': 'Free-form photo box {n}',
       'free.labelEmpty': 'Empty free-form photo box {n}',
       'free.scale': 'Free-form box scale',
@@ -152,9 +152,32 @@ const I18n = (() => {
       'free.rotateTitle': 'Drag to rotate the free-form box',
       'free.size': '{n} pixels',
 
+      'text.add': 'Add free-form text box',
+      'textBox.label': 'Text box {n}',
+      'textBox.labelEmpty': 'Empty text box {n}',
+      'text.dialogTitle': 'Edit text',
+      'text.input': 'Text',
+      'text.placeholder': 'Type your text',
+      'text.cancel': 'Cancel',
+      'text.save': 'Save',
+
       'action.delete': 'Delete box',
       'action.removePhoto': 'Remove photo',
+      'action.removeText': 'Remove text',
+      'action.editText': 'Edit text',
       'action.selectImage': 'Select image',
+      'action.font': 'Change font',
+      'action.textColor': 'Change text colors',
+      'action.textBorder': 'Text border',
+      'action.textBackground': 'Text background',
+      'font.menu': 'Font',
+      'font.sans': 'Sans serif',
+      'font.serif': 'Serif',
+      'textColor.title': 'Text colors',
+      'textColor.text': 'Text color',
+      'textColor.outline': 'Outline color',
+      'textColor.colorInput': 'Text color',
+      'textColor.outlineInput': 'Outline color',
       'action.lockSquare': 'Lock square box',
       'action.lockAspect': 'Lock image aspect ratio',
       'action.visibility': 'Box visibility',
@@ -228,6 +251,18 @@ const I18n = (() => {
         'Background fill shown on free-form photo box {n}.',
       'announce.freeBackgroundOff':
         'Background fill hidden on free-form photo box {n}.',
+      'announce.textAdded': 'Text box added and selected.',
+      'announce.textUpdated': 'Text saved in text box {n}.',
+      'announce.textRemoved': 'Text removed from text box {n}.',
+      'announce.textDeleted': 'Text box {n} deleted.',
+      'announce.textUndone': 'Text box {n} restored.',
+      'announce.font': 'Font set to {font}.',
+      'announce.textColor': 'Text color {color}.',
+      'announce.outlineColor': 'Outline color {color}.',
+      'announce.textBorderOn': 'Border shown on text box {n}.',
+      'announce.textBorderOff': 'Border hidden on text box {n}.',
+      'announce.textBackgroundOn': 'Background shown on text box {n}.',
+      'announce.textBackgroundOff': 'Background hidden on text box {n}.',
       'layout.rowOne': 'Row layout. 1 row.',
       'layout.rows': 'Row layout. {count} rows.',
       'layout.columnOne': 'Column layout. 1 column.',
@@ -377,7 +412,7 @@ const I18n = (() => {
       'box.alt': 'Foto {n}',
 
       'free.add': 'Freies Bildfeld hinzufügen',
-      'free.layer': 'Freie Fotos',
+      'free.layer': 'Freie Ebene',
       'free.label': 'Freies Bildfeld {n}',
       'free.labelEmpty': 'Leeres freies Bildfeld {n}',
       'free.scale': 'Größe des freien Bildfelds',
@@ -386,9 +421,32 @@ const I18n = (() => {
       'free.rotateTitle': 'Ziehen, um das freie Bildfeld zu drehen',
       'free.size': '{n} Pixel',
 
+      'text.add': 'Freies Textfeld hinzufügen',
+      'textBox.label': 'Textfeld {n}',
+      'textBox.labelEmpty': 'Leeres Textfeld {n}',
+      'text.dialogTitle': 'Text bearbeiten',
+      'text.input': 'Text',
+      'text.placeholder': 'Text eingeben',
+      'text.cancel': 'Abbrechen',
+      'text.save': 'Speichern',
+
       'action.delete': 'Bildfeld löschen',
       'action.removePhoto': 'Foto entfernen',
+      'action.removeText': 'Text entfernen',
+      'action.editText': 'Text bearbeiten',
       'action.selectImage': 'Bild auswählen',
+      'action.font': 'Schriftart ändern',
+      'action.textColor': 'Textfarben ändern',
+      'action.textBorder': 'Textrahmen',
+      'action.textBackground': 'Texthintergrund',
+      'font.menu': 'Schriftart',
+      'font.sans': 'Serifenlos',
+      'font.serif': 'Serifen',
+      'textColor.title': 'Textfarben',
+      'textColor.text': 'Textfarbe',
+      'textColor.outline': 'Konturfarbe',
+      'textColor.colorInput': 'Textfarbe',
+      'textColor.outlineInput': 'Konturfarbe',
       'action.lockSquare': 'Quadrat sperren',
       'action.lockAspect': 'Seitenverhältnis sperren',
       'action.visibility': 'Sichtbarkeit des Bildfelds',
@@ -463,6 +521,20 @@ const I18n = (() => {
         'Hintergrund für freies Bildfeld {n} eingeblendet.',
       'announce.freeBackgroundOff':
         'Hintergrund für freies Bildfeld {n} ausgeblendet.',
+      'announce.textAdded': 'Textfeld hinzugefügt und ausgewählt.',
+      'announce.textUpdated': 'Text in Textfeld {n} gespeichert.',
+      'announce.textRemoved': 'Text aus Textfeld {n} entfernt.',
+      'announce.textDeleted': 'Textfeld {n} gelöscht.',
+      'announce.textUndone': 'Textfeld {n} wiederhergestellt.',
+      'announce.font': 'Schriftart auf {font} gesetzt.',
+      'announce.textColor': 'Textfarbe {color}.',
+      'announce.outlineColor': 'Konturfarbe {color}.',
+      'announce.textBorderOn': 'Rahmen für Textfeld {n} eingeblendet.',
+      'announce.textBorderOff': 'Rahmen für Textfeld {n} ausgeblendet.',
+      'announce.textBackgroundOn':
+        'Hintergrund für Textfeld {n} eingeblendet.',
+      'announce.textBackgroundOff':
+        'Hintergrund für Textfeld {n} ausgeblendet.',
       'layout.rowOne': 'Zeilenlayout. 1 Zeile.',
       'layout.rows': 'Zeilenlayout. {count} Zeilen.',
       'layout.columnOne': 'Spaltenlayout. 1 Spalte.',
@@ -520,6 +592,9 @@ const I18n = (() => {
     });
     root.querySelectorAll('[data-i18n-title]').forEach((element) => {
       element.title = t(element.dataset.i18nTitle);
+    });
+    root.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
+      element.placeholder = t(element.dataset.i18nPlaceholder);
     });
   };
 

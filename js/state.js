@@ -91,6 +91,11 @@ const State = (() => {
   const FREE_MIN_WIDTH = 40;
   const FREE_SIZE_SHARE = 0.32;
 
+  // The last font, text color, and outline color the user picked, reused by
+  // every new text box so a series of captions stays consistent.
+  const TEXT_FONTS = new Set(['sans', 'serif']);
+  let textDefaults = { font: 'sans', color: '#ffffff', outline: '#000000' };
+
   const freeMaxWidth = () =>
     Math.max(Layout.canvasW, Layout.canvasH) * 3;
 
@@ -110,12 +115,14 @@ const State = (() => {
     return Math.min(freeMaxWidth(), Math.max(minimum, width));
   };
 
-  const createFreeBox = () => {
+  const createFreeBox = (kind = 'photo') => {
     const size = Math.round(
       Math.min(Layout.canvasW, Layout.canvasH) * FREE_SIZE_SHARE,
     );
+    const text = kind === 'text';
     const box = {
-      id: uid('free'),
+      id: uid(text ? 'text' : 'free'),
+      kind: text ? 'text' : 'photo',
       // Stored as the centre so rotation and scaling stay around the middle.
       x: Layout.canvasW / 2,
       y: Layout.canvasH / 2,
@@ -125,14 +132,20 @@ const State = (() => {
       rotation: 0,
       // Set by the square crop action: keep 1:1 instead of the photo ratio.
       square: false,
-      // Free-form photos keep the usual margin frame unless it is switched off.
-      border: true,
-      // Fill the box with the canvas paint instead of showing the grid through
-      // a transparent photo. Off until the action is used.
-      background: false,
+      // Photos keep the usual margin frame unless it is switched off; a text
+      // box starts without one so the words sit directly on their backdrop.
+      border: !text,
+      // Photos can fill the canvas paint behind transparency. For a text box
+      // the same flag shows or hides the gray backdrop behind the words.
+      background: text,
       // Empty-cell color and opacity; null keeps the shared placeholder values.
       fill: null,
       image: null,
+      // Text content and its last-used styling.
+      text: '',
+      font: text ? textDefaults.font : 'sans',
+      color: text ? textDefaults.color : '#ffffff',
+      outline: text ? textDefaults.outline : '#000000',
     };
     box.width = clampFreeWidth(box, box.width);
     return box;
@@ -162,9 +175,66 @@ const State = (() => {
 
   /** Add an empty square free-form box at the canvas centre. */
   const addFreeBox = () => {
-    const box = createFreeBox();
+    const box = createFreeBox('photo');
     freeBoxes.push(box);
     return box;
+  };
+
+  /** Add an empty square text box at the canvas centre. */
+  const addTextBox = () => {
+    const box = createFreeBox('text');
+    freeBoxes.push(box);
+    return box;
+  };
+
+  const isTextBox = (box) => Boolean(box) && box.kind === 'text';
+
+  /**
+   * Save the text of a text box. The first text on a box that still shows the
+   * untouched default gray drops that backdrop, so the words sit on the canvas
+   * paint instead of a placeholder block. Clearing the text brings the gray
+   * drop target back.
+   */
+  const setFreeText = (freeId, text) => {
+    const found = findFreeBox(freeId);
+    if (!found || !isTextBox(found.box)) return false;
+    const value = typeof text === 'string' ? text : '';
+    const hadText = Boolean(found.box.text);
+    found.box.text = value;
+
+    if (!value) {
+      if (!found.box.fill) found.box.background = true;
+      return true;
+    }
+    if (!hadText && !found.box.fill) found.box.background = false;
+    return true;
+  };
+
+  /** Text font, reused for the next new text box. */
+  const setFreeFont = (freeId, font) => {
+    const found = findFreeBox(freeId);
+    if (!found || !isTextBox(found.box) || !TEXT_FONTS.has(font)) return false;
+    found.box.font = font;
+    textDefaults = { ...textDefaults, font };
+    return true;
+  };
+
+  /** Text fill color, reused for the next new text box. */
+  const setFreeTextColor = (freeId, color) => {
+    const found = findFreeBox(freeId);
+    if (!found || !isTextBox(found.box) || !isHexColor(color)) return false;
+    found.box.color = color.toLowerCase();
+    textDefaults = { ...textDefaults, color: found.box.color };
+    return true;
+  };
+
+  /** 1 px outline color, reused for the next new text box. */
+  const setFreeTextOutline = (freeId, color) => {
+    const found = findFreeBox(freeId);
+    if (!found || !isTextBox(found.box) || !isHexColor(color)) return false;
+    found.box.outline = color.toLowerCase();
+    textDefaults = { ...textDefaults, outline: found.box.outline };
+    return true;
   };
 
   const removeFreeBox = (freeId) => {
@@ -187,7 +257,8 @@ const State = (() => {
 
   const setFreeImage = (freeId, image) => {
     const found = findFreeBox(freeId);
-    if (!found) {
+    // Only a photo box carries an image; a text box keeps its words instead.
+    if (!found || isTextBox(found.box)) {
       Images.release(image);
       return false;
     }
@@ -266,8 +337,8 @@ const State = (() => {
   };
 
   /**
-   * Fill a free-form box with the canvas paint behind its photo, so a
-   * transparent image shows the background instead of the grid underneath.
+   * Fill a photo box with the canvas paint behind its photo, or show/hide the
+   * gray backdrop behind a text box's words.
    */
   const setFreeBackground = (freeId, background) => {
     const found = findFreeBox(freeId);
@@ -940,10 +1011,15 @@ const State = (() => {
     orderedBoxes,
     findFreeBox,
     addFreeBox,
+    addTextBox,
     removeFreeBox,
     restoreFreeBox,
     setFreeImage,
     clearFreeImage,
+    setFreeText,
+    setFreeFont,
+    setFreeTextColor,
+    setFreeTextOutline,
     setFreeSquare,
     setFreePosition,
     setFreeScale,
@@ -954,5 +1030,8 @@ const State = (() => {
     snapRotation,
     isRotationSnapped,
     freeHeight,
+    get textDefaults() {
+      return textDefaults;
+    },
   };
 })();

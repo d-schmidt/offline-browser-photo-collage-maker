@@ -8,6 +8,9 @@ const ICONS = Object.freeze({
   background: 'assets/background_replace_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  editNote: 'assets/edit_note_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  brandFamily:
+    'assets/brand_family_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   colorFill: 'assets/format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   colors: 'assets/colors_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   gradient: 'assets/gradient_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -224,6 +227,12 @@ const Render = (() => {
     element
       .querySelectorAll('.free-bg-paint')
       .forEach((paint) => alignPaint(paint, border));
+    if (box.kind === 'text') {
+      element.style.setProperty(
+        '--free-text-size',
+        `${Layout.freeTextSize(box)}px`,
+      );
+    }
   };
 
   const paintFreeHandleValues = (scale, rotate, box) => {
@@ -252,9 +261,28 @@ const Render = (() => {
     return fill;
   };
 
-  /** Fill a free-form box (or its ghost copy) with its photo or placeholder. */
-  const freeContent = (box, container) => {
-    if (box.background) container.append(buildFreeBackground());
+  /** Centred, 1 px outlined text lines inside a free-form text box. */
+  const buildFreeText = (box) => {
+    const text = document.createElement('div');
+    text.className = 'free-text';
+    text.textContent = box.text;
+    text.style.color = box.color;
+    text.style.fontFamily = box.font === 'serif' ? 'serif' : 'sans-serif';
+    text.style.webkitTextStroke = `1px ${box.outline}`;
+    return text;
+  };
+
+  /** Fill a free-form box (or its ghost copy) with its content or placeholder. */
+  const freeContent = (box, container, ghost = false) => {
+    const isText = box.kind === 'text';
+    if (isText) {
+      // A text box's background flag shows or hides the gray backdrop; a photo
+      // box uses the same flag for the canvas paint behind transparency. The
+      // ghost only previews the text, so it never re-tints the backdrop.
+      if (ghost || box.background === false) container.style.background = 'none';
+    } else if (box.background) {
+      container.append(buildFreeBackground());
+    }
     if (box.image) {
       const image = document.createElement('img');
       image.className = 'free-box-image';
@@ -264,11 +292,15 @@ const Render = (() => {
       container.append(image);
       return;
     }
+    if (isText && box.text) {
+      container.append(buildFreeText(box));
+      return;
+    }
     // A recolored empty cell hides the add-photo hint just like a grid cell.
     if (box.fill) return;
     const placeholder = new Image(64, 64);
     placeholder.className = 'box-placeholder';
-    placeholder.src = ICONS.addPhoto;
+    placeholder.src = isText ? ICONS.editNote : ICONS.addPhoto;
     placeholder.alt = '';
     placeholder.draggable = false;
     placeholder.setAttribute('aria-hidden', 'true');
@@ -333,14 +365,20 @@ const Render = (() => {
     element.setAttribute('aria-pressed', String(selected));
 
     const hasImage = Boolean(box.image);
+    const isText = box.kind === 'text';
     element.classList.toggle('has-image', hasImage);
-    // A recolored empty free-form box paints its own color and opacity.
-    if (!hasImage && box.fill) {
+    element.classList.toggle('has-text', isText && Boolean(box.text));
+    element.classList.toggle('is-text-box', isText);
+    // A recolored empty free-form box paints its own color and opacity. Text
+    // boxes use the background flag instead and never take the cell fill.
+    if (!hasImage && !isText && box.fill) {
       element.style.backgroundColor = emptyFillColor(box.fill);
     }
-    const label = hasImage
-      ? I18n.t('free.label', { n: number })
-      : I18n.t('free.labelEmpty', { n: number });
+    const label = isText
+      ? I18n.t(box.text ? 'textBox.label' : 'textBox.labelEmpty', { n: number })
+      : hasImage
+        ? I18n.t('free.label', { n: number })
+        : I18n.t('free.labelEmpty', { n: number });
     element.setAttribute('aria-label', label);
     element.title = label;
     freeContent(box, element);
@@ -367,7 +405,7 @@ const Render = (() => {
 
     const body = document.createElement('div');
     body.className = 'free-ghost-body';
-    freeContent(box, body);
+    freeContent(box, body, true);
     if (Layout.freeBorder(box) > 0) body.append(buildFreeFrame());
 
     ghost.append(body);
@@ -379,9 +417,13 @@ const Render = (() => {
 
   const paintFree = (state) => {
     const fragment = document.createDocumentFragment();
-    state.freeBoxes.forEach((box, index) => {
+    let photoNumber = 0;
+    let textNumber = 0;
+    state.freeBoxes.forEach((box) => {
       const selected = box.id === state.selectedFreeId;
-      fragment.append(buildFreeBox(box, index + 1, selected));
+      const number =
+        box.kind === 'text' ? (textNumber += 1) : (photoNumber += 1);
+      fragment.append(buildFreeBox(box, number, selected));
       if (selected) fragment.append(buildFreeControls(box));
     });
     refs.freeLayer.replaceChildren(fragment);
@@ -431,48 +473,41 @@ const Render = (() => {
     if (scale && rotate) paintFreeHandleValues(scale, rotate, box);
   };
 
-  const focusFreeBox = (freeId) => {
-    const element = refs.freeLayer.querySelector(
-      `.free-box[data-free-id="${freeId}"]`,
-    );
-    if (element) element.focus({ preventScroll: true });
-  };
-
-  /** Re-sample the free-form frame colors after the margin paint changes. */
-  const repaintFreeFrames = () => {
-    if (!currentState) return;
-    currentState.freeBoxes.forEach((box) => {
-      refs.freeLayer
-        .querySelectorAll(
-          `.free-box[data-free-id="${box.id}"], .free-ghost[data-free-id="${box.id}"]`,
-        )
-        .forEach((element) => applyFreeStyles(element, box));
-    });
-  };
-
   /**
-   * The empty-cell color menu only exists for an empty grid box. Hiding it, or
-   * moving the selection to another box, also closes the popover so its values
-   * never belong to the previous cell.
+   * The text styling menus only exist while a text box is selected. Moving to
+   * another box closes them so their values never describe the previous box.
    */
-  const showFillControls = (available, boxId = null) => {
-    refs.fillWrap.hidden = !available;
-    const sameBox = available && boxId === refs.fillBoxId;
-    refs.fillBoxId = available ? boxId : null;
+  const showTextControls = (available, boxId = null) => {
+    refs.fontWrap.hidden = !available;
+    refs.textColorWrap.hidden = !available;
+    const sameBox = available && boxId === refs.textBoxId;
+    refs.textBoxId = available ? boxId : null;
     if (sameBox) return;
-    refs.fillMenu.hidden = true;
-    refs.fillButton.setAttribute('aria-expanded', 'false');
+    refs.fontMenu.hidden = true;
+    refs.fontButton.setAttribute('aria-expanded', 'false');
+    refs.textColorMenu.hidden = true;
+    refs.textColorButton.setAttribute('aria-expanded', 'false');
   };
 
   /**
-   * Rebuild the tool row while keeping the persistent fill menu in place: the
-   * menu wrapper stays a child of the row, so repainting never closes it.
+   * Rebuild the tool row while keeping the persistent menu wrappers in place:
+   * the text styling wrappers follow the dynamic actions and the fill menu
+   * stays last, so repainting never closes an open popover.
    */
-  const setActionTools = (nodes) => {
+  const setActionTools = (leading, trailing = []) => {
     Array.from(refs.selectionActions.children).forEach((child) => {
-      if (child !== refs.fillWrap) child.remove();
+      if (
+        child !== refs.fillWrap &&
+        child !== refs.fontWrap &&
+        child !== refs.textColorWrap
+      ) {
+        child.remove();
+      }
     });
-    for (const node of nodes) {
+    for (const node of leading) {
+      refs.selectionActions.insertBefore(node, refs.fontWrap);
+    }
+    for (const node of trailing) {
       refs.selectionActions.insertBefore(node, refs.fillWrap);
     }
   };
@@ -485,14 +520,68 @@ const Render = (() => {
       : state.selectedBoxId
         ? state.findBox(state.selectedBoxId)
         : null;
+    const selectedFree =
+      selectedFill && state.selectedFreeId ? selectedFill : null;
+    const isTextSelected = Boolean(
+      selectedFree && selectedFree.box.kind === 'text',
+    );
+    // Text boxes keep the background flag and its own toggle instead of the
+    // empty-cell color menu, so only photos and grid cells get that menu.
     const fillBox =
-      selectedFill && !selectedFill.box.image ? selectedFill.box : null;
+      selectedFill &&
+      !selectedFill.box.image &&
+      selectedFill.box.kind !== 'text'
+        ? selectedFill.box
+        : null;
     showFillControls(Boolean(fillBox), fillBox ? fillBox.id : null);
-    if (!state.selectedBoxId && !state.selectedFreeId) setActionTools([]);
+    showTextControls(
+      isTextSelected,
+      isTextSelected ? selectedFree.box.id : null,
+    );
+    if (!state.selectedBoxId && !state.selectedFreeId) {
+      setActionTools([]);
+      return;
+    }
     if (state.selectedFreeId) {
       const found = state.findFreeBox(state.selectedFreeId);
       if (!found) return;
       const hasImage = Boolean(found.box.image);
+
+      if (found.box.kind === 'text') {
+        const hasText = Boolean(found.box.text);
+        const borderOn = found.box.border !== false;
+        const backgroundOn = found.box.background !== false;
+
+        const border = toolButton(
+          'free-border',
+          I18n.t('action.textBorder'),
+          'borderStyle',
+        );
+        border.setAttribute('aria-pressed', String(borderOn));
+        border.classList.toggle('is-active', borderOn);
+
+        const background = toolButton(
+          'free-background',
+          I18n.t('action.textBackground'),
+          'background',
+        );
+        background.setAttribute('aria-pressed', String(backgroundOn));
+        background.classList.toggle('is-active', backgroundOn);
+
+        setActionTools(
+          [
+            toolButton(
+              'delete-box',
+              I18n.t(hasText ? 'action.removeText' : 'action.delete'),
+              'delete',
+            ),
+            toolButton('edit-text', I18n.t('action.editText'), 'editNote'),
+            actionSeparator(),
+          ],
+          [border, background],
+        );
+        return;
+      }
 
       const borderOn = found.box.border !== false;
       const border = toolButton(
@@ -618,6 +707,39 @@ const Render = (() => {
       actionSeparator(),
       ...framing,
     ]);
+  };
+
+  const focusFreeBox = (freeId) => {
+    const element = refs.freeLayer.querySelector(
+      `.free-box[data-free-id="${freeId}"]`,
+    );
+    if (element) element.focus({ preventScroll: true });
+  };
+
+  /** Re-sample the free-form frame colors after the margin paint changes. */
+  const repaintFreeFrames = () => {
+    if (!currentState) return;
+    currentState.freeBoxes.forEach((box) => {
+      refs.freeLayer
+        .querySelectorAll(
+          `.free-box[data-free-id="${box.id}"], .free-ghost[data-free-id="${box.id}"]`,
+        )
+        .forEach((element) => applyFreeStyles(element, box));
+    });
+  };
+
+  /**
+   * The empty-cell color menu only exists for an empty grid box or photo box.
+   * Hiding it, or moving the selection to another box, also closes the popover
+   * so its values never belong to the previous cell.
+   */
+  const showFillControls = (available, boxId = null) => {
+    refs.fillWrap.hidden = !available;
+    const sameBox = available && boxId === refs.fillBoxId;
+    refs.fillBoxId = available ? boxId : null;
+    if (sameBox) return;
+    refs.fillMenu.hidden = true;
+    refs.fillButton.setAttribute('aria-expanded', 'false');
   };
 
   const selectedPhotoTarget = () => {
@@ -1014,6 +1136,12 @@ const Render = (() => {
     refs.fillWrap = document.getElementById('fill-menu-wrap');
     refs.fillMenu = document.getElementById('fill-menu');
     refs.fillButton = document.getElementById('fill-button');
+    refs.fontWrap = document.getElementById('font-menu-wrap');
+    refs.fontMenu = document.getElementById('font-menu');
+    refs.fontButton = document.getElementById('font-button');
+    refs.textColorWrap = document.getElementById('text-color-menu-wrap');
+    refs.textColorMenu = document.getElementById('text-color-menu');
+    refs.textColorButton = document.getElementById('text-color-button');
 
     // Both photo handles wear their marks on the accent disc.
     const rotateMark = iconElement('rotateLeft');

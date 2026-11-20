@@ -174,13 +174,15 @@ button {
 .save-menu-wrap,
 .border-menu-wrap,
 .color-menu-wrap,
-.fill-menu-wrap {
+.fill-menu-wrap,
+.text-menu-wrap {
   position: relative;
   display: flex;
   flex: none;
 }
 
-.fill-menu-wrap[hidden] {
+.fill-menu-wrap[hidden],
+.text-menu-wrap[hidden] {
   display: none;
 }
 
@@ -191,7 +193,8 @@ button {
 .color-menu,
 .gradient-style-menu,
 .gradient-menu,
-.fill-menu {
+.fill-menu,
+.text-menu {
   position: absolute;
   top: calc(100% + 12px);
   right: 0;
@@ -203,7 +206,8 @@ button {
 }
 
 .save-menu,
-.color-menu {
+.color-menu,
+.text-menu {
   min-width: 148px;
   padding: 4px;
 }
@@ -244,7 +248,8 @@ button {
 .color-menu[hidden],
 .gradient-style-menu[hidden],
 .gradient-menu[hidden],
-.fill-menu[hidden] {
+.fill-menu[hidden],
+.text-menu[hidden] {
   display: none;
 }
 
@@ -680,6 +685,13 @@ button {
   z-index: 4;
 }
 
+/* The text box button mirrors the photo one at the opposite corner, so both
+   stay above the canvas in every mode. */
+.free-add-button.is-text {
+  right: calc(-1 * (var(--control-size) + var(--stage-gap)));
+  left: auto;
+}
+
 /* The canvas always keeps its logical size; only the visual transform
    changes, so every layout calculation stays in logical pixels. */
 .canvas {
@@ -1009,6 +1021,29 @@ button {
   user-select: none;
 }
 
+/* Free-form text: centred, wrapped lines over the box fill. The 1 px outline
+   is a text stroke so the fill stays readable over a photo behind the box. */
+.free-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35em;
+  overflow: hidden;
+  color: #ffffff;
+  font-family: sans-serif;
+  font-size: var(--free-text-size, 16px);
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 1px #000000;
+  pointer-events: none;
+  user-select: none;
+}
+
 .free-slot .box-placeholder {
   /* The placeholder icon rotates with the box and stays centred. */
   pointer-events: none;
@@ -1319,6 +1354,92 @@ button {
 
 .toast[hidden] {
   display: none;
+}
+
+/* The text editor is a canvas-sized modal overlay: any click outside the
+   textarea or its two buttons cancels without saving. */
+.text-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 60%);
+}
+
+.text-dialog[hidden] {
+  display: none;
+}
+
+.text-dialog-panel {
+  width: min(480px, 100%);
+  padding: 20px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 10px;
+  background: #262626;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 55%);
+}
+
+.text-dialog-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.text-dialog-input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 8px;
+  background: #1c1c1c;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.text-dialog-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.text-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.text-dialog-button {
+  padding: 8px 16px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.text-dialog-button:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.text-dialog-button.is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.text-dialog-button.is-primary:hover {
+  background: #42a5f5;
+}
+
+.text-dialog-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .visually-hidden {

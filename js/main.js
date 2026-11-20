@@ -40,6 +40,23 @@
   const rowsLayer = document.getElementById('rows');
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
+  const addTextButton = document.getElementById('add-text-button');
+  const fontButton = document.getElementById('font-button');
+  const fontMenuWrap = document.getElementById('font-menu-wrap');
+  const fontMenu = document.getElementById('font-menu');
+  const textColorButton = document.getElementById('text-color-button');
+  const textColorMenuWrap = document.getElementById('text-color-menu-wrap');
+  const textColorMenu = document.getElementById('text-color-menu');
+  const textColorRow = document.getElementById('text-color-row');
+  const textColorChip = document.getElementById('text-color-chip');
+  const textOutlineRow = document.getElementById('text-outline-row');
+  const textOutlineChip = document.getElementById('text-outline-chip');
+  const textColorInput = document.getElementById('text-color-input');
+  const textOutlineInput = document.getElementById('text-outline-input');
+  const textDialog = document.getElementById('text-dialog');
+  const textDialogInput = document.getElementById('text-dialog-input');
+  const textDialogCancel = document.getElementById('text-dialog-cancel');
+  const textDialogSave = document.getElementById('text-dialog-save');
   const fileInput = document.getElementById('file-input');
   const zoomHandle = document.getElementById('zoom-handle');
   const rotateHandle = document.getElementById('rotate-handle');
@@ -52,6 +69,8 @@
 
   let pickerBoxId = null;
   let pickerFreeId = null;
+  // The text box whose dialog is open; null while the dialog is closed.
+  let textDialogId = null;
   let fitFrame = 0;
   let editing = false;
   let layout = Layout.compute(State.rows, State.orientation);
@@ -268,6 +287,17 @@
     return index === -1 ? 0 : index + 1;
   };
 
+  /** Text boxes are numbered among themselves, not by their layer position. */
+  const textBoxNumber = (freeId) => {
+    let number = 0;
+    for (const box of State.freeBoxes) {
+      if (box.kind !== 'text') continue;
+      number += 1;
+      if (box.id === freeId) return number;
+    }
+    return 0;
+  };
+
   const selectAndFocus = (boxId) => {
     if (!State.select(boxId)) return;
     Render.paintSelection(State);
@@ -304,6 +334,56 @@
     pickerFreeId = freeId;
     pickerBoxId = null;
     fileInput.click();
+  };
+
+  // --- text boxes ---------------------------------------------------------
+
+  /** Open the modal text editor for a text box, pre-filled with its words. */
+  const openTextDialog = (freeId) => {
+    const found = State.findFreeBox(freeId);
+    if (!found || found.box.kind !== 'text') return;
+    textDialogId = freeId;
+    textDialogInput.value = found.box.text;
+    textDialog.hidden = false;
+    textDialogInput.focus({ preventScroll: true });
+    textDialogInput.select();
+  };
+
+  /**
+   * Close the editor without saving. Clicking the overlay, the panel, the
+   * Cancel button, or pressing Escape all count as a cancel.
+   */
+  const closeTextDialog = (restoreFocus = true) => {
+    if (textDialog.hidden) return;
+    textDialog.hidden = true;
+    const freeId = textDialogId;
+    textDialogId = null;
+    if (restoreFocus && freeId) Render.focusFreeBox(freeId);
+  };
+
+  /** Save the words into the box the dialog was opened for. */
+  const saveTextDialog = () => {
+    const freeId = textDialogId;
+    if (!freeId) return;
+    const value = textDialogInput.value;
+    closeTextDialog(false);
+    if (!State.setFreeText(freeId, value)) return;
+    refresh();
+    Render.focusFreeBox(freeId);
+    Render.announce(
+      I18n.t(
+        value ? 'announce.textUpdated' : 'announce.textRemoved',
+        { n: textBoxNumber(freeId) },
+      ),
+    );
+  };
+
+  /** Double-click or Enter on a free box edits text, or opens the picker. */
+  const openFreeEditor = (freeId) => {
+    const found = State.findFreeBox(freeId);
+    if (!found) return;
+    if (found.box.kind === 'text') openTextDialog(freeId);
+    else openFreePicker(freeId);
   };
 
   const updateUndoButton = () => {
@@ -431,6 +511,16 @@
     Render.announce(I18n.t('announce.freePhotoRemoved', { n: number }));
   };
 
+  /** A text box keeps its place and loses only its words, like a photo cell. */
+  const removeFreeBoxText = (found) => {
+    const freeId = found.box.id;
+    const number = textBoxNumber(freeId);
+    if (!State.setFreeText(freeId, '')) return;
+    refresh();
+    Render.focusFreeBox(freeId);
+    Render.announce(I18n.t('announce.textRemoved', { n: number }));
+  };
+
   const deleteFreeSelected = () => {
     const freeId = State.selectedFreeId;
     if (!freeId) return;
@@ -440,7 +530,12 @@
       removeFreeBoxPhoto(found);
       return;
     }
-    const number = freeBoxNumber(freeId);
+    if (found.box.kind === 'text' && found.box.text) {
+      removeFreeBoxText(found);
+      return;
+    }
+    const isText = found.box.kind === 'text';
+    const number = isText ? textBoxNumber(freeId) : freeBoxNumber(freeId);
     const snapshot = State.removeFreeBox(freeId);
     if (!snapshot) return;
 
@@ -452,7 +547,11 @@
     }
     refresh();
     Render.focusCanvas();
-    Render.announce(I18n.t('announce.freeDeleted', { n: number }));
+    Render.announce(
+      I18n.t(isText ? 'announce.textDeleted' : 'announce.freeDeleted', {
+        n: number,
+      }),
+    );
   };
 
   /** Restore the last removed box in place, without its ratio lock. */
@@ -471,7 +570,10 @@
       refresh();
       Render.focusFreeBox(freeBox.id);
       Render.announce(
-        I18n.t('announce.freeUndone', { n: freeBoxNumber(freeBox.id) }),
+        I18n.t(
+          freeBox.kind === 'text' ? 'announce.textUndone' : 'announce.freeUndone',
+          { n: freeBox.kind === 'text' ? textBoxNumber(freeBox.id) : freeBoxNumber(freeBox.id) },
+        ),
       );
       return;
     }
@@ -493,6 +595,12 @@
   const addHistoryPhoto = (entry) => {
     if (State.selectedFreeId) {
       const freeId = State.selectedFreeId;
+      const found = State.findFreeBox(freeId);
+      // A text box has no photo slot; the shelf asks for a photo box instead.
+      if (found && found.box.kind === 'text') {
+        Render.toast(I18n.t('history.selectBox'));
+        return;
+      }
       if (!applyImageToFreeBox(freeId, History.imageFor(entry))) return;
       Render.focusFreeBox(freeId);
       Render.announce(
@@ -611,7 +719,7 @@
     );
   };
 
-  /** Show or hide the margin frame that keeps a free-form photo readable. */
+  /** Show or hide the margin frame that keeps a free-form box readable. */
   const toggleFreeBorder = (freeId) => {
     const found = State.findFreeBox(freeId);
     if (!found) return;
@@ -619,10 +727,15 @@
     if (!State.setFreeBorder(freeId, next)) return;
     refresh();
     focusAction('free-border');
+    const text = found.box.kind === 'text';
     Render.announce(
-      I18n.t(next ? 'announce.freeBorderOn' : 'announce.freeBorderOff', {
-        n: freeBoxNumber(freeId),
-      }),
+      text
+        ? I18n.t(next ? 'announce.textBorderOn' : 'announce.textBorderOff', {
+            n: textBoxNumber(freeId),
+          })
+        : I18n.t(next ? 'announce.freeBorderOn' : 'announce.freeBorderOff', {
+            n: freeBoxNumber(freeId),
+          }),
     );
   };
 
@@ -634,11 +747,19 @@
     if (!State.setFreeBackground(freeId, next)) return;
     refresh();
     focusAction('free-background');
+    const text = found.box.kind === 'text';
     Render.announce(
-      I18n.t(
-        next ? 'announce.freeBackgroundOn' : 'announce.freeBackgroundOff',
-        { n: freeBoxNumber(freeId) },
-      ),
+      text
+        ? I18n.t(
+            next ? 'announce.textBackgroundOn' : 'announce.textBackgroundOff',
+            { n: textBoxNumber(freeId) },
+          )
+        : I18n.t(
+            next
+              ? 'announce.freeBackgroundOn'
+              : 'announce.freeBackgroundOff',
+            { n: freeBoxNumber(freeId) },
+          ),
     );
   };
 
@@ -1070,6 +1191,110 @@
     );
   };
 
+  // --- text styling menus -------------------------------------------------
+
+  const fontMenuItems = () =>
+    Array.from(fontMenu.querySelectorAll('[data-font]'));
+
+  const syncFontMenu = () => {
+    const found = State.findFreeBox(State.selectedFreeId);
+    const font = found && found.box.kind === 'text' ? found.box.font : 'sans';
+    fontMenuItems().forEach((item) => {
+      if (item.dataset.font === font) item.setAttribute('aria-current', 'true');
+      else item.removeAttribute('aria-current');
+    });
+  };
+
+  const openFontMenu = () => {
+    const found = State.findFreeBox(State.selectedFreeId);
+    if (!found || found.box.kind !== 'text') return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    closeFillMenu();
+    closeTextColorMenu();
+    syncFontMenu();
+    fontMenu.hidden = false;
+    fontButton.setAttribute('aria-expanded', 'true');
+    const current =
+      fontMenu.querySelector('[aria-current="true"]') || fontMenuItems()[0];
+    if (current) current.focus({ preventScroll: true });
+  };
+
+  const closeFontMenu = (restoreFocus = false) => {
+    if (fontMenu.hidden) return;
+    fontMenu.hidden = true;
+    fontButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) fontButton.focus({ preventScroll: true });
+  };
+
+  /** Switch the selected text box between the two offered font families. */
+  const applyTextFont = (font) => {
+    const freeId = State.selectedFreeId;
+    if (!freeId || !State.setFreeFont(freeId, font)) return;
+    refresh();
+    closeFontMenu();
+    fontButton.focus({ preventScroll: true });
+    Render.announce(
+      I18n.t('announce.font', {
+        font: I18n.t(font === 'serif' ? 'font.serif' : 'font.sans'),
+      }),
+    );
+  };
+
+  /** The selected text box while it is a text box, else null. */
+  const textColorTarget = () => {
+    const found = State.findFreeBox(State.selectedFreeId);
+    return found && found.box.kind === 'text' ? found.box : null;
+  };
+
+  const syncTextColorMenu = () => {
+    const box = textColorTarget();
+    if (!box) return;
+    textColorChip.style.background = box.color;
+    textOutlineChip.style.background = box.outline;
+    textColorInput.value = box.color;
+    textOutlineInput.value = box.outline;
+  };
+
+  const openTextColorMenu = (focusLast = false) => {
+    if (!textColorTarget()) return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    closeFillMenu();
+    closeFontMenu();
+    syncTextColorMenu();
+    textColorMenu.hidden = false;
+    textColorButton.setAttribute('aria-expanded', 'true');
+    const row = focusLast ? textOutlineRow : textColorRow;
+    row.focus({ preventScroll: true });
+  };
+
+  const closeTextColorMenu = (restoreFocus = false) => {
+    if (textColorMenu.hidden) return;
+    textColorMenu.hidden = true;
+    textColorButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) textColorButton.focus({ preventScroll: true });
+  };
+
+  /** Store one changed text color, then keep the chips and the box in sync. */
+  const applyTextColor = (which, color) => {
+    const freeId = State.selectedFreeId;
+    if (!freeId) return;
+    const applied =
+      which === 'outline'
+        ? State.setFreeTextOutline(freeId, color)
+        : State.setFreeTextColor(freeId, color);
+    if (!applied) return;
+    refresh();
+    syncTextColorMenu();
+  };
+
   const saveCollage = async (format) => {
     if (saveButton.disabled) return;
     saveButton.disabled = true;
@@ -1124,6 +1349,17 @@
     refresh();
     Render.focusFreeBox(box.id);
     Render.announce(I18n.t('announce.freeAdded'));
+  };
+
+  /** Add a text box at the canvas centre and open its editor right away. */
+  const addTextBox = () => {
+    discardPendingDelete();
+    const box = State.addTextBox();
+    State.selectFree(box.id);
+    refresh();
+    Render.focusFreeBox(box.id);
+    Render.announce(I18n.t('announce.textAdded'));
+    openTextDialog(box.id);
   };
 
   const moveSelection = (key) => {
@@ -2338,6 +2574,12 @@
     if (!fillMenu.hidden && !fillMenuWrap.contains(event.target)) {
       closeFillMenu();
     }
+    if (!fontMenu.hidden && !fontMenuWrap.contains(event.target)) {
+      closeFontMenu();
+    }
+    if (!textColorMenu.hidden && !textColorMenuWrap.contains(event.target)) {
+      closeTextColorMenu();
+    }
   });
 
   borderButton.addEventListener('click', () => {
@@ -2504,6 +2746,105 @@
     }
   });
 
+  fontButton.addEventListener('click', () => {
+    if (fontMenu.hidden) openFontMenu();
+    else closeFontMenu(true);
+  });
+
+  fontButton.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      openFontMenu();
+    }
+  });
+
+  fontMenu.addEventListener('click', (event) => {
+    const item = event.target.closest('[data-font]');
+    if (item) applyTextFont(item.dataset.font);
+  });
+
+  fontMenu.addEventListener('keydown', (event) => {
+    const items = fontMenuItems();
+    if (items.length === 0) return;
+    const current = items.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
+    else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeFontMenu(true);
+      return;
+    } else if (event.key === 'Tab') {
+      closeFontMenu();
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
+  });
+
+  // Tabbing out of the font menu closes it, matching the border popover.
+  fontMenuWrap.addEventListener('focusout', (event) => {
+    if (!fontMenuWrap.contains(event.relatedTarget)) closeFontMenu();
+  });
+
+  textColorButton.addEventListener('click', () => {
+    if (textColorMenu.hidden) openTextColorMenu();
+    else closeTextColorMenu(true);
+  });
+
+  textColorButton.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      openTextColorMenu(event.key === 'ArrowUp');
+    }
+  });
+
+  // Each row opens its own picker; the picker previews live on the canvas.
+  textColorRow.addEventListener('click', () => {
+    if (!textColorTarget()) return;
+    syncTextColorMenu();
+    openSwatchPicker(textColorInput);
+  });
+
+  textOutlineRow.addEventListener('click', () => {
+    if (!textColorTarget()) return;
+    syncTextColorMenu();
+    openSwatchPicker(textOutlineInput);
+  });
+
+  textColorInput.addEventListener('input', () => {
+    applyTextColor('text', textColorInput.value);
+  });
+
+  textOutlineInput.addEventListener('input', () => {
+    applyTextColor('outline', textOutlineInput.value);
+  });
+
+  textColorInput.addEventListener('change', () => {
+    Render.announce(
+      I18n.t('announce.textColor', { color: textColorInput.value }),
+    );
+  });
+
+  textOutlineInput.addEventListener('change', () => {
+    Render.announce(
+      I18n.t('announce.outlineColor', { color: textOutlineInput.value }),
+    );
+  });
+
+  textColorMenuWrap.addEventListener('keydown', (event) => {
+    if (textColorMenu.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTextColorMenu(true);
+    } else if (event.key === 'Tab') {
+      closeTextColorMenu();
+    }
+  });
+
   colorMenu.addEventListener('keydown', (event) => {
     const items = colorMenuItems();
     if (items.length === 0) return;
@@ -2584,6 +2925,7 @@
   addRowTop.addEventListener('click', () => addRow('start'));
   addRowBottom.addEventListener('click', () => addRow('end'));
   addFreeButton.addEventListener('click', addFreeBox);
+  addTextButton.addEventListener('click', addTextBox);
 
   const handlesAddBox = (event) => {
     const button = event.target.closest('button[data-action="add-box"]');
@@ -2654,7 +2996,7 @@
       State.selectFree(freeId);
       Render.paintSelection(State);
     }
-    openFreePicker(freeId);
+    openFreeEditor(freeId);
   });
 
   freeLayer.addEventListener('keydown', (event) => {
@@ -2691,7 +3033,7 @@
       event.preventDefault();
       const freeId = element.dataset.freeId;
       selectFreeAndFocus(freeId);
-      openFreePicker(freeId);
+      openFreeEditor(freeId);
     }
   });
 
@@ -2822,7 +3164,9 @@
 
     if (State.selectedFreeId) {
       if (button.dataset.action === 'delete-box') deleteSelected();
-      else if (button.dataset.action === 'select-image') {
+      else if (button.dataset.action === 'edit-text') {
+        openTextDialog(State.selectedFreeId);
+      } else if (button.dataset.action === 'select-image') {
         openFreePicker(State.selectedFreeId);
       } else if (button.dataset.action === 'crop-square') {
         toggleFreeSquare(State.selectedFreeId);
@@ -2881,8 +3225,48 @@
     handlePickedFile(fileInput.files && fileInput.files[0]);
   });
 
+  // --- text dialog --------------------------------------------------------
+
+  // Everything except the textarea and its two buttons cancels: the overlay,
+  // the panel background, the Cancel button, and Escape all discard the edits.
+  textDialog.addEventListener('click', (event) => {
+    if (event.target.closest('textarea, button')) return;
+    closeTextDialog();
+  });
+
+  textDialogCancel.addEventListener('click', () => closeTextDialog());
+  textDialogSave.addEventListener('click', saveTextDialog);
+
+  textDialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTextDialog();
+      return;
+    }
+    // Ctrl/Cmd+Enter saves without reaching for the mouse.
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      saveTextDialog();
+      return;
+    }
+    // Keep Tab inside the modal: textarea → Cancel → Save → textarea.
+    if (event.key === 'Tab') {
+      const focusables = [textDialogInput, textDialogCancel, textDialogSave];
+      const index = focusables.indexOf(document.activeElement);
+      if (!event.shiftKey && index === focusables.length - 1) {
+        event.preventDefault();
+        textDialogInput.focus();
+      } else if (event.shiftKey && index <= 0) {
+        event.preventDefault();
+        textDialogSave.focus();
+      }
+    }
+  });
+
+  // Keep the page behind the modal from moving while the dialog is open.
   document.addEventListener('keydown', (event) => {
-    if (!editing || event.defaultPrevented || isTextEntry(event.target)) return;
+    if (!editing || !textDialog.hidden) return;
+    if (event.defaultPrevented || isTextEntry(event.target)) return;
 
     if (event.key === 'Escape') {
       if (State.selectedBoxId || State.selectedFreeId) {

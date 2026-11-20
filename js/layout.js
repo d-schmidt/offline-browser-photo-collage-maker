@@ -536,9 +536,22 @@ const Layout = (() => {
     return 2 * thickness;
   };
 
+  /**
+   * Font size for a free-form text box: a fraction of its inner short side, so
+   * the words grow with the box and keep the same relative size on screen and
+   * in the export.
+   */
+  const freeTextSize = (box) => {
+    const border = freeBorder(box);
+    const innerW = Math.max(0, box.width - 2 * border);
+    const innerH = Math.max(0, box.width / (box.aspect || 1) - 2 * border);
+    return Math.max(10, Math.min(innerW, innerH) * 0.14);
+  };
+
   return {
     compute,
     freeBorder,
+    freeTextSize,
     imageRect,
     zoomRange,
     maxZoom,

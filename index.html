@@ -19,6 +19,63 @@
       hidden
     ></button>
     <div class="action-bar-tools" id="selection-actions">
+      <!-- Text styling menus live in persistent wrappers so a repaint while a
+           native color picker is open does not close them. They sit after the
+           dynamic actions and before the empty-cell fill menu. -->
+      <div class="text-menu-wrap" id="font-menu-wrap" hidden>
+        <button
+          class="icon-button"
+          id="font-button"
+          type="button"
+          data-icon="brandFamily"
+          aria-label="Change font"
+          data-i18n-aria-label="action.font"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-controls="font-menu"
+        ></button>
+        <div
+          class="text-menu"
+          id="font-menu"
+          role="menu"
+          aria-label="Font"
+          data-i18n-aria-label="font.menu"
+          hidden
+        >
+          <button class="color-menu-item" type="button" role="menuitem" data-font="sans" data-i18n="font.sans">Sans serif</button>
+          <button class="color-menu-item" type="button" role="menuitem" data-font="serif" data-i18n="font.serif">Serif</button>
+        </div>
+      </div>
+      <div class="text-menu-wrap" id="text-color-menu-wrap" hidden>
+        <button
+          class="icon-button"
+          id="text-color-button"
+          type="button"
+          data-icon="colors"
+          aria-label="Change text colors"
+          data-i18n-aria-label="action.textColor"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="text-color-menu"
+        ></button>
+        <div
+          class="text-menu"
+          id="text-color-menu"
+          role="dialog"
+          aria-label="Text colors"
+          data-i18n-aria-label="textColor.title"
+          hidden
+        >
+          <button class="color-menu-item" type="button" id="text-color-row">
+            <span class="color-menu-chip" id="text-color-chip"></span>
+            <span data-i18n="textColor.text">Text color</span>
+          </button>
+          <button class="color-menu-item" type="button" id="text-outline-row">
+            <span class="color-menu-chip" id="text-outline-chip"></span>
+            <span data-i18n="textColor.outline">Outline color</span>
+          </button>
+        </div>
+      </div>
       <div class="fill-menu-wrap" id="fill-menu-wrap" hidden>
         <button
           class="icon-button"
@@ -235,6 +292,14 @@
               aria-label="Add free-form photo box"
               data-i18n-aria-label="free.add"
             ></button>
+            <button
+              class="icon-button free-add-button is-text"
+              id="add-text-button"
+              type="button"
+              data-icon="editNote"
+              aria-label="Add free-form text box"
+              data-i18n-aria-label="text.add"
+            ></button>
             <section class="canvas" id="canvas" aria-label="Photo collage canvas" data-i18n-aria-label="canvas.label" tabindex="-1">
               <div class="rows" id="rows"></div>
               <img class="zoom-overlay" id="zoom-overlay" alt="" draggable="false" hidden>
@@ -294,7 +359,35 @@
     </aside>
   </div>
 
+  <div
+    class="text-dialog"
+    id="text-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="text-dialog-title"
+    hidden
+  >
+    <div class="text-dialog-panel">
+      <h2 class="text-dialog-title" id="text-dialog-title" data-i18n="text.dialogTitle">Edit text</h2>
+      <textarea
+        class="text-dialog-input"
+        id="text-dialog-input"
+        rows="5"
+        aria-label="Text"
+        data-i18n-aria-label="text.input"
+        placeholder="Type your text"
+        data-i18n-placeholder="text.placeholder"
+      ></textarea>
+      <div class="text-dialog-actions">
+        <button class="text-dialog-button" id="text-dialog-cancel" type="button" data-i18n="text.cancel">Cancel</button>
+        <button class="text-dialog-button is-primary" id="text-dialog-save" type="button" data-i18n="text.save">Save</button>
+      </div>
+    </div>
+  </div>
+
   <input class="visually-hidden" id="file-input" type="file" accept="image/*" tabindex="-1">
+  <input class="visually-hidden" id="text-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Text color" data-i18n-aria-label="textColor.colorInput">
+  <input class="visually-hidden" id="text-outline-input" type="color" value="#000000" tabindex="-1" aria-label="Outline color" data-i18n-aria-label="textColor.outlineInput">
   <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color" data-i18n-aria-label="margin.label">
   <input class="visually-hidden" id="fill-color-input" type="color" value="#cfcfcf" tabindex="-1" aria-label="Empty box color" data-i18n-aria-label="fill.colorInput">
   <input class="visually-hidden" id="gradient-top-input" type="color" value="#f5f2eb" tabindex="-1" aria-label="First gradient color" data-i18n-aria-label="margin.gradientFirst">

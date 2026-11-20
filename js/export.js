@@ -77,6 +77,69 @@ const Export = (() => {
   };
 
   /**
+   * Split text into lines the way the editor's flexbox wraps it: explicit
+   * newlines first, then greedy word wrapping at the available width.
+   */
+  const wrapText = (ctx, text, maxWidth) => {
+    const lines = [];
+    for (const paragraph of String(text).split('\n')) {
+      const words = paragraph.split(/\s+/).filter(Boolean);
+      if (words.length === 0) {
+        lines.push('');
+        continue;
+      }
+      let line = words[0];
+      for (let index = 1; index < words.length; index += 1) {
+        const candidate = `${line} ${words[index]}`;
+        if (ctx.measureText(candidate).width <= maxWidth) {
+          line = candidate;
+        } else {
+          lines.push(line);
+          line = words[index];
+        }
+      }
+      lines.push(line);
+    }
+    return lines;
+  };
+
+  /** Outlined, centred text lines inside the border of a free-form text box. */
+  const drawFreeText = (ctx, box, left, top, width, height, border) => {
+    const innerW = width - 2 * border;
+    const innerH = height - 2 * border;
+    if (!box.text || innerW <= 0 || innerH <= 0) return;
+
+    const size = Layout.freeTextSize(box);
+    const family = box.font === 'serif' ? 'serif' : 'sans-serif';
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(left + border, top + border, innerW, innerH);
+    ctx.clip();
+    ctx.font = `${size}px ${family}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+
+    const padding = size * 0.35;
+    const lines = wrapText(ctx, box.text, Math.max(0, innerW - 2 * padding));
+    const lineHeight = size * 1.25;
+    const centerX = left + border + innerW / 2;
+    const centerY = top + border + innerH / 2;
+    const firstY = centerY - ((lines.length - 1) / 2) * lineHeight;
+
+    lines.forEach((line, index) => {
+      const y = firstY + index * lineHeight;
+      // Stroke first, then fill, matching `paint-order: stroke fill`.
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = box.outline;
+      ctx.strokeText(line, centerX, y);
+      ctx.fillStyle = box.color;
+      ctx.fillText(line, centerX, y);
+    });
+    ctx.restore();
+  };
+
+  /**
    * Draw one free-form box. Its optional frame is a ring cut through the canvas
    * paint, the photo is cover-cropped to the inner area, and the whole box
    * rotates around its centre. The export canvas clips any overhang.
@@ -90,6 +153,26 @@ const Export = (() => {
     ctx.save();
     ctx.translate(box.x, box.y);
     ctx.rotate(((box.rotation || 0) * Math.PI) / 180);
+    if (box.kind === 'text') {
+      // The gray backdrop is the text box's background flag; the words sit on
+      // it inside the optional frame.
+      if (box.background !== false) {
+        ctx.fillStyle = box.fill ? boxFillStyle(box.fill) : PLACEHOLDER;
+        ctx.fillRect(left, top, width, height);
+      }
+      if (border > 0) {
+        drawFreeFrame(
+          ctx,
+          paint,
+          frameColor,
+          { left, top, width, height },
+          border,
+        );
+      }
+      drawFreeText(ctx, box, left, top, width, height, border);
+      ctx.restore();
+      return;
+    }
     if (!image) {
       // An empty box is framed like a photo, with the placeholder inside it.
       if (border > 0) {
