@@ -164,7 +164,7 @@ const Export = (() => {
    * shows the exact pattern from the screen. Free-form frames are cut through
    * this canvas.
    */
-  const buildPaintCanvas = (state, width, height) => {
+  const buildPaintCanvas = async (state, width, height) => {
     if (state.canvasMode !== 'gradient') {
       const canvas = document.createElement('canvas');
       canvas.width = width;
@@ -178,7 +178,8 @@ const Export = (() => {
     const first = state.gradientTop;
     const second = state.gradientBottom;
     if (state.gradientStyle === 'spots') {
-      return Paint.spots(width, height, first, second).canvas;
+      // The same rasterised bitmap the editor shows, cropped to the format.
+      return (await Paint.spots(width, height, first, second)).canvas;
     }
 
     const canvas = document.createElement('canvas');
@@ -239,7 +240,7 @@ const Export = (() => {
     const freeImages = new Map(loadedFree);
 
     const ctx = canvas.getContext('2d');
-    const paint = buildPaintCanvas(state, width, height);
+    const paint = await buildPaintCanvas(state, width, height);
     ctx.drawImage(paint, 0, 0);
 
     for (const row of layout.rows) {

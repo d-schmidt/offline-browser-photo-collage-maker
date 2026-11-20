@@ -70,7 +70,9 @@
   let gradientStyleMenuOpen = false;
   let gradientMenuOpen = false;
   let borderFrame = 0;
-  let paintFrame = 0;
+  let paintToken = 0;
+  let spotsBusy = false;
+  let spotsQueued = false;
   let fillFrame = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
@@ -123,8 +125,8 @@
 
   /**
    * The CSS paint image for the canvas margin: none for a plain fill, or one
-   * of the gradient styles. Random spots become a generated bitmap so their
-   * blurred discs are identical on screen and in the export.
+   * of the closed-form gradient styles. Random spots are rasterised instead,
+   * because their blurred shapes have no CSS equivalent.
    */
   const canvasPaintImage = () => {
     if (State.canvasMode !== 'gradient') return 'none';
@@ -136,16 +138,59 @@
     if (State.gradientStyle === 'radial') {
       return `radial-gradient(circle at 50% 50%, ${second}, ${first})`;
     }
-    if (State.gradientStyle === 'spots') {
-      const url = Paint.spotsUrl(
-        Layout.canvasW,
-        Layout.canvasH,
-        first,
-        second,
-      );
-      return `url("${url}")`;
-    }
     return `linear-gradient(180deg, ${first}, ${second})`;
+  };
+
+  /** Paint the compiled spots bitmap once the browser has rasterised it. */
+  const applySpotsPaint = () => {
+    if (State.canvasMode !== 'gradient' || State.gradientStyle !== 'spots') {
+      return;
+    }
+    // A rasterisation is already running: remember that the paint moved on and
+    // render the latest colors when it finishes instead of queueing every
+    // intermediate picker position. The running job is now stale.
+    if (spotsBusy) {
+      spotsQueued = true;
+      paintToken += 1;
+      return;
+    }
+    const style = document.documentElement.style;
+    const token = (paintToken += 1);
+    const fallback =
+      `linear-gradient(180deg, ${State.gradientTop}, ` +
+      `${State.gradientBottom})`;
+    spotsBusy = true;
+    Paint.spots(
+      Layout.canvasW,
+      Layout.canvasH,
+      State.gradientTop,
+      State.gradientBottom,
+    )
+      .then((entry) => {
+        // A newer paint replaced this one while it was encoding.
+        if (token !== paintToken) return;
+        const image = `url("${entry.url}")`;
+        style.setProperty('--canvas-paint-image', image);
+        style.setProperty(
+          '--canvas-paint',
+          `${image} center / 100% 100% no-repeat`,
+        );
+        Render.repaintFreeFrames();
+      })
+      .catch(() => {
+        if (token !== paintToken) return;
+        // The margin must still paint if the bitmap cannot be rasterised.
+        style.setProperty('--canvas-paint-image', fallback);
+        style.setProperty('--canvas-paint', fallback);
+        Render.repaintFreeFrames();
+      })
+      .finally(() => {
+        spotsBusy = false;
+        if (spotsQueued) {
+          spotsQueued = false;
+          applySpotsPaint();
+        }
+      });
   };
 
   /**
@@ -155,15 +200,6 @@
    */
   const applyCanvasPaint = () => {
     const style = document.documentElement.style;
-    const image = canvasPaintImage();
-    const paint =
-      image === 'none'
-        ? State.canvasColor
-        : State.gradientStyle === 'spots'
-          ? `${image} center / 100% 100% no-repeat`
-          : image;
-    style.setProperty('--canvas-paint-image', image);
-    style.setProperty('--canvas-paint', paint);
     if (State.canvasMode === 'gradient') {
       style.setProperty(
         '--canvas-swatch',
@@ -175,20 +211,23 @@
     // Kept for chrome that needs one concrete color (free-form frame fallback).
     style.setProperty('--canvas-bg', State.canvasColor);
     marginColorInput.value = State.canvasColor;
-    Render.repaintFreeFrames();
-  };
 
-  /** Spots are expensive to build, so live swatch drags repaint once a frame. */
-  const queueCanvasPaint = () => {
     if (State.canvasMode === 'gradient' && State.gradientStyle === 'spots') {
-      if (paintFrame) return;
-      paintFrame = requestAnimationFrame(() => {
-        paintFrame = 0;
-        applyCanvasPaint();
-      });
+      // The previous paint stays up while the new bitmap encodes, so live
+      // color changes do not flash between styles.
+      applySpotsPaint();
       return;
     }
-    applyCanvasPaint();
+
+    // A pending spots render must not overwrite this paint when it lands.
+    paintToken += 1;
+    const image = canvasPaintImage();
+    style.setProperty('--canvas-paint-image', image);
+    style.setProperty(
+      '--canvas-paint',
+      image === 'none' ? State.canvasColor : image,
+    );
+    Render.repaintFreeFrames();
   };
 
   /**
@@ -1188,6 +1227,8 @@
     Layout.setCanvasSize(format.canvasW, format.canvasH);
     document.documentElement.style.setProperty('--canvas-w', `${format.canvasW}px`);
     document.documentElement.style.setProperty('--canvas-h', `${format.canvasH}px`);
+    // The spots bitmap is cropped to the canvas, so it follows the format.
+    applyCanvasPaint();
 
     // Portrait and square formats start with rows; landscape formats start
     // with the transposed columns. The starting canvas is empty, so no
@@ -2390,7 +2431,7 @@
   });
 
   marginColorInput.addEventListener('input', () => {
-    if (State.setCanvasColor(marginColorInput.value)) queueCanvasPaint();
+    if (State.setCanvasColor(marginColorInput.value)) applyCanvasPaint();
   });
 
   marginColorInput.addEventListener('change', () => {
@@ -2404,7 +2445,7 @@
     const bottom = gradientBottomInput.value;
     if (!State.setCanvasGradient(top, bottom)) return;
     syncGradientChips();
-    queueCanvasPaint();
+    applyCanvasPaint();
   };
 
   gradientTopInput.addEventListener('input', applyGradient);
