@@ -1197,13 +1197,15 @@ button {
   background: #ffffff;
 }
 
-/* The rotation handle wears the rotate mark, so its accent dot fills the disc
-   and the icon sits on top; hovering flips it to a white disc with a dark
-   mark, the way the zoom handle's dot turns white. */
+/* Both photo handles wear their marks on a filled accent disc instead of the
+   small dot: pan/zoom on the inner circle, rotate on the outer one. Hovering
+   flips the disc to white with a dark mark. */
+#zoom-handle::after,
 #rotate-handle::after {
   inset: 0;
 }
 
+#zoom-handle .handle-icon,
 #rotate-handle .handle-icon {
   position: absolute;
   inset: 0;
@@ -1211,11 +1213,13 @@ button {
   width: 14px;
   height: 14px;
   margin: auto;
-  /* The supplied mark is light gray; force pure white on the accent disc. */
+  /* The supplied marks are light gray; force pure white on the accent disc. */
   filter: brightness(0) invert(1);
   pointer-events: none;
 }
 
+#zoom-handle:hover .handle-icon,
+#zoom-handle:focus-visible .handle-icon,
 #rotate-handle:hover .handle-icon,
 #rotate-handle:focus-visible .handle-icon {
   filter: brightness(0);

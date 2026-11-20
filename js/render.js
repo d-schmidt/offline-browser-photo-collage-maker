@@ -20,6 +20,7 @@ const ICONS = Object.freeze({
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   rotateLeft: 'assets/rotate_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  panZoom: 'assets/pan_zoom_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibility: 'assets/visibility_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibilityOff: 'assets/visibility_off_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -963,10 +964,14 @@ const Render = (() => {
     refs.fillMenu = document.getElementById('fill-menu');
     refs.fillButton = document.getElementById('fill-button');
 
-    // The rotation handle wears the rotate mark on its accent disc.
+    // Both photo handles wear their marks on the accent disc.
     const rotateMark = iconElement('rotateLeft');
     rotateMark.classList.add('handle-icon');
     refs.rotateHandle.append(rotateMark);
+
+    const zoomMark = iconElement('panZoom');
+    zoomMark.classList.add('handle-icon');
+    refs.zoomHandle.append(zoomMark);
 
     // Static controls only carry a data-icon name; the long asset paths live
     // in ICONS alone. The orientation button is painted per mode instead.
