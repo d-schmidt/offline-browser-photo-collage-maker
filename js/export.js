@@ -86,6 +86,20 @@ const Export = (() => {
     }
     const innerW = width - 2 * border;
     const innerH = height - 2 * border;
+    if (box.background && innerW > 0 && innerH > 0) {
+      // Fill the area behind the photo with the canvas paint, so transparent
+      // pixels show the background instead of the grid. Reset the rotation
+      // while drawing so a gradient or spots pattern stays canvas-aligned.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(left + border, top + border, innerW, innerH);
+      ctx.clip();
+      ctx.fillStyle = frameColor;
+      ctx.fillRect(left + border, top + border, innerW, innerH);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(paint, 0, 0);
+      ctx.restore();
+    }
     const sourceW = image.naturalWidth || image.width;
     const sourceH = image.naturalHeight || image.height;
     if (innerW > 0 && innerH > 0 && sourceW > 0 && sourceH > 0) {

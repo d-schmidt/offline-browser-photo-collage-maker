@@ -181,6 +181,8 @@ const History = (() => {
     height: entry.height,
     blob: null,
     hash: entry.hash,
+    // Shelf copies are JPEGs on a white fill, so they carry no transparency.
+    hasAlpha: false,
   });
 
   return {

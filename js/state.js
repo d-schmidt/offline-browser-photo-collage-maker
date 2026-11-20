@@ -124,6 +124,9 @@ const State = (() => {
       square: false,
       // Free-form photos keep the usual margin frame unless it is switched off.
       border: true,
+      // Fill the box with the canvas paint instead of showing the grid through
+      // a transparent photo. Off until the action is used.
+      background: false,
       image: null,
     };
     box.width = clampFreeWidth(box, box.width);
@@ -234,6 +237,17 @@ const State = (() => {
     if (found.box.border) {
       found.box.width = clampFreeWidth(found.box, found.box.width);
     }
+    return true;
+  };
+
+  /**
+   * Fill a free-form box with the canvas paint behind its photo, so a
+   * transparent image shows the background instead of the grid underneath.
+   */
+  const setFreeBackground = (freeId, background) => {
+    const found = findFreeBox(freeId);
+    if (!found) return false;
+    found.box.background = Boolean(background);
     return true;
   };
 
@@ -835,6 +849,7 @@ const State = (() => {
     setFreePosition,
     setFreeScale,
     setFreeBorder,
+    setFreeBackground,
     setFreeRotation,
     freeHeight,
   };

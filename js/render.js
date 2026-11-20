@@ -5,6 +5,7 @@ const ICONS = Object.freeze({
   addBox: 'assets/add_box_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   addPhoto: 'assets/add_photo_alternate_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderStyle: 'assets/border_style_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  background: 'assets/background_replace_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   delete: 'assets/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   download: 'assets/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   colorFill: 'assets/format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -164,13 +165,21 @@ const Render = (() => {
     // The ring samples a solid fallback for the overhang, while its paint child
     // counter-rotates so the canvas image stays aligned when the box turns.
     element.style.setProperty('--free-frame', State.canvasColorAt(box.x, box.y));
-    const paint = element.querySelector('.free-frame-paint');
-    if (paint) {
-      paint.style.left = `${-(box.x - box.width / 2)}px`;
-      paint.style.top = `${-(box.y - height / 2)}px`;
+    const boxLeft = box.x - box.width / 2;
+    const boxTop = box.y - height / 2;
+    const alignPaint = (paint, offset) => {
+      paint.style.left = `${-boxLeft - offset}px`;
+      paint.style.top = `${-boxTop - offset}px`;
       paint.style.transformOrigin = `${box.x}px ${box.y}px`;
       paint.style.transform = `rotate(${-box.rotation}deg)`;
-    }
+    };
+    // The frame starts at the box edge, the fill inside the optional border.
+    element
+      .querySelectorAll('.free-frame-paint')
+      .forEach((paint) => alignPaint(paint, 0));
+    element
+      .querySelectorAll('.free-bg-paint')
+      .forEach((paint) => alignPaint(paint, border));
   };
 
   const paintFreeHandleValues = (scale, rotate, box) => {
@@ -188,8 +197,19 @@ const Render = (() => {
     }));
   };
 
+  /** Canvas-paint fill behind a transparent free-form photo. */
+  const buildFreeBackground = () => {
+    const fill = document.createElement('div');
+    fill.className = 'free-bg';
+    const paint = document.createElement('div');
+    paint.className = 'free-bg-paint';
+    fill.append(paint);
+    return fill;
+  };
+
   /** Fill a free-form box (or its ghost copy) with its photo or placeholder. */
   const freeContent = (box, container) => {
+    if (box.background) container.append(buildFreeBackground());
     if (box.image) {
       const image = document.createElement('img');
       image.className = 'free-box-image';
@@ -396,12 +416,26 @@ const Render = (() => {
       border.setAttribute('aria-pressed', String(borderOn));
       border.classList.toggle('is-active', borderOn);
 
+      const framing = [square, border];
+      // Only a photo with transparent pixels can show a fill behind it; an
+      // opaque photo would hide the background completely.
+      if (hasImage && found.box.image.hasAlpha) {
+        const backgroundOn = Boolean(found.box.background);
+        const background = toolButton(
+          'free-background',
+          I18n.t('action.background'),
+          'background',
+        );
+        background.setAttribute('aria-pressed', String(backgroundOn));
+        background.classList.toggle('is-active', backgroundOn);
+        framing.push(background);
+      }
+
       refs.selectionActions.append(
         toolButton('delete-box', I18n.t('action.delete'), 'delete'),
         toolButton('select-image', I18n.t('action.selectImage'), 'image'),
         actionSeparator(),
-        square,
-        border,
+        ...framing,
       );
       return;
     }

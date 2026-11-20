@@ -521,6 +521,22 @@
     );
   };
 
+  /** Show or hide the canvas paint behind a transparent free-form photo. */
+  const toggleFreeBackground = (freeId) => {
+    const found = State.findFreeBox(freeId);
+    if (!found) return;
+    const next = !found.box.background;
+    if (!State.setFreeBackground(freeId, next)) return;
+    refresh();
+    focusAction('free-background');
+    Render.announce(
+      I18n.t(
+        next ? 'announce.freeBackgroundOn' : 'announce.freeBackgroundOff',
+        { n: freeBoxNumber(freeId) },
+      ),
+    );
+  };
+
   const handlePickedFile = async (file) => {
     const boxId = pickerBoxId;
     const freeId = pickerFreeId;
@@ -2468,6 +2484,8 @@
         toggleFreeSquare(State.selectedFreeId);
       } else if (button.dataset.action === 'free-border') {
         toggleFreeBorder(State.selectedFreeId);
+      } else if (button.dataset.action === 'free-background') {
+        toggleFreeBackground(State.selectedFreeId);
       }
       return;
     }

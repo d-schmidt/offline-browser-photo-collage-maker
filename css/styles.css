@@ -804,6 +804,29 @@ button {
   display: none;
 }
 
+/* Optional fill behind a transparent free-form photo. It sits under the photo
+   but inside the optional frame, so transparent pixels show the canvas paint
+   instead of the grid underneath. The paint child counter-rotates with the
+   box, keeping a gradient or the spots pattern aligned to the canvas. */
+.free-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background-color: var(--free-frame, var(--canvas-bg));
+  pointer-events: none;
+}
+
+.free-bg-paint {
+  position: absolute;
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  background-image: var(--canvas-paint-image, none);
+  background-size: var(--canvas-w) var(--canvas-h);
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
 @supports ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
   .free-box.has-image.has-border,
   .free-ghost.has-image.has-border .free-ghost-body {

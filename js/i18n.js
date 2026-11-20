@@ -109,6 +109,7 @@ const I18n = (() => {
       'action.cropSquare': 'Crop to square',
       'action.matchPhoto': 'Match the photo ratio',
       'action.border': 'Photo border',
+      'action.background': 'Fill photo background',
       'hint.unlocked': 'At least one box in a {group} must stay unlocked',
       'hint.ratio':
         'Aspect locks in a {group} must use the same image ratio',
@@ -162,6 +163,10 @@ const I18n = (() => {
       'announce.freeSquareOff': 'Free-form photo box {n} matches its photo ratio.',
       'announce.freeBorderOn': 'Border shown on free-form photo box {n}.',
       'announce.freeBorderOff': 'Border hidden on free-form photo box {n}.',
+      'announce.freeBackgroundOn':
+        'Background fill shown on free-form photo box {n}.',
+      'announce.freeBackgroundOff':
+        'Background fill hidden on free-form photo box {n}.',
       'layout.rowOne': 'Row layout. 1 row.',
       'layout.rows': 'Row layout. {count} rows.',
       'layout.columnOne': 'Column layout. 1 column.',
@@ -276,6 +281,7 @@ const I18n = (() => {
       'action.cropSquare': 'Quadratisch zuschneiden',
       'action.matchPhoto': 'Fotoformat übernehmen',
       'action.border': 'Fotorahmen',
+      'action.background': 'Hintergrund des Fotos füllen',
       'hint.unlocked': 'Mindestens ein Bildfeld pro {group} muss entsperrt bleiben',
       'hint.ratio':
         'Seitenverhältnis-Sperren in einer {group} müssen dasselbe Verhältnis verwenden',
@@ -329,6 +335,10 @@ const I18n = (() => {
       'announce.freeSquareOff': 'Freies Bildfeld {n} übernimmt das Fotoformat.',
       'announce.freeBorderOn': 'Rahmen für freies Bildfeld {n} eingeblendet.',
       'announce.freeBorderOff': 'Rahmen für freies Bildfeld {n} ausgeblendet.',
+      'announce.freeBackgroundOn':
+        'Hintergrund für freies Bildfeld {n} eingeblendet.',
+      'announce.freeBackgroundOff':
+        'Hintergrund für freies Bildfeld {n} ausgeblendet.',
       'layout.rowOne': 'Zeilenlayout. 1 Zeile.',
       'layout.rows': 'Zeilenlayout. {count} Zeilen.',
       'layout.columnOne': 'Spaltenlayout. 1 Spalte.',

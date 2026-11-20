@@ -9,11 +9,6 @@ const Images = (() => {
     return /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(file.name);
   };
 
-  const measureWithElement = async (url) => {
-    const image = await loadElement(url);
-    return { width: image.naturalWidth, height: image.naturalHeight };
-  };
-
   const loadElement = (url) =>
     new Promise((resolve, reject) => {
       const image = new Image();
@@ -23,11 +18,49 @@ const Images = (() => {
       image.src = url;
     });
 
+  // Alpha is sampled from a small copy: enough to spot a transparent photo
+  // without scanning millions of pixels on every load.
+  const ALPHA_SAMPLE = 64;
+
+  /** True when the decoded image has at least one translucent pixel. */
+  const detectAlpha = (source) => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = ALPHA_SAMPLE;
+      canvas.height = ALPHA_SAMPLE;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return false;
+      context.clearRect(0, 0, ALPHA_SAMPLE, ALPHA_SAMPLE);
+      context.drawImage(source, 0, 0, ALPHA_SAMPLE, ALPHA_SAMPLE);
+      const { data } = context.getImageData(0, 0, ALPHA_SAMPLE, ALPHA_SAMPLE);
+      for (let index = 3; index < data.length; index += 4) {
+        if (data[index] < 255) return true;
+      }
+    } catch {
+      // An unreadable canvas just means no detected transparency; the photo
+      // still loads and behaves like an opaque one.
+    }
+    return false;
+  };
+
+  const measureWithElement = async (url) => {
+    const image = await loadElement(url);
+    return {
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      hasAlpha: detectAlpha(image),
+    };
+  };
+
   const measure = async (file, url) => {
     if (typeof createImageBitmap === 'function') {
       try {
         const bitmap = await createImageBitmap(file);
-        const size = { width: bitmap.width, height: bitmap.height };
+        const size = {
+          width: bitmap.width,
+          height: bitmap.height,
+          hasAlpha: detectAlpha(bitmap),
+        };
         bitmap.close();
         return size;
       } catch {
@@ -45,10 +78,10 @@ const Images = (() => {
 
     const url = URL.createObjectURL(file);
     try {
-      const { width, height } = await measure(file, url);
+      const { width, height, hasAlpha } = await measure(file, url);
       if (!width || !height) throw new Error('empty image');
       // Keep the original file so the history shelf can store a copy later.
-      return { url, width, height, blob: file };
+      return { url, width, height, blob: file, hasAlpha };
     } catch {
       URL.revokeObjectURL(url);
       throw new Error(I18n.t('image.openFailed'));
