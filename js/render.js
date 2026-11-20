@@ -534,7 +534,11 @@ const Render = (() => {
       }
 
       setActionTools([
-        toolButton('delete-box', I18n.t('action.delete'), 'delete'),
+        toolButton(
+          'delete-box',
+          I18n.t(hasImage ? 'action.removePhoto' : 'action.delete'),
+          'delete',
+        ),
         toolButton('select-image', I18n.t('action.selectImage'), 'image'),
         actionSeparator(),
         ...framing,

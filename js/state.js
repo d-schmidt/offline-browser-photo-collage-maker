@@ -204,6 +204,23 @@ const State = (() => {
   };
 
   /**
+   * Drop a free-form box's photo and leave the empty square target behind. The
+   * box keeps its centre, area, and empty-cell fill; the crop, background, and
+   * rotation belong to the photo and go with it.
+   */
+  const clearFreeImage = (freeId) => {
+    const found = findFreeBox(freeId);
+    if (!found || !found.box.image) return false;
+    Images.release(found.box.image);
+    found.box.image = null;
+    found.box.background = false;
+    found.box.square = false;
+    found.box.rotation = 0;
+    resizeFreeToAspect(found.box, 1);
+    return true;
+  };
+
+  /**
    * Crop a free-form box to a square, or return it to its photo's own ratio.
    * Only a box with a photo can be cropped; an empty box is already square.
    */
@@ -926,6 +943,7 @@ const State = (() => {
     removeFreeBox,
     restoreFreeBox,
     setFreeImage,
+    clearFreeImage,
     setFreeSquare,
     setFreePosition,
     setFreeScale,

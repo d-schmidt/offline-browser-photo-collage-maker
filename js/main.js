@@ -377,9 +377,30 @@
     Render.announce(I18n.t('announce.deleted', { n: number }));
   };
 
+  /**
+   * A filled free-form box mirrors a filled grid box: the first delete only
+   * lifts the photo into the shelf and leaves the empty box in place; a second
+   * delete removes the box and offers the one-step undo.
+   */
+  const removeFreeBoxPhoto = (found) => {
+    const freeId = found.box.id;
+    const number = freeBoxNumber(freeId);
+    History.add(found.box.image).then(syncHistoryBar);
+    if (!State.clearFreeImage(freeId)) return;
+    refresh();
+    Render.focusFreeBox(freeId);
+    Render.announce(I18n.t('announce.freePhotoRemoved', { n: number }));
+  };
+
   const deleteFreeSelected = () => {
     const freeId = State.selectedFreeId;
     if (!freeId) return;
+    const found = State.findFreeBox(freeId);
+    if (!found) return;
+    if (found.box.image) {
+      removeFreeBoxPhoto(found);
+      return;
+    }
     const number = freeBoxNumber(freeId);
     const snapshot = State.removeFreeBox(freeId);
     if (!snapshot) return;
