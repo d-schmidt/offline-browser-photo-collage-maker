@@ -344,6 +344,8 @@ button {
 }
 
 .history-bar {
+  display: flex;
+  align-items: center;
   flex: none;
   width: 100%;
   height: var(--bar-h);
@@ -354,6 +356,7 @@ button {
 /* Only a portrait canvas moves the shelf to the left; landscape and square
    canvases keep it along the bottom. Narrow screens override this below. */
 .workspace.is-portrait .history-bar {
+  flex-direction: column;
   width: var(--bar-h);
   height: auto;
   border-top: 0;
@@ -366,9 +369,12 @@ button {
 
 .history-list {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 6px;
-  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  width: auto;
   height: 100%;
   padding: 8px;
   overflow: auto;
@@ -382,6 +388,13 @@ button {
 
 .workspace.is-portrait .history-list {
   flex-direction: column;
+  width: 100%;
+  height: auto;
+}
+
+/* The clear action sits at the end of the shelf, flush with its inner edge. */
+.history-clear {
+  margin: 8px;
 }
 
 .history-thumb {
@@ -534,6 +547,7 @@ button {
   }
 
   .workspace.is-portrait .history-bar {
+    flex-direction: row;
     order: 0;
     width: 100%;
     height: var(--bar-h);

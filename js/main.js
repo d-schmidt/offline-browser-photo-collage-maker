@@ -38,6 +38,7 @@
   const workspace = document.getElementById('workspace');
   const historyBar = document.getElementById('history-bar');
   const historyList = document.getElementById('history-list');
+  const historyClearButton = document.getElementById('history-clear');
 
   let pickerBoxId = null;
   let pickerFreeId = null;
@@ -2368,6 +2369,16 @@
     if (!button) return;
     const entry = History.find(button.dataset.historyId);
     if (entry) addHistoryPhoto(entry);
+  });
+
+  /** Empty the deleted-photo shelf and remove its stored copies. */
+  historyClearButton.addEventListener('click', async () => {
+    await History.clear();
+    syncHistoryBar();
+    // The bar disappears with the last entry, so keep keyboard focus in the
+    // editor instead of losing it with the hidden button.
+    Render.focusCanvas();
+    Render.announce(I18n.t('announce.historyCleared'));
   });
 
   canvas.addEventListener('click', (event) => {

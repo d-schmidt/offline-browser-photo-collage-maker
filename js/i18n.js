@@ -45,6 +45,7 @@ const I18n = (() => {
       'undo.button': 'Undo last delete',
       'history.label': 'Deleted photos',
       'history.photo': 'Deleted photo {n}',
+      'history.clear': 'Delete all deleted photos',
       'history.selectBox':
         'Select a photo box first, then click a saved photo.',
 
@@ -126,6 +127,7 @@ const I18n = (() => {
       'announce.deleted': 'Photo box {n} deleted.',
       'announce.undone': 'Photo box {n} restored.',
       'announce.historyAdded': 'Deleted photo added to photo box {n}.',
+      'announce.historyCleared': 'Deleted-photo shelf cleared.',
       'announce.lockReleased': 'Box lock released.',
       'announce.needUnlocked':
         'At least one box in a {group} must stay unlocked.',
@@ -219,6 +221,7 @@ const I18n = (() => {
       'undo.button': 'Letztes Löschen rückgängig machen',
       'history.label': 'Gelöschte Fotos',
       'history.photo': 'Gelöschtes Foto {n}',
+      'history.clear': 'Alle gelöschten Fotos entfernen',
       'history.selectBox':
         'Wähle zuerst ein Bildfeld aus und klicke dann auf ein gespeichertes Foto.',
 
@@ -298,6 +301,7 @@ const I18n = (() => {
       'announce.deleted': 'Bildfeld {n} gelöscht.',
       'announce.undone': 'Bildfeld {n} wiederhergestellt.',
       'announce.historyAdded': 'Gelöschtes Foto zu Bildfeld {n} hinzugefügt.',
+      'announce.historyCleared': 'Gelöschte Fotos entfernt.',
       'announce.lockReleased': 'Sperre aufgehoben.',
       'announce.needUnlocked':
         'Mindestens ein Bildfeld pro {group} muss entsperrt bleiben.',

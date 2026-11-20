@@ -45,8 +45,9 @@ otherwise.
   and downscaled, so they survive a reload). They appear as square thumbnails
   in a second bar — on the left for a portrait format on a wide screen, and
   along the bottom for landscape and square formats or any small screen. Select
-  a box, then click a thumbnail to put that photo into it; the shelf never
-  changes the layout on its own.
+  a box, then click a thumbnail to put that photo into it. The delete button at
+  the end of the bar empties the shelf and removes the stored copies from the
+  browser. The shelf never changes the layout on its own.
 - The canvas (1080 px on its shorter side, longer side set by the chosen
   format) scales to fit the window without changing its layout.
 - **Margin color** in the action bar opens the system color picker and recolors the canvas padding and gaps; the export uses the same color.

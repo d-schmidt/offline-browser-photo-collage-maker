@@ -171,6 +171,24 @@ const History = (() => {
     return queue;
   };
 
+  /**
+   * Empty the shelf and remove its stored copies. The clear waits for any
+   * pending add, so a photo shelved just before the click cannot reappear.
+   */
+  const clear = () => {
+    queue = queue.then(() => {
+      loaded = true;
+      entries = [];
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // Storage can be unavailable; the in-memory shelf still empties.
+      }
+      return entries;
+    });
+    return queue;
+  };
+
   const find = (hash) =>
     entries.find((entry) => entry.hash === hash) || null;
 
@@ -188,6 +206,7 @@ const History = (() => {
   return {
     load,
     add,
+    clear,
     find,
     imageFor,
     get entries() {
