@@ -1081,7 +1081,7 @@ button {
   overflow-wrap: break-word;
   white-space: pre-wrap;
   paint-order: stroke fill;
-  -webkit-text-stroke-width: var(--free-text-stroke, 5px);
+  -webkit-text-stroke-width: var(--free-text-stroke, 8px);
   -webkit-text-stroke-color: #000000;
   pointer-events: none;
   user-select: none;
