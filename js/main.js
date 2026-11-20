@@ -41,6 +41,8 @@
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
   const addTextButton = document.getElementById('add-text-button');
+  const barAddFreeButton = document.getElementById('bar-add-free-button');
+  const barAddTextButton = document.getElementById('bar-add-text-button');
   const fontButton = document.getElementById('font-button');
   const fontMenuWrap = document.getElementById('font-menu-wrap');
   const fontMenu = document.getElementById('font-menu');
@@ -3152,6 +3154,8 @@
   addRowBottom.addEventListener('click', () => addRow('end'));
   addFreeButton.addEventListener('click', addFreeBox);
   addTextButton.addEventListener('click', addTextBox);
+  barAddFreeButton.addEventListener('click', addFreeBox);
+  barAddTextButton.addEventListener('click', addTextBox);
 
   const handlesAddBox = (event) => {
     const button = event.target.closest('button[data-action="add-box"]');

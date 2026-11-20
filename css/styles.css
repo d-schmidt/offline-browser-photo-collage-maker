@@ -161,6 +161,18 @@ button {
   min-width: 0;
 }
 
+/* The free-form add actions sit at the left of the action bar and stay there
+   with or without a selection. A hairline separates them from the contextual
+   tools that follow. */
+.create-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
+  border-right: 1px solid rgb(255 255 255 / 18%);
+}
+
 /* A hairline rule splitting the structural actions (delete, select image)
    from the framing actions (ratio locks, visibility). */
 .action-divider {

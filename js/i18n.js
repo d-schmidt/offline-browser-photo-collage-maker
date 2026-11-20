@@ -11,6 +11,7 @@ const I18n = (() => {
       'app.title': 'Photo Collage Editor',
 
       'actions.label': 'Actions',
+      'create.group': 'Add free-form items',
       'orientation.toggle': 'Toggle row or column layout',
       'orientation.toRow': 'Switch to row layout',
       'orientation.toColumn': 'Switch to column layout',
@@ -297,6 +298,7 @@ const I18n = (() => {
       'app.title': 'Foto-Collagen-Editor',
 
       'actions.label': 'Aktionen',
+      'create.group': 'Freie Elemente hinzufügen',
       'orientation.toggle': 'Zeilen- oder Spaltenlayout umschalten',
       'orientation.toRow': 'Zum Zeilenlayout wechseln',
       'orientation.toColumn': 'Zum Spaltenlayout wechseln',

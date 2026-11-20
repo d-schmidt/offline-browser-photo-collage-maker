@@ -18,6 +18,30 @@
       data-i18n-aria-label="undo.button"
       hidden
     ></button>
+    <div
+      class="create-actions"
+      id="create-actions"
+      role="group"
+      aria-label="Add free-form items"
+      data-i18n-aria-label="create.group"
+    >
+      <button
+        class="icon-button"
+        id="bar-add-free-button"
+        type="button"
+        data-icon="addBox"
+        aria-label="Add free-form photo box"
+        data-i18n-aria-label="free.add"
+      ></button>
+      <button
+        class="icon-button"
+        id="bar-add-text-button"
+        type="button"
+        data-icon="editNote"
+        aria-label="Add free-form text box"
+        data-i18n-aria-label="text.add"
+      ></button>
+    </div>
     <div class="action-bar-tools" id="selection-actions">
       <!-- Text styling menus live in persistent wrappers so a repaint while a
            native color picker is open does not close them. They sit after the
