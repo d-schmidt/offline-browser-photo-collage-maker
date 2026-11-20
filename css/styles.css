@@ -257,6 +257,25 @@ button {
   left: 0;
 }
 
+/* The font menu previews every family, so it is wider and scrolls when a
+   machine offers many installed fonts. */
+#font-menu {
+  width: 210px;
+  max-height: min(420px, calc(100vh - 90px));
+  overflow-y: auto;
+}
+
+.font-menu-item {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.text-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgb(255 255 255 / 14%);
+}
+
 .text-background-opacity {
   padding: 6px 8px 4px;
 }

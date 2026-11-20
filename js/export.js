@@ -110,7 +110,7 @@ const Export = (() => {
     if (!box.text || innerW <= 0 || innerH <= 0) return;
 
     const size = Layout.freeTextSize(box);
-    const family = box.font === 'serif' ? 'serif' : 'sans-serif';
+    const family = Layout.textFontStack(box.font);
     ctx.save();
     ctx.beginPath();
     ctx.rect(left + border, top + border, innerW, innerH);

@@ -1212,6 +1212,62 @@
   const fontMenuItems = () =>
     Array.from(fontMenu.querySelectorAll('[data-font]'));
 
+  /**
+   * True when a local family is installed. The same sample is measured in the
+   * family and in a generic fallback: a missing family falls back to the same
+   * face, so identical widths mean it is not available. Nothing is loaded from
+   * the network either way.
+   */
+  const isFontAvailable = (family) => {
+    try {
+      const context = document.createElement('canvas').getContext('2d');
+      if (!context) return true;
+      const sample = 'mmmmmmmmmmlli';
+      return ['monospace', 'serif', 'sans-serif'].some((fallback) => {
+        context.font = `72px ${fallback}`;
+        const fallbackWidth = context.measureText(sample).width;
+        context.font = `72px "${family}", ${fallback}`;
+        return context.measureText(sample).width !== fallbackWidth;
+      });
+    } catch {
+      // An unreadable canvas keeps the entry visible; it still falls back.
+      return true;
+    }
+  };
+
+  /**
+   * One entry per font, each previewing its own face. The three generic
+   * families come first, then the installed ones under a separator.
+   */
+  const buildFontMenu = () => {
+    const fragment = document.createDocumentFragment();
+    let installed = 0;
+
+    for (const font of Layout.textFonts) {
+      if (!font.generic && !isFontAvailable(font.probe)) continue;
+
+      if (!font.generic && installed === 0) {
+        const separator = document.createElement('div');
+        separator.className = 'text-menu-separator';
+        separator.setAttribute('role', 'separator');
+        separator.setAttribute('aria-label', I18n.t('font.installed'));
+        fragment.append(separator);
+      }
+      if (!font.generic) installed += 1;
+
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'color-menu-item font-menu-item';
+      item.dataset.font = font.id;
+      item.setAttribute('role', 'menuitem');
+      item.textContent = I18n.t(font.labelKey);
+      item.style.fontFamily = font.stack;
+      fragment.append(item);
+    }
+
+    fontMenu.replaceChildren(fragment);
+  };
+
   const syncFontMenu = () => {
     const found = State.findFreeBox(State.selectedFreeId);
     const font = found && found.box.kind === 'text' ? found.box.font : 'sans';
@@ -1246,16 +1302,17 @@
     if (restoreFocus) fontButton.focus({ preventScroll: true });
   };
 
-  /** Switch the selected text box between the two offered font families. */
+  /** Switch the selected text box to another available font family. */
   const applyTextFont = (font) => {
     const freeId = State.selectedFreeId;
     if (!freeId || !State.setFreeFont(freeId, font)) return;
     refresh();
     closeFontMenu();
     fontButton.focus({ preventScroll: true });
+    const entry = Layout.textFonts.find((candidate) => candidate.id === font);
     Render.announce(
       I18n.t('announce.font', {
-        font: I18n.t(font === 'serif' ? 'font.serif' : 'font.sans'),
+        font: I18n.t(entry ? entry.labelKey : 'font.sans'),
       }),
     );
   };
@@ -3406,6 +3463,7 @@
 
   I18n.apply();
   buildPresetChips();
+  buildFontMenu();
   Render.init();
   History.load();
   syncHistoryBar();

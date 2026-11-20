@@ -93,8 +93,9 @@ const State = (() => {
 
   // The last font, text color, and outline color the user picked, reused by
   // every new text box so a series of captions stays consistent.
-  const TEXT_FONTS = new Set(['sans', 'serif']);
   let textDefaults = { font: 'sans', color: '#ffffff', outline: '#000000' };
+  const isTextFont = (id) =>
+    Layout.textFonts.some((font) => font.id === id);
 
   const freeMaxWidth = () =>
     Math.max(Layout.canvasW, Layout.canvasH) * 3;
@@ -213,7 +214,7 @@ const State = (() => {
   /** Text font, reused for the next new text box. */
   const setFreeFont = (freeId, font) => {
     const found = findFreeBox(freeId);
-    if (!found || !isTextBox(found.box) || !TEXT_FONTS.has(font)) return false;
+    if (!found || !isTextBox(found.box) || !isTextFont(font)) return false;
     found.box.font = font;
     textDefaults = { ...textDefaults, font };
     return true;

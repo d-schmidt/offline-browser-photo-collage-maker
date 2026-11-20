@@ -50,6 +50,79 @@ const METRICS = Object.freeze({
   maxBorder: 100,
 });
 
+/**
+ * Free-form text fonts. Every entry is a stack of families that come with the
+ * machine; nothing is downloaded or bundled. `generic` entries always exist,
+ * while the others are only offered when their first family resolves, detected
+ * by comparing text metrics with a generic fallback. The last entry of each
+ * stack is the fallback used when the preferred family is not installed.
+ */
+const TEXT_FONTS = Object.freeze([
+  { id: 'sans', labelKey: 'font.sans', stack: 'sans-serif', generic: true },
+  { id: 'serif', labelKey: 'font.serif', stack: 'serif', generic: true },
+  { id: 'mono', labelKey: 'font.mono', stack: 'monospace', generic: true },
+  {
+    id: 'arial',
+    labelKey: 'font.arial',
+    probe: 'Arial',
+    stack: 'Arial, Helvetica, sans-serif',
+  },
+  {
+    id: 'helvetica',
+    labelKey: 'font.helvetica',
+    probe: 'Helvetica Neue',
+    stack: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+  },
+  {
+    id: 'verdana',
+    labelKey: 'font.verdana',
+    probe: 'Verdana',
+    stack: 'Verdana, Geneva, sans-serif',
+  },
+  {
+    id: 'trebuchet',
+    labelKey: 'font.trebuchet',
+    probe: 'Trebuchet MS',
+    stack: '"Trebuchet MS", Tahoma, sans-serif',
+  },
+  {
+    id: 'segoe',
+    labelKey: 'font.segoe',
+    probe: 'Segoe UI',
+    stack: '"Segoe UI", Tahoma, sans-serif',
+  },
+  {
+    id: 'georgia',
+    labelKey: 'font.georgia',
+    probe: 'Georgia',
+    stack: 'Georgia, "Times New Roman", serif',
+  },
+  {
+    id: 'times',
+    labelKey: 'font.times',
+    probe: 'Times New Roman',
+    stack: '"Times New Roman", Times, serif',
+  },
+  {
+    id: 'courier',
+    labelKey: 'font.courier',
+    probe: 'Courier New',
+    stack: '"Courier New", Courier, monospace',
+  },
+  {
+    id: 'impact',
+    labelKey: 'font.impact',
+    probe: 'Impact',
+    stack: 'Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif',
+  },
+  {
+    id: 'comic',
+    labelKey: 'font.comic',
+    probe: 'Comic Sans MS',
+    stack: '"Comic Sans MS", "Comic Sans", cursive',
+  },
+]);
+
 const Layout = (() => {
   const { minRowH, minBoxW, maxZoom, maxBorder } = METRICS;
   let canvasW = FORMATS[0].canvasW;
@@ -548,10 +621,18 @@ const Layout = (() => {
     return Math.max(10, Math.min(innerW, innerH) * 0.14);
   };
 
+  /** CSS (and canvas) family list for a text box font id. */
+  const textFontStack = (id) => {
+    const font = TEXT_FONTS.find((candidate) => candidate.id === id);
+    return font ? font.stack : 'sans-serif';
+  };
+
   return {
     compute,
     freeBorder,
     freeTextSize,
+    textFontStack,
+    textFonts: TEXT_FONTS,
     imageRect,
     zoomRange,
     maxZoom,

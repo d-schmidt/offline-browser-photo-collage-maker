@@ -267,7 +267,7 @@ const Render = (() => {
     text.className = 'free-text';
     text.textContent = box.text;
     text.style.color = box.color;
-    text.style.fontFamily = box.font === 'serif' ? 'serif' : 'sans-serif';
+    text.style.fontFamily = Layout.textFontStack(box.font);
     text.style.webkitTextStroke = `1px ${box.outline}`;
     return text;
   };
