@@ -267,17 +267,27 @@ button {
   max-width: calc(100vw - 16px);
 }
 
-/* Alignment is a compact icon-only row above the color controls. */
-.text-align-row {
+/* Alignment and emphasis are compact icon-only rows above the color controls. */
+.text-align-row,
+.text-style-row {
   display: flex;
   align-items: center;
   gap: 2px;
+  padding: 2px 4px;
+}
+
+.text-align-row {
+  padding-bottom: 2px;
+}
+
+.text-style-row {
   margin-bottom: 4px;
-  padding: 2px 4px 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgb(255 255 255 / 14%);
 }
 
-.text-align-button[aria-pressed='true'] {
+.text-align-button[aria-pressed='true'],
+.text-style-button[aria-pressed='true'] {
   background: rgb(255 255 255 / 18%);
 }
 
@@ -1135,8 +1145,11 @@ button {
   color: #ffffff;
   font-family: sans-serif;
   font-size: var(--free-text-size, 16px);
+  font-weight: 700;
   line-height: 1.2;
   text-align: center;
+  text-decoration-thickness: 0.07em;
+  text-underline-offset: 0.12em;
   overflow-wrap: break-word;
   white-space: pre-wrap;
   paint-order: stroke fill;

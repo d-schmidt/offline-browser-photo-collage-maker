@@ -97,6 +97,7 @@ const State = (() => {
   // every new text box so a series of captions stays consistent.
   let textDefaults = { font: 'sans', color: '#ffffff', outline: '#000000' };
   const TEXT_ALIGNS = new Set(['left', 'center', 'right']);
+  const TEXT_STYLES = new Set(['bold', 'italic', 'underline']);
   const isTextFont = (id) =>
     Layout.textFonts.some((font) => font.id === id);
 
@@ -153,8 +154,12 @@ const State = (() => {
       font: text ? textDefaults.font : 'sans',
       color: text ? textDefaults.color : '#ffffff',
       outline: text ? textDefaults.outline : '#000000',
-      // Every new text box starts centered; the style menu changes it per box.
+      // Every new text box starts centered and bold; the style menu changes
+      // the alignment and emphasis per box.
       align: 'center',
+      bold: text,
+      italic: false,
+      underline: false,
     };
     box.width = clampFreeWidth(box, box.width);
     return box;
@@ -243,6 +248,16 @@ const State = (() => {
       return false;
     }
     found.box.align = align;
+    return true;
+  };
+
+  /** Toggle bold, italic, or underline on a text box. */
+  const setFreeTextStyle = (freeId, style, active) => {
+    const found = findFreeBox(freeId);
+    if (!found || !isTextBox(found.box) || !TEXT_STYLES.has(style)) {
+      return false;
+    }
+    found.box[style] = Boolean(active);
     return true;
   };
 
@@ -1089,6 +1104,7 @@ const State = (() => {
     setFreeText,
     setFreeFont,
     setFreeTextAlign,
+    setFreeTextStyle,
     setFreeTextColor,
     setFreeTextOutline,
     setFreeSquare,

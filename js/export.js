@@ -139,14 +139,13 @@ const Export = (() => {
     if (!box.text || innerW <= 0 || innerH <= 0) return;
 
     const size = Layout.freeTextSize(box);
-    const family = Layout.textFontStack(box.font);
     const align = box.align || 'center';
     const paddingX = size * Layout.textPaddingX;
     ctx.save();
     ctx.beginPath();
     ctx.rect(left + border, top + border, innerW, innerH);
     ctx.clip();
-    ctx.font = `${size}px ${family}`;
+    ctx.font = Layout.textFont(box, size);
     ctx.textAlign = align;
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
@@ -174,6 +173,27 @@ const Export = (() => {
       ctx.strokeText(line, textX, y);
       ctx.fillStyle = box.color;
       ctx.fillText(line, textX, y);
+      if (box.underline) {
+        // The canvas middle baseline sits between the font's ascent and
+        // descent; recover the alphabetic baseline for the underline.
+        const metrics = ctx.measureText(line);
+        const ascent = metrics.fontBoundingBoxAscent || size * 0.8;
+        const descent = metrics.fontBoundingBoxDescent || size * 0.2;
+        const baseline = y + (ascent - descent) / 2;
+        const width = metrics.width;
+        const underlineX =
+          align === 'left'
+            ? textX
+            : align === 'right'
+              ? textX - width
+              : textX - width / 2;
+        ctx.fillRect(
+          underlineX,
+          baseline + size * 0.12,
+          width,
+          Math.max(1, size * 0.07),
+        );
+      }
     });
     ctx.restore();
   };

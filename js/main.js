@@ -62,6 +62,10 @@
   const textAlignButtons = Array.from(
     textAlignRow.querySelectorAll('[data-text-align]'),
   );
+  const textStyleRow = document.getElementById('text-style-row');
+  const textStyleButtons = Array.from(
+    textStyleRow.querySelectorAll('[data-text-style]'),
+  );
   const textOutlineRow = document.getElementById('text-outline-row');
   const textOutlineChip = document.getElementById('text-outline-chip');
   const textBackgroundRow = document.getElementById('text-background-row');
@@ -406,12 +410,12 @@
    * Pixel extents that make a text box hug its words at `size`, using the same
    * line height and padding as the editor CSS and the export.
    */
-  const measureTextBlock = (text, stack, size, border) => {
+  const measureTextBlock = (text, box, size, border) => {
     const context = document.createElement('canvas').getContext('2d');
     const lines = String(text).split('\n');
     let widest = 0;
     if (context) {
-      context.font = `${size}px ${stack}`;
+      context.font = Layout.textFont(box, size);
       for (const line of lines) {
         widest = Math.max(widest, context.measureText(line || ' ').width);
       }
@@ -439,7 +443,7 @@
     const box = found.box;
     const metrics = measureTextBlock(
       box.text,
-      Layout.textFontStack(box.font),
+      box,
       size || Layout.freeTextSize(box),
       Layout.freeBorder(box),
     );
@@ -1497,6 +1501,10 @@
       const active = button.dataset.textAlign === align;
       button.setAttribute('aria-pressed', String(active));
     });
+    textStyleButtons.forEach((button) => {
+      const active = Boolean(box[button.dataset.textStyle]);
+      button.setAttribute('aria-pressed', String(active));
+    });
     textColorChip.style.background = box.color;
     textOutlineChip.style.background = box.outline;
     textColorInput.value = box.color;
@@ -1556,6 +1564,22 @@
     }[align];
     Render.announce(
       I18n.t('announce.textAlign', { align: I18n.t(valueKey) }),
+    );
+  };
+
+  /** Toggle bold, italic, or underline and refit the words at their size. */
+  const applyTextStyle = (style, active) => {
+    const freeId = State.selectedFreeId;
+    const found = State.findFreeBox(freeId);
+    if (!found || !State.setFreeTextStyle(freeId, style, active)) return;
+    const size = textSeedSize(found.box);
+    if (found.box.text) fitTextBox(freeId, size);
+    refresh();
+    syncTextColorMenu();
+    Render.announce(
+      I18n.t(active ? 'announce.textStyleOn' : 'announce.textStyleOff', {
+        style: I18n.t(`textColor.${style}`),
+      }),
     );
   };
 
@@ -3151,6 +3175,15 @@
     const button = event.target.closest('[data-text-align]');
     if (!button) return;
     applyTextAlign(button.dataset.textAlign);
+  });
+
+  // Bold, italic, and underline are independent toggles.
+  textStyleRow.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-text-style]');
+    const found = State.findFreeBox(State.selectedFreeId);
+    if (!button || !found) return;
+    const style = button.dataset.textStyle;
+    applyTextStyle(style, !found.box[style]);
   });
 
   // Each row opens its own picker; the picker previews live on the canvas.

@@ -659,12 +659,20 @@ const Layout = (() => {
     return font ? font.stack : 'sans-serif';
   };
 
+  /** Canvas font shorthand for a text box's family, size, weight, and slant. */
+  const textFont = (box, size) => {
+    const weight = box.bold === false ? '400' : '700';
+    const slant = box.italic ? 'italic ' : '';
+    return `${slant}${weight} ${size}px ${textFontStack(box.font)}`;
+  };
+
   return {
     compute,
     freeBorder,
     defaultTextSize,
     freeTextSize,
     textOutlineWidth,
+    textFont,
     textFontStack,
     textFonts: TEXT_FONTS,
     textLineHeight: TEXT_LINE_HEIGHT,

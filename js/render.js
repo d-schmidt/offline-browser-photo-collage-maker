@@ -39,6 +39,12 @@ const ICONS = Object.freeze({
   visibilityOff: 'assets/visibility_off_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  formatBold:
+    'assets/format_bold_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  formatItalic:
+    'assets/format_italic_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  formatUnderlined:
+    'assets/format_underlined_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format5x4: 'assets/crop_5_4_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format1x1: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -358,6 +364,9 @@ const Render = (() => {
     text.textContent = box.text;
     text.style.color = box.color;
     text.style.fontFamily = Layout.textFontStack(box.font);
+    text.style.fontWeight = box.bold === false ? '400' : '700';
+    text.style.fontStyle = box.italic ? 'italic' : 'normal';
+    text.style.textDecorationLine = box.underline ? 'underline' : 'none';
     text.style.webkitTextStrokeColor = box.outline;
     return text;
   };
