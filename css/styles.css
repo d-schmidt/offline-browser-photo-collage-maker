@@ -355,6 +355,34 @@ button {
   border-radius: 4px;
 }
 
+/* The colorize chip shows the photo tint; without one it reads as "none". */
+.color-menu-chip.is-none {
+  background:
+    linear-gradient(
+      135deg,
+      transparent calc(50% - 1px),
+      #9a9a9a calc(50% - 1px),
+      #9a9a9a calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ),
+    #3a3a3a;
+}
+
+/* Inline duotone filters are referenced by URL, so the SVG stays in the page
+   but takes no space. */
+.tint-filters {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* The colorize menu has no slider, so it only needs its two rows. */
+#tint-menu {
+  width: 200px;
+  padding: 4px;
+}
+
 /* The two stop pickers reuse the base menu's item look: a chip on the left,
    the label beside it, and the same hover/focus treatment. */
 .gradient-menu {

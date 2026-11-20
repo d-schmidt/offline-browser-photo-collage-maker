@@ -116,6 +116,35 @@
           </div>
         </div>
       </div>
+      <div class="fill-menu-wrap" id="tint-menu-wrap" hidden>
+        <button
+          class="icon-button"
+          id="tint-button"
+          type="button"
+          data-icon="invertColors"
+          aria-label="Colorize photo"
+          data-i18n-aria-label="action.tint"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="tint-menu"
+        ></button>
+        <div
+          class="fill-menu"
+          id="tint-menu"
+          role="dialog"
+          aria-label="Photo color"
+          data-i18n-aria-label="tint.title"
+          hidden
+        >
+          <button class="color-menu-item" type="button" id="tint-color-row">
+            <span class="color-menu-chip" id="tint-color-chip"></span>
+            <span data-i18n="tint.color">Photo color</span>
+          </button>
+          <button class="color-menu-item" type="button" id="tint-clear-row">
+            <span data-i18n="tint.clear">No color</span>
+          </button>
+        </div>
+      </div>
       <div class="fill-menu-wrap" id="fill-menu-wrap" hidden>
         <button
           class="icon-button"
@@ -431,6 +460,7 @@
   <input class="visually-hidden" id="text-background-input" type="color" value="#cfcfcf" tabindex="-1" aria-label="Text background color" data-i18n-aria-label="textColor.backgroundInput">
   <input class="visually-hidden" id="margin-color-input" type="color" value="#ffffff" tabindex="-1" aria-label="Margin color" data-i18n-aria-label="margin.label">
   <input class="visually-hidden" id="fill-color-input" type="color" value="#cfcfcf" tabindex="-1" aria-label="Empty box color" data-i18n-aria-label="fill.colorInput">
+  <input class="visually-hidden" id="tint-color-input" type="color" value="#000000" tabindex="-1" aria-label="Photo color" data-i18n-aria-label="tint.colorInput">
   <input class="visually-hidden" id="gradient-top-input" type="color" value="#f5f2eb" tabindex="-1" aria-label="First gradient color" data-i18n-aria-label="margin.gradientFirst">
   <input class="visually-hidden" id="gradient-bottom-input" type="color" value="#dfd6c7" tabindex="-1" aria-label="Second gradient color" data-i18n-aria-label="margin.gradientSecond">
   <div class="visually-hidden" id="live-region" role="status" aria-live="polite"></div>

@@ -443,6 +443,7 @@ const Layout = (() => {
         id: row.boxes[index].id,
         image: row.boxes[index].image,
         fill: row.boxes[index].fill,
+        tint: row.boxes[index].tint,
         visible: row.boxes[index].visible !== false,
         locked: isLocked(row.boxes[index]),
         zoom: row.boxes[index].zoom,

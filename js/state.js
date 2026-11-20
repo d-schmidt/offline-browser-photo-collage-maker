@@ -49,6 +49,8 @@ const State = (() => {
     offsetX: 0,
     offsetY: 0,
     rotation: 0,
+    // Duotone photo color; null keeps the photo's own colors.
+    tint: null,
     // Null until the empty cell is recolored; the defaults live in CSS.
     fill: null,
   });
@@ -134,6 +136,8 @@ const State = (() => {
       rotation: 0,
       // Set by the square crop action: keep 1:1 instead of the photo ratio.
       square: false,
+      // Duotone photo color; null keeps the photo's own colors.
+      tint: null,
       // Photos keep the usual margin frame unless it is switched off; a text
       // box starts without one so the words sit directly on their backdrop.
       border: !text,
@@ -277,6 +281,8 @@ const State = (() => {
     // A new photo starts without the painted fill; the old photo's
     // transparency is not a property of the replacement.
     found.box.background = false;
+    // The colorize tint belonged to the previous photo.
+    found.box.tint = null;
     // Keep the box area while its ratio follows the photo, so swapping a
     // landscape for a portrait photo does not make the box jump in size. An
     // active square crop outranks the new photo's own ratio.
@@ -296,6 +302,7 @@ const State = (() => {
     found.box.image = null;
     found.box.background = false;
     found.box.square = false;
+    found.box.tint = null;
     found.box.rotation = 0;
     resizeFreeToAspect(found.box, 1);
     return true;
@@ -516,6 +523,7 @@ const State = (() => {
     // box reveals it, because the new photo was explicitly picked for it.
     resetZoomPan(found.box);
     found.box.rotation = 0;
+    found.box.tint = null;
     found.box.visible = true;
     if (found.box.lock === 'aspect' && image.width > 0 && image.height > 0) {
       found.box.ratio = image.width / image.height;
@@ -546,6 +554,7 @@ const State = (() => {
     found.box.image = null;
     resetZoomPan(found.box);
     found.box.rotation = 0;
+    found.box.tint = null;
     found.box.lock = null;
     found.box.ratio = null;
     found.box.lockSeq = 0;
@@ -862,6 +871,28 @@ const State = (() => {
     return true;
   };
 
+  /**
+   * Recolor a photo to one duotone color: dark pixels take the picked color and
+   * bright pixels stay white, so a black-and-white QR code reads white and red.
+   * `null` restores the original colors. The tint belongs to the photo and is
+   * dropped when it is replaced.
+   */
+  const setBoxTint = (boxId, color) => {
+    const found = findBox(boxId);
+    if (!found || !found.box.image) return false;
+    if (color !== null && !isHexColor(color)) return false;
+    found.box.tint = color === null ? null : color.toLowerCase();
+    return true;
+  };
+
+  const setFreeTint = (freeId, color) => {
+    const found = findFreeBox(freeId);
+    if (!found || !found.box.image || isTextBox(found.box)) return false;
+    if (color !== null && !isHexColor(color)) return false;
+    found.box.tint = color === null ? null : color.toLowerCase();
+    return true;
+  };
+
   const mixChannel = (from, to, share) =>
     Math.round(from + (to - from) * share);
 
@@ -1029,6 +1060,7 @@ const State = (() => {
     setCanvasColor,
     setCanvasGradient,
     setBoxFill,
+    setBoxTint,
     placeholderFill: PLACEHOLDER_FILL,
     canvasColorAt,
     setBorderThickness,
@@ -1052,6 +1084,7 @@ const State = (() => {
     setFreeBorder,
     setFreeBackground,
     setFreeFill,
+    setFreeTint,
     setFreeRotation,
     snapRotation,
     isRotationSnapped,

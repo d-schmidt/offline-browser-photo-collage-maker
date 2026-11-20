@@ -18,6 +18,8 @@ const ICONS = Object.freeze({
   vignette: 'assets/vignette_2_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   blur: 'assets/blur_on_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   image: 'assets/image_search_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  invertColors:
+    'assets/invert_colors_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -98,6 +100,81 @@ const Render = (() => {
     return divider;
   };
 
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  // One mutable duotone filter per photo box, so dragging the color picker
+  // updates its functions instead of adding a filter for every preview shade.
+  const tintFilters = new Map();
+  let tintDefs = null;
+
+  /** Move one duotone filter's red/green/blue ramp to the given color. */
+  const paintTintFilter = (entry, color) => {
+    entry.color = color;
+    entry.funcs.forEach((func, index) => {
+      const channel =
+        parseInt(color.slice(1 + index * 2, 3 + index * 2), 16) / 255;
+      // Dark pixels land on the tint, bright pixels reach white.
+      func.setAttribute('intercept', String(channel));
+      func.setAttribute('slope', String(1 - channel));
+    });
+  };
+
+  /**
+   * Inline SVG duotone filter for a photo, cached per box. The photo is reduced
+   * to its luminance with the coefficients the export's canvas compositing
+   * uses, then mapped from the tint (dark pixels) to white (bright pixels), so
+   * a black-and-white QR code reads white and the chosen color. Plain CSS
+   * filter functions cannot express that mapping.
+   */
+  const tintFilter = (boxId, color) => {
+    if (!color) return '';
+    const key = color.toLowerCase();
+    const cached = tintFilters.get(boxId);
+    if (cached) {
+      if (cached.color !== key) paintTintFilter(cached, key);
+      return cached.value;
+    }
+
+    if (!tintDefs) {
+      const svg = document.createElementNS(SVG_NS, 'svg');
+      svg.setAttribute('class', 'tint-filters');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('focusable', 'false');
+      tintDefs = document.createElementNS(SVG_NS, 'defs');
+      svg.append(tintDefs);
+      document.body.append(svg);
+    }
+
+    const id = `photo-tint-${boxId}`;
+    const filter = document.createElementNS(SVG_NS, 'filter');
+    filter.setAttribute('id', id);
+    // sRGB keeps the editor's result in step with the canvas export.
+    filter.setAttribute('color-interpolation-filters', 'sRGB');
+
+    const luminance = document.createElementNS(SVG_NS, 'feColorMatrix');
+    luminance.setAttribute('type', 'matrix');
+    luminance.setAttribute(
+      'values',
+      '0.3 0.59 0.11 0 0 ' +
+        '0.3 0.59 0.11 0 0 ' +
+        '0.3 0.59 0.11 0 0 ' +
+        '0 0 0 1 0',
+    );
+    const transfer = document.createElementNS(SVG_NS, 'feComponentTransfer');
+    const funcs = ['feFuncR', 'feFuncG', 'feFuncB'].map((name) => {
+      const func = document.createElementNS(SVG_NS, name);
+      func.setAttribute('type', 'linear');
+      transfer.append(func);
+      return func;
+    });
+    filter.append(luminance, transfer);
+    tintDefs.append(filter);
+
+    const entry = { color: '', funcs, value: `url("#${id}")` };
+    paintTintFilter(entry, key);
+    tintFilters.set(boxId, entry);
+    return entry.value;
+  };
+
   /** Position the photo inside a box in logical pixels; the box clips it. */
   const placeImage = (
     element,
@@ -172,6 +249,8 @@ const Render = (() => {
       image.src = layoutBox.image.url;
       image.alt = I18n.t('box.alt', { n: number });
       image.draggable = false;
+      const tint = tintFilter(layoutBox.id, layoutBox.tint);
+      if (tint) image.style.filter = tint;
       placeImage(
         image,
         layoutBox.image,
@@ -293,6 +372,8 @@ const Render = (() => {
       image.src = box.image.url;
       image.alt = '';
       image.draggable = false;
+      const tint = tintFilter(box.id, box.tint);
+      if (tint) image.style.filter = tint;
       container.append(image);
       return;
     }
@@ -507,7 +588,8 @@ const Render = (() => {
       if (
         child !== refs.fillWrap &&
         child !== refs.fontWrap &&
-        child !== refs.textColorWrap
+        child !== refs.textColorWrap &&
+        child !== refs.tintWrap
       ) {
         child.remove();
       }
@@ -542,6 +624,17 @@ const Render = (() => {
         ? selectedFill.box
         : null;
     showFillControls(Boolean(fillBox), fillBox ? fillBox.id : null);
+    // A text box has no photo to colorize, and an empty cell has nothing to
+    // recolor yet, so the menu only follows a photo box.
+    const tintBox =
+      selectedFill && selectedFill.box.image && selectedFill.box.kind !== 'text'
+        ? selectedFill.box
+        : null;
+    showTintControls(
+      Boolean(tintBox),
+      tintBox ? tintBox.id : null,
+      tintBox ? tintBox.tint : null,
+    );
     showTextControls(
       isTextSelected,
       isTextSelected ? selectedFree.box.id : null,
@@ -630,16 +723,18 @@ const Render = (() => {
         framing.push(background);
       }
 
-      setActionTools([
-        toolButton(
-          'delete-box',
-          I18n.t(hasImage ? 'action.removePhoto' : 'action.delete'),
-          'delete',
-        ),
-        toolButton('select-image', I18n.t('action.selectImage'), 'image'),
-        actionSeparator(),
-        ...framing,
-      ]);
+      setActionTools(
+        [
+          toolButton(
+            'delete-box',
+            I18n.t(hasImage ? 'action.removePhoto' : 'action.delete'),
+            'delete',
+          ),
+          toolButton('select-image', I18n.t('action.selectImage'), 'image'),
+          actionSeparator(),
+        ],
+        framing,
+      );
       return;
     }
     if (!state.selectedBoxId) return;
@@ -709,12 +804,14 @@ const Render = (() => {
       hasImage ? 'action.removePhoto' : 'action.delete',
     );
 
-    setActionTools([
-      toolButton('delete-box', deleteLabel, 'delete'),
-      toolButton('select-image', I18n.t('action.selectImage'), 'image'),
-      actionSeparator(),
-      ...framing,
-    ]);
+    setActionTools(
+      [
+        toolButton('delete-box', deleteLabel, 'delete'),
+        toolButton('select-image', I18n.t('action.selectImage'), 'image'),
+        actionSeparator(),
+      ],
+      framing,
+    );
   };
 
   const focusFreeBox = (freeId) => {
@@ -748,6 +845,21 @@ const Render = (() => {
     if (sameBox) return;
     refs.fillMenu.hidden = true;
     refs.fillButton.setAttribute('aria-expanded', 'false');
+  };
+
+  /**
+   * The colorize menu only exists for a photo box. Moving to another box or to
+   * an empty cell closes it, and the button reads as active while a tint is
+   * applied, so the color is never left describing a previous photo.
+   */
+  const showTintControls = (available, boxId = null, tint = null) => {
+    refs.tintWrap.hidden = !available;
+    refs.tintButton.classList.toggle('is-active', available && Boolean(tint));
+    const sameBox = available && boxId === refs.tintBoxId;
+    refs.tintBoxId = available ? boxId : null;
+    if (sameBox) return;
+    refs.tintMenu.hidden = true;
+    refs.tintButton.setAttribute('aria-expanded', 'false');
   };
 
   const selectedPhotoTarget = () => {
@@ -833,6 +945,7 @@ const Render = (() => {
       refs.zoomOverlay.src = image.url;
       refs.zoomOverlay.dataset.src = image.url;
     }
+    refs.zoomOverlay.style.filter = tintFilter(box.id, box.tint);
     refs.zoomOverlay.hidden = false;
     refs.zoomOverlay.style.left = `${left + rect.x}px`;
     refs.zoomOverlay.style.top = `${top + rect.y}px`;
@@ -1144,6 +1257,9 @@ const Render = (() => {
     refs.fillWrap = document.getElementById('fill-menu-wrap');
     refs.fillMenu = document.getElementById('fill-menu');
     refs.fillButton = document.getElementById('fill-button');
+    refs.tintWrap = document.getElementById('tint-menu-wrap');
+    refs.tintMenu = document.getElementById('tint-menu');
+    refs.tintButton = document.getElementById('tint-button');
     refs.fontWrap = document.getElementById('font-menu-wrap');
     refs.fontMenu = document.getElementById('font-menu');
     refs.fontButton = document.getElementById('font-button');

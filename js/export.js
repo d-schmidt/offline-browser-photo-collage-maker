@@ -16,6 +16,34 @@ const Export = (() => {
 
   const pad = (value) => String(value).padStart(2, '0');
 
+  /**
+   * Duotone copy of a photo: its luminance is screened over the tint, so dark
+   * pixels take the picked color and bright pixels stay white. This is the
+   * canvas twin of the editor's SVG filter. The photo's own transparency is
+   * restored afterwards, so transparent areas stay transparent instead of
+   * picking up the tint.
+   */
+  const tintedPhoto = (source, tint) => {
+    const width = source.naturalWidth || source.width;
+    const height = source.naturalHeight || source.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(source, 0, 0, width, height);
+    // Drop the saturation and keep the luminance.
+    ctx.globalCompositeOperation = 'saturation';
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, width, height);
+    // Screen the gray over the tint: black becomes the tint, white stays white.
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = tint;
+    ctx.fillRect(0, 0, width, height);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(source, 0, 0, width, height);
+    return canvas;
+  };
+
   /** Local-time download name: collage-yyyy-MM-dd-HH-mm.<extension> */
   const filename = (extension, date = new Date()) =>
     `collage-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
@@ -41,6 +69,7 @@ const Export = (() => {
     // The ghost overlay used while editing is deliberately absent here: only
     // the cropped, zoomed, rotated photo that shows inside the box reaches
     // the PNG.
+    const photo = box.tint ? tintedPhoto(image, box.tint) : image;
     ctx.save();
     ctx.beginPath();
     ctx.rect(pageX, pageY, box.w, box.h);
@@ -50,7 +79,7 @@ const Export = (() => {
       pageY + rect.y + rect.h / 2,
     );
     ctx.rotate((rect.rotation * Math.PI) / 180);
-    ctx.drawImage(image, -rect.w / 2, -rect.h / 2, rect.w, rect.h);
+    ctx.drawImage(photo, -rect.w / 2, -rect.h / 2, rect.w, rect.h);
     ctx.restore();
   };
 
@@ -223,15 +252,16 @@ const Export = (() => {
       ctx.drawImage(paint, 0, 0);
       ctx.restore();
     }
-    const sourceW = image.naturalWidth || image.width;
-    const sourceH = image.naturalHeight || image.height;
+    const source = box.tint ? tintedPhoto(image, box.tint) : image;
+    const sourceW = source.naturalWidth || source.width;
+    const sourceH = source.naturalHeight || source.height;
     if (innerW > 0 && innerH > 0 && sourceW > 0 && sourceH > 0) {
       // The editor fills the photo with `object-fit: cover`; mirror that crop.
       const cover = Math.max(innerW / sourceW, innerH / sourceH);
       const cropW = innerW / cover;
       const cropH = innerH / cover;
       ctx.drawImage(
-        image,
+        source,
         (sourceW - cropW) / 2,
         (sourceH - cropH) / 2,
         cropW,

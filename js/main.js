@@ -37,6 +37,13 @@
   const fillColorInput = document.getElementById('fill-color-input');
   const fillOpacity = document.getElementById('fill-opacity');
   const fillOpacityValue = document.getElementById('fill-opacity-value');
+  const tintMenuWrap = document.getElementById('tint-menu-wrap');
+  const tintButton = document.getElementById('tint-button');
+  const tintMenu = document.getElementById('tint-menu');
+  const tintColorRow = document.getElementById('tint-color-row');
+  const tintColorChip = document.getElementById('tint-color-chip');
+  const tintClearRow = document.getElementById('tint-clear-row');
+  const tintColorInput = document.getElementById('tint-color-input');
   const rowsLayer = document.getElementById('rows');
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
@@ -107,6 +114,7 @@
   let spotsBusy = false;
   let spotsQueued = false;
   let fillFrame = 0;
+  let tintFrame = 0;
   let textFillFrame = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
@@ -1271,6 +1279,78 @@
       I18n.t('announce.fill', {
         color: fill.color,
         n: Math.round(fill.opacity * 100),
+      }),
+    );
+  };
+
+  // --- photo colorize -----------------------------------------------------
+
+  /** The selected box while it holds a photo (grid or free-form), else null. */
+  const tintTarget = () => {
+    const found = State.selectedFreeId
+      ? State.findFreeBox(State.selectedFreeId)
+      : State.findBox(State.selectedBoxId);
+    if (!found || !found.box.image || found.box.kind === 'text') return null;
+    return found.box;
+  };
+
+  const syncTintMenu = () => {
+    const box = tintTarget();
+    if (!box) return;
+    tintColorChip.classList.toggle('is-none', !box.tint);
+    tintColorChip.style.background = box.tint || '';
+    tintClearRow.hidden = !box.tint;
+    // The picker opens on the current tint; black leaves a photo unchanged, so
+    // it is the neutral starting value.
+    tintColorInput.value = box.tint || '#000000';
+  };
+
+  const openTintMenu = () => {
+    if (!tintTarget()) return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    closeFillMenu();
+    syncTintMenu();
+    tintMenu.hidden = false;
+    tintButton.setAttribute('aria-expanded', 'true');
+    tintColorRow.focus({ preventScroll: true });
+  };
+
+  const closeTintMenu = (restoreFocus = false) => {
+    if (tintMenu.hidden) return;
+    tintMenu.hidden = true;
+    tintButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) tintButton.focus({ preventScroll: true });
+  };
+
+  /** Store the tint and repaint the canvas once per frame. */
+  const applyTint = (color) => {
+    const box = tintTarget();
+    if (!box) return;
+    const saved = State.selectedFreeId
+      ? State.setFreeTint(box.id, color)
+      : State.setBoxTint(box.id, color);
+    if (!saved) return;
+    tintColorChip.classList.toggle('is-none', !color);
+    tintColorChip.style.background = color || '';
+    tintClearRow.hidden = !color;
+    if (tintFrame) return;
+    tintFrame = requestAnimationFrame(() => {
+      tintFrame = 0;
+      refresh();
+      syncTintMenu();
+    });
+  };
+
+  const announceTint = () => {
+    const box = tintTarget();
+    if (!box) return;
+    Render.announce(
+      I18n.t(box.tint ? 'announce.tint' : 'announce.tintOff', {
+        color: box.tint,
       }),
     );
   };
@@ -2776,6 +2856,9 @@
     if (!fillMenu.hidden && !fillMenuWrap.contains(event.target)) {
       closeFillMenu();
     }
+    if (!tintMenu.hidden && !tintMenuWrap.contains(event.target)) {
+      closeTintMenu();
+    }
     if (!fontMenu.hidden && !fontMenuWrap.contains(event.target)) {
       closeFontMenu();
     }
@@ -2945,6 +3028,40 @@
       closeFillMenu(true);
     } else if (event.key === 'Tab') {
       closeFillMenu();
+    }
+  });
+
+  tintButton.addEventListener('click', () => {
+    if (tintMenu.hidden) openTintMenu();
+    else closeTintMenu(true);
+  });
+
+  // The row reopens the picker for the current photo; the input previews live.
+  tintColorRow.addEventListener('click', () => {
+    if (!tintTarget()) return;
+    syncTintMenu();
+    openSwatchPicker(tintColorInput);
+  });
+
+  tintColorInput.addEventListener('input', () => {
+    applyTint(tintColorInput.value);
+  });
+
+  tintColorInput.addEventListener('change', announceTint);
+
+  tintClearRow.addEventListener('click', () => {
+    applyTint(null);
+    closeTintMenu(true);
+    Render.announce(I18n.t('announce.tintOff'));
+  });
+
+  tintMenuWrap.addEventListener('keydown', (event) => {
+    if (tintMenu.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTintMenu(true);
+    } else if (event.key === 'Tab') {
+      closeTintMenu();
     }
   });
 
