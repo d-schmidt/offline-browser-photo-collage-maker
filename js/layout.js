@@ -50,6 +50,12 @@ const METRICS = Object.freeze({
   maxBorder: 100,
 });
 
+// Text layout shared by the editor CSS, the fit measurement, and the export:
+// every line is 1.25 em tall and the words sit in 0.35 em of padding, so a
+// text box can be sized to the measured words exactly.
+const TEXT_LINE_HEIGHT = 1.25;
+const TEXT_PADDING = 0.35;
+
 /**
  * Free-form text fonts. Every entry is a stack of families that come with the
  * machine; nothing is downloaded or bundled. `generic` entries always exist,
@@ -610,11 +616,23 @@ const Layout = (() => {
   };
 
   /**
-   * Font size for a free-form text box: a fraction of its inner short side, so
-   * the words grow with the box and keep the same relative size on screen and
-   * in the export.
+   * Font size for a free-form text box. The size is derived from the box
+   * height and the number of explicit lines, so a fitted box hugs its words:
+   * the text block plus the 0.35 em padding fills the inner height exactly.
+   * Scaling the box therefore scales the words with it.
    */
   const freeTextSize = (box) => {
+    const border = freeBorder(box);
+    const innerH = Math.max(0, box.width / (box.aspect || 1) - 2 * border);
+    const lines = Math.max(1, String(box.text || '').split('\n').length);
+    return Math.max(1, innerH / (lines * TEXT_LINE_HEIGHT + 2 * TEXT_PADDING));
+  };
+
+  /**
+   * Starting font size for a text box that has no words yet, so the first
+   * caption is a readable size before its box is fitted around it.
+   */
+  const defaultTextSize = (box) => {
     const border = freeBorder(box);
     const innerW = Math.max(0, box.width - 2 * border);
     const innerH = Math.max(0, box.width / (box.aspect || 1) - 2 * border);
@@ -630,9 +648,12 @@ const Layout = (() => {
   return {
     compute,
     freeBorder,
+    defaultTextSize,
     freeTextSize,
     textFontStack,
     textFonts: TEXT_FONTS,
+    textLineHeight: TEXT_LINE_HEIGHT,
+    textPadding: TEXT_PADDING,
     imageRect,
     zoomRange,
     maxZoom,

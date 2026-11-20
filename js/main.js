@@ -285,7 +285,14 @@
     if (borderFrame) return;
     borderFrame = requestAnimationFrame(() => {
       borderFrame = 0;
+      // A text box keeps its type size while its frame grows or shrinks, so
+      // capture the size under the old thickness before applying the new one.
+      const textSeeds = State.freeBoxes
+        .filter((box) => box.kind === 'text' && box.text)
+        .map((box) => [box.id, textSeedSize(box)]);
       applyBorderThickness();
+      Layout.setBorderThickness(State.borderThickness);
+      textSeeds.forEach(([freeId, size]) => fitTextBox(freeId, size));
       refresh();
     });
   };
@@ -374,13 +381,66 @@
     if (restoreFocus && freeId) Render.focusFreeBox(freeId);
   };
 
+  /**
+   * The font size a box shows right now, used as the seed when it is refitted:
+   * an existing caption keeps its size, a new box starts at the default.
+   */
+  const textSeedSize = (box) =>
+    box.text ? Layout.freeTextSize(box) : Layout.defaultTextSize(box);
+
+  /**
+   * Pixel extents that make a text box hug its words at `size`, using the same
+   * line height and padding as the editor CSS and the export.
+   */
+  const measureTextBlock = (text, stack, size, border) => {
+    const context = document.createElement('canvas').getContext('2d');
+    const lines = String(text).split('\n');
+    let widest = 0;
+    if (context) {
+      context.font = `${size}px ${stack}`;
+      for (const line of lines) {
+        widest = Math.max(widest, context.measureText(line || ' ').width);
+      }
+    }
+    const padding = size * Layout.textPadding;
+    return {
+      // A pixel of slack keeps a measured line from wrapping in the DOM.
+      width: widest + 2 * padding + 2 * border + 1,
+      height:
+        lines.length * size * Layout.textLineHeight + 2 * padding + 2 * border,
+    };
+  };
+
+  /**
+   * Resize a text box around its words, keeping its centre and font size. The
+   * box aspect follows the measured words, so scaling it later scales the text
+   * with it.
+   */
+  const fitTextBox = (freeId, size = null) => {
+    const found = State.findFreeBox(freeId);
+    if (!found || found.box.kind !== 'text' || !found.box.text) return false;
+    const box = found.box;
+    const metrics = measureTextBlock(
+      box.text,
+      Layout.textFontStack(box.font),
+      size || Layout.freeTextSize(box),
+      Layout.freeBorder(box),
+    );
+    return State.setFreeExtents(freeId, metrics.width, metrics.height);
+  };
+
   /** Save the words into the box the dialog was opened for. */
   const saveTextDialog = () => {
     const freeId = textDialogId;
     if (!freeId) return;
     const value = textDialogInput.value;
+    const found = State.findFreeBox(freeId);
+    // The size is captured before the new words arrive, so editing keeps it.
+    const size = found ? textSeedSize(found.box) : null;
     closeTextDialog(false);
     if (!State.setFreeText(freeId, value)) return;
+    // A box with words hugs them; an emptied box resets to the square target.
+    if (value) fitTextBox(freeId, size);
     refresh();
     Render.focusFreeBox(freeId);
     Render.announce(
@@ -736,11 +796,14 @@
   const toggleFreeBorder = (freeId) => {
     const found = State.findFreeBox(freeId);
     if (!found) return;
+    const text = found.box.kind === 'text';
+    // The frame grows the box without changing the words' size.
+    const size = text ? textSeedSize(found.box) : null;
     const next = found.box.border === false;
     if (!State.setFreeBorder(freeId, next)) return;
+    if (text) fitTextBox(freeId, size);
     refresh();
     focusAction('free-border');
-    const text = found.box.kind === 'text';
     Render.announce(
       text
         ? I18n.t(next ? 'announce.textBorderOn' : 'announce.textBorderOff', {
@@ -1305,7 +1368,12 @@
   /** Switch the selected text box to another available font family. */
   const applyTextFont = (font) => {
     const freeId = State.selectedFreeId;
-    if (!freeId || !State.setFreeFont(freeId, font)) return;
+    const found = State.findFreeBox(freeId);
+    if (!freeId || !found) return;
+    const size = textSeedSize(found.box);
+    if (!State.setFreeFont(freeId, font)) return;
+    // The words keep their size; the box refits around the new face.
+    fitTextBox(freeId, size);
     refresh();
     closeFontMenu();
     fontButton.focus({ preventScroll: true });

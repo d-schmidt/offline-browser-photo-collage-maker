@@ -128,7 +128,8 @@ const State = (() => {
       x: Layout.canvasW / 2,
       y: Layout.canvasH / 2,
       width: Math.max(FREE_MIN_WIDTH, size),
-      // Width ÷ height. Empty boxes are square; a photo brings its own ratio.
+      // Width ÷ height. Empty boxes are square; a photo or a fitted caption
+      // brings its own ratio.
       aspect: 1,
       rotation: 0,
       // Set by the square crop action: keep 1:1 instead of the photo ratio.
@@ -194,7 +195,7 @@ const State = (() => {
    * Save the text of a text box. The first text on a box that still shows the
    * untouched default gray drops that backdrop, so the words sit on the canvas
    * paint instead of a placeholder block. Clearing the text brings the gray
-   * drop target back.
+   * drop target back and returns the box to its empty square.
    */
   const setFreeText = (freeId, text) => {
     const found = findFreeBox(freeId);
@@ -205,6 +206,14 @@ const State = (() => {
 
     if (!value) {
       if (!found.box.fill) found.box.background = true;
+      // An emptied text box is a square drop target again, at the same centre.
+      found.box.aspect = 1;
+      found.box.width = clampFreeWidth(
+        found.box,
+        Math.round(
+          Math.min(Layout.canvasW, Layout.canvasH) * FREE_SIZE_SHARE,
+        ),
+      );
       return true;
     }
     if (!hadText && !found.box.fill) found.box.background = false;
@@ -321,6 +330,21 @@ const State = (() => {
     const found = findFreeBox(freeId);
     if (!found || !Number.isFinite(width)) return false;
     found.box.width = clampFreeWidth(found.box, width);
+    return true;
+  };
+
+  /**
+   * Resize a free-form box to exact pixel extents and keep its centre. The text
+   * fit uses the measured words to compute both extents.
+   */
+  const setFreeExtents = (freeId, width, height) => {
+    const found = findFreeBox(freeId);
+    if (!found || !Number.isFinite(width) || !Number.isFinite(height)) {
+      return false;
+    }
+    const fitted = clampFreeWidth(found.box, width);
+    found.box.aspect = fitted / Math.max(1, height);
+    found.box.width = fitted;
     return true;
   };
 
@@ -1024,6 +1048,7 @@ const State = (() => {
     setFreeSquare,
     setFreePosition,
     setFreeScale,
+    setFreeExtents,
     setFreeBorder,
     setFreeBackground,
     setFreeFill,
