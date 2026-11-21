@@ -1275,14 +1275,20 @@ button {
   touch-action: none;
 }
 
+/* Both dots sit outside the box, so neither ever covers the photo: the zoom
+   dot past the bottom-left corner, the rotate dot mirrored past the
+   bottom-right one. The inner translate is scaled back up by the parent, so
+   the offsets stay constant on screen at any canvas zoom. */
 .zoom-handle {
-  cursor: nwse-resize;
-  transform: translate(-100%, -100%) scale(calc(1 / var(--scale, 1)));
-  transform-origin: 100% 100%;
+  cursor: nesw-resize;
+  transform:
+    translate(-50%, -50%)
+    scale(calc(1 / var(--scale, 1)))
+    translate(-18px, 18px);
 }
 
 /* Unclipped overlay for chrome that may sit outside the canvas, such as the
-   rotate dot just beyond the selected box's corner. */
+   zoom and rotate dots just beyond the selected box's corner. */
 .canvas-chrome {
   position: absolute;
   top: 0;
@@ -1297,12 +1303,10 @@ button {
 
 .rotate-handle {
   cursor: grab;
-  /* Move 14 screen px down-right of the corner: the inner translate is
-     scaled back up by the parent, so the offset stays constant on screen. */
   transform:
     translate(-50%, -50%)
     scale(calc(1 / var(--scale, 1)))
-    translate(14px, 14px);
+    translate(18px, 18px);
 }
 
 .rotate-handle:active {
@@ -1327,12 +1331,18 @@ button {
   touch-action: none;
 }
 
+/* Both free-form dots sit outside the box too: scale past the bottom-left
+   corner and rotate mirrored past the bottom-right one, so neither covers a
+   photo or a caption. They rotate with the box and keep their screen size
+   through the inverse canvas scale. */
 .free-scale {
   top: 100%;
-  left: 100%;
-  cursor: nwse-resize;
-  transform: translate(-100%, -100%) scale(calc(1 / var(--scale, 1)));
-  transform-origin: 100% 100%;
+  left: 0;
+  cursor: nesw-resize;
+  transform:
+    translate(-50%, -50%)
+    scale(calc(1 / var(--scale, 1)))
+    translate(-18px, 18px);
 }
 
 .free-rotate {
@@ -1342,7 +1352,7 @@ button {
   transform:
     translate(-50%, -50%)
     scale(calc(1 / var(--scale, 1)))
-    translate(14px, 14px);
+    translate(18px, 18px);
 }
 
 .free-rotate:active {
@@ -1351,14 +1361,14 @@ button {
 
 .free-scale::before {
   position: absolute;
-  inset: -22px -4px -4px -22px;
+  inset: -6px -6px -22px -22px;
   background: transparent;
   content: "";
 }
 
 .free-rotate::before {
   position: absolute;
-  inset: -5px -21px -21px -5px;
+  inset: -6px -22px -22px -6px;
   background: transparent;
   content: "";
 }
@@ -1391,19 +1401,18 @@ button {
 }
 
 /* Invisible 40 × 40 px grab areas keep the touch target finger sized while the
-   visible dots stay small. They split along the diagonal so zoom reaches
-   up-left into the photo and rotate reaches down-right past the corner,
-   instead of the two large targets overlapping each other. */
+   visible dots stay small. Each pad reaches away from the box — zoom down-left,
+   rotate down-right — so neither target covers the photo they sit beside. */
 .zoom-handle::before {
   position: absolute;
-  inset: -22px -4px -4px -22px;
+  inset: -6px -6px -22px -22px;
   background: transparent;
   content: "";
 }
 
 .rotate-handle::before {
   position: absolute;
-  inset: -5px -21px -21px -5px;
+  inset: -6px -22px -22px -6px;
   background: transparent;
   content: "";
 }

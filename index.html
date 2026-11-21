@@ -473,6 +473,16 @@
             <section class="canvas" id="canvas" aria-label="Photo collage canvas" data-i18n-aria-label="canvas.label" tabindex="-1">
               <div class="rows" id="rows"></div>
               <img class="zoom-overlay" id="zoom-overlay" alt="" draggable="false" hidden>
+              <p class="canvas-empty" id="canvas-empty" data-i18n="empty.rows" hidden>
+                No rows yet. Use the + button above or below the canvas to add one.
+              </p>
+              <div class="row-boundary" id="row-boundary" aria-hidden="true" hidden></div>
+              <div class="box-boundary" id="box-boundary" aria-hidden="true" hidden></div>
+            </section>
+
+            <div class="free-layer" id="free-layer" role="group" aria-label="Free-form photos" data-i18n-aria-label="free.layer"></div>
+
+            <div class="canvas-chrome">
               <div
                 class="zoom-handle"
                 id="zoom-handle"
@@ -487,16 +497,6 @@
                 data-i18n-title="zoom.title"
                 hidden
               ></div>
-              <p class="canvas-empty" id="canvas-empty" data-i18n="empty.rows" hidden>
-                No rows yet. Use the + button above or below the canvas to add one.
-              </p>
-              <div class="row-boundary" id="row-boundary" aria-hidden="true" hidden></div>
-              <div class="box-boundary" id="box-boundary" aria-hidden="true" hidden></div>
-            </section>
-
-            <div class="free-layer" id="free-layer" role="group" aria-label="Free-form photos" data-i18n-aria-label="free.layer"></div>
-
-            <div class="canvas-chrome">
               <div
                 class="rotate-handle"
                 id="rotate-handle"

@@ -922,7 +922,9 @@ const Render = (() => {
         box.rotation,
       );
       refs.zoomHandle.hidden = false;
-      refs.zoomHandle.style.left = `${left + layoutBox.w}px`;
+      // The zoom dot hangs off the box's bottom-left corner; the rotate dot
+      // mirrors it at the bottom-right one.
+      refs.zoomHandle.style.left = `${left}px`;
       refs.zoomHandle.style.top = `${top + layoutBox.h}px`;
       refs.zoomHandle.setAttribute('aria-valuemin', String(range.min));
       refs.zoomHandle.setAttribute('aria-valuemax', String(range.max));

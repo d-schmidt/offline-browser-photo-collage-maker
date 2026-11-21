@@ -3610,7 +3610,6 @@
 
   canvas.addEventListener('click', (event) => {
     if (performance.now() < ignoreCanvasClickUntil) return;
-    if (event.target.closest('.zoom-handle')) return;
 
     const box = event.target.closest('.box');
     if (box) {
@@ -3767,6 +3766,7 @@
       event.target.closest('.canvas') ||
       event.target.closest('.free-box') ||
       event.target.closest('.free-ghost') ||
+      event.target.closest('.zoom-handle') ||
       event.target.closest('.rotate-handle') ||
       event.target.closest('button')
     ) {
