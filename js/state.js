@@ -92,6 +92,10 @@ const State = (() => {
   // grid box minimum. The frame is added on top of it.
   const FREE_MIN_WIDTH = 40;
   const FREE_SIZE_SHARE = 0.32;
+  // A free-form box may not grow longer than this share of the canvas's long
+  // side, so even a rotated photo or caption always stays near the collage
+  // instead of running off it. Content changes clamp through the same limit.
+  const FREE_LONG_SIDE_SHARE = 0.95;
 
   // The last font, text color, and outline color the user picked, reused by
   // every new text box so a series of captions stays consistent.
@@ -105,8 +109,13 @@ const State = (() => {
   const isTextFont = (id) =>
     Layout.textFonts.some((font) => font.id === id);
 
-  const freeMaxWidth = () =>
-    Math.max(Layout.canvasW, Layout.canvasH) * 3;
+  // The canvas's long side, scaled by the free-form share. A box's width is
+  // capped so that whichever side is longer stays inside it: a landscape box
+  // caps its width, a portrait one caps its height through the ratio.
+  const freeLongSide = () =>
+    Math.max(Layout.canvasW, Layout.canvasH) * FREE_LONG_SIDE_SHARE;
+
+  const freeMaxWidth = (aspect) => freeLongSide() * Math.min(1, aspect || 1);
 
   // The visible frame per side around a free-form box: two margins, matching
   // the gap between two grid photos. It frames an empty cell as well.
@@ -121,7 +130,7 @@ const State = (() => {
   const clampFreeWidth = (box, width) => {
     const inner = FREE_MIN_WIDTH + 2 * freeFrame(box);
     const minimum = inner * Math.max(1, box.aspect || 1);
-    return Math.min(freeMaxWidth(), Math.max(minimum, width));
+    return Math.min(freeMaxWidth(box.aspect), Math.max(minimum, width));
   };
 
   const createFreeBox = (kind = 'photo') => {
@@ -397,16 +406,17 @@ const State = (() => {
 
   /**
    * Resize a free-form box to exact pixel extents and keep its centre. The text
-   * fit uses the measured words to compute both extents.
+   * fit uses the measured words to compute both extents. The ratio is stored
+   * before the width limit applies, so a block whose long side runs past the
+   * canvas limit shrinks as a whole instead of being squeezed on one axis.
    */
   const setFreeExtents = (freeId, width, height) => {
     const found = findFreeBox(freeId);
     if (!found || !Number.isFinite(width) || !Number.isFinite(height)) {
       return false;
     }
-    const fitted = clampFreeWidth(found.box, width);
-    found.box.aspect = fitted / Math.max(1, height);
-    found.box.width = fitted;
+    found.box.aspect = width / Math.max(1, height);
+    found.box.width = clampFreeWidth(found.box, width);
     return true;
   };
 
