@@ -1633,6 +1633,23 @@ button {
   outline-offset: 2px;
 }
 
+/* Phones in portrait: the software keyboard covers the lower half of the screen
+   while the overlay still spans the full layout viewport, so a centred panel
+   would put its textarea and Save/Cancel buttons behind the keyboard. Anchor
+   the panel below the action bar with a deliberate gap so both stay visible. */
+@media (max-width: 700px) {
+  .text-dialog {
+    align-items: start;
+    justify-items: center;
+    padding: calc(var(--bar-h) + 12px) 12px 24px;
+    overflow: auto;
+  }
+
+  .text-dialog-panel {
+    padding: 16px;
+  }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
