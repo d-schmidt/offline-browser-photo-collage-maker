@@ -12,6 +12,12 @@
   const saveButton = document.getElementById('save-button');
   const saveMenuWrap = document.getElementById('save-menu-wrap');
   const saveMenu = document.getElementById('save-menu');
+  const moreButton = document.getElementById('bar-more-button');
+  const moreMenuWrap = document.getElementById('bar-more-wrap');
+  const moreMenu = document.getElementById('bar-more-menu');
+  const moreOrientationLabel = document.getElementById('more-orientation-label');
+  const moreBorderValue = document.getElementById('more-border-value');
+  const moreSaveRow = document.getElementById('more-save-row');
   const orientationButton = document.getElementById('orientation-button');
   const borderButton = document.getElementById('border-button');
   const borderMenuWrap = document.getElementById('border-menu-wrap');
@@ -119,6 +125,7 @@
   let freeRotateDrag = null;
   let ignoreCanvasClickUntil = 0;
   let saveMenuOpen = false;
+  let moreMenuOpen = false;
   let borderMenuOpen = false;
   let colorMenuOpen = false;
   let gradientStyleMenuOpen = false;
@@ -916,8 +923,64 @@
   const saveMenuItems = () =>
     Array.from(saveMenu.querySelectorAll('[role="menuitem"]'));
 
+  // Phones fold the right-hand controls into the More menu, which is why the
+  // original triggers can be display:none when a popover closes.
+  const phoneQuery = window.matchMedia('(max-width: 700px)');
+
+  /** Return focus to the control that owns a popover, or to More on phones. */
+  const focusBarControl = (button) => {
+    const target = phoneQuery.matches ? moreButton : button;
+    target.focus({ preventScroll: true });
+  };
+
+  const moreMenuItems = () =>
+    Array.from(moreMenu.querySelectorAll('[role="menuitem"]')).filter(
+      (item) => !item.disabled,
+    );
+
+  /** Label the overflow rows with the action they would take right now. */
+  const syncMoreMenu = () => {
+    const column = isColumnMode();
+    moreOrientationLabel.textContent = I18n.t(
+      column ? 'orientation.toRow' : 'orientation.toColumn',
+    );
+    // Mirror the toolbar's mode mark: the row icon is the dashboard tile
+    // turned on its side.
+    const modeIcon = moreOrientationLabel.parentElement.querySelector('.icon');
+    if (modeIcon) modeIcon.classList.toggle('is-rotated-ccw', !column);
+    moreBorderValue.textContent = I18n.t('border.value', {
+      n: State.borderThickness,
+    });
+    moreSaveRow.disabled = saveButton.disabled;
+  };
+
+  const openMoreMenu = (focusLast = false) => {
+    if (moreMenuOpen) return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    syncMoreMenu();
+    moreMenuOpen = true;
+    moreMenu.hidden = false;
+    moreButton.setAttribute('aria-expanded', 'true');
+    const items = moreMenuItems();
+    const item = focusLast ? items[items.length - 1] : items[0];
+    if (item) item.focus({ preventScroll: true });
+  };
+
+  const closeMoreMenu = (restoreFocus = false) => {
+    if (!moreMenuOpen) return;
+    moreMenuOpen = false;
+    moreMenu.hidden = true;
+    moreButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) moreButton.focus({ preventScroll: true });
+  };
+
   const openSaveMenu = (focusLast = false) => {
     if (saveMenuOpen || saveButton.disabled) return;
+    closeMoreMenu();
     closeBorderMenu();
     closeColorMenu();
     closeGradientMenu();
@@ -934,11 +997,12 @@
     saveMenuOpen = false;
     saveMenu.hidden = true;
     saveButton.setAttribute('aria-expanded', 'false');
-    if (restoreFocus) saveButton.focus({ preventScroll: true });
+    if (restoreFocus) focusBarControl(saveButton);
   };
 
   const openBorderMenu = () => {
     if (borderMenuOpen) return;
+    closeMoreMenu();
     closeSaveMenu();
     closeColorMenu();
     closeGradientMenu();
@@ -953,7 +1017,7 @@
     borderMenuOpen = false;
     borderMenu.hidden = true;
     borderButton.setAttribute('aria-expanded', 'false');
-    if (restoreFocus) borderButton.focus({ preventScroll: true });
+    if (restoreFocus) focusBarControl(borderButton);
   };
 
   const colorMenuItems = () =>
@@ -1061,6 +1125,7 @@
 
   const openColorMenu = (focusLast = false) => {
     if (colorMenuOpen) return;
+    closeMoreMenu();
     closeSaveMenu();
     closeBorderMenu();
     closeGradientStyleMenu();
@@ -1079,7 +1144,7 @@
     colorMenuOpen = false;
     colorMenu.hidden = true;
     syncMarginExpanded();
-    if (restoreFocus) marginColorButton.focus({ preventScroll: true });
+    if (restoreFocus) focusBarControl(marginColorButton);
   };
 
   const gradientStyleItems = () =>
@@ -1098,6 +1163,7 @@
 
   const openGradientStyleMenu = () => {
     closeColorMenu();
+    closeMoreMenu();
     closeSaveMenu();
     closeBorderMenu();
     closeGradientMenu();
@@ -1118,7 +1184,7 @@
     gradientStyleMenuOpen = false;
     gradientStyleMenu.hidden = true;
     syncMarginExpanded();
-    if (restoreFocus) marginColorButton.focus({ preventScroll: true });
+    if (restoreFocus) focusBarControl(marginColorButton);
   };
 
   /** Apply a gradient style, then offer its two colors. */
@@ -1190,6 +1256,7 @@
   const openGradientMenu = (pick = null) => {
     closeColorMenu();
     closeGradientStyleMenu();
+    closeMoreMenu();
     closeSaveMenu();
     closeBorderMenu();
     if (!gradientMenuOpen) {
@@ -1213,7 +1280,7 @@
     gradientMenuOpen = false;
     gradientMenu.hidden = true;
     syncMarginExpanded();
-    if (restoreFocus) marginColorButton.focus({ preventScroll: true });
+    if (restoreFocus) focusBarControl(marginColorButton);
   };
 
   const openMarginPicker = () => {
@@ -3025,7 +3092,66 @@
     items[next].focus({ preventScroll: true });
   });
 
+  moreButton.addEventListener('click', () => {
+    if (moreMenuOpen) closeMoreMenu(true);
+    else openMoreMenu();
+  });
+
+  moreButton.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      openMoreMenu(event.key === 'ArrowUp');
+    } else if (event.key === 'Escape' && moreMenuOpen) {
+      event.preventDefault();
+      closeMoreMenu();
+    }
+  });
+
+  moreMenu.addEventListener('click', (event) => {
+    const item = event.target.closest('button[data-more]');
+    if (!item || item.disabled) return;
+    if (item.dataset.more === 'orientation') {
+      closeMoreMenu(true);
+      toggleOrientation();
+    } else if (item.dataset.more === 'border') {
+      openBorderMenu();
+    } else if (item.dataset.more === 'margin') {
+      openColorMenu();
+    } else if (item.dataset.more === 'save') {
+      openSaveMenu();
+    }
+  });
+
+  moreMenu.addEventListener('keydown', (event) => {
+    const items = moreMenuItems();
+    if (items.length === 0) return;
+
+    const current = items.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
+    else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMoreMenu(true);
+      return;
+    } else if (event.key === 'Tab') {
+      closeMoreMenu();
+      return;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
+  });
+
   document.addEventListener('pointerdown', (event) => {
+    if (moreMenuOpen && !moreMenuWrap.contains(event.target)) {
+      closeMoreMenu();
+    }
     if (saveMenuOpen && !saveMenuWrap.contains(event.target)) closeSaveMenu();
     if (borderMenuOpen && !borderMenuWrap.contains(event.target)) {
       closeBorderMenu();
@@ -3683,7 +3809,7 @@
     Render.setBoxResizeCursor(false);
   });
 
-  orientationButton.addEventListener('click', () => {
+  const toggleOrientation = () => {
     const next = isColumnMode() ? 'row' : 'column';
     // The turn reorders the groups, so a pending undo no longer has a place.
     discardPendingDelete();
@@ -3709,7 +3835,9 @@
         { count },
       ),
     );
-  });
+  };
+
+  orientationButton.addEventListener('click', toggleOrientation);
 
   actionBar.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');

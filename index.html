@@ -426,6 +426,43 @@
         <button class="save-menu-item is-muted" type="button" role="menuitem" tabindex="-1" data-project="import" data-i18n="save.jsonImport">JSON Import</button>
       </div>
     </div>
+    <!-- Phones fold the four right-hand controls into this menu, so the
+         contextual tools never run into them. -->
+    <div class="bar-more-wrap" id="bar-more-wrap">
+      <button
+        class="icon-button"
+        id="bar-more-button"
+        type="button"
+        data-icon="moreVert"
+        aria-label="More actions"
+        data-i18n-aria-label="more.button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="bar-more-menu"
+      ></button>
+      <div
+        class="save-menu bar-more-menu"
+        id="bar-more-menu"
+        role="menu"
+        aria-label="More actions"
+        data-i18n-aria-label="more.menu"
+        hidden
+      >
+        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="orientation" data-icon="mode">
+          <span id="more-orientation-label" data-i18n="more.orientation">Row or column layout</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="border" data-icon="borderWeight">
+          <span data-i18n="border.title">Border thickness</span>
+          <span class="more-menu-value" id="more-border-value">5 px</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="margin" data-icon="colorFill">
+          <span data-i18n="margin.label">Margin color</span>
+        </button>
+        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="save" id="more-save-row" data-icon="download">
+          <span data-i18n="more.save">Save or export</span>
+        </button>
+      </div>
+    </div>
   </header>
 
   <div class="workspace" id="workspace">

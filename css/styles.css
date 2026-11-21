@@ -189,10 +189,16 @@ button {
 .border-menu-wrap,
 .color-menu-wrap,
 .fill-menu-wrap,
-.text-menu-wrap {
+.text-menu-wrap,
+.bar-more-wrap {
   position: relative;
   display: flex;
   flex: none;
+}
+
+/* The overflow trigger only replaces the right-hand controls on small screens. */
+.bar-more-wrap {
+  display: none;
 }
 
 .fill-menu-wrap[hidden],
@@ -255,6 +261,19 @@ button {
 
 .fill-menu .border-menu-head {
   margin-top: 6px;
+}
+
+/* The phone overflow menu lists the right-hand controls by name, so each row
+   states what moved in here instead of showing a bare icon. */
+#bar-more-menu {
+  min-width: 224px;
+}
+
+.more-menu-value {
+  margin-left: auto;
+  color: #c2c2c2;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* The text style menu grows to fit its alignment buttons and background
@@ -370,6 +389,11 @@ button {
 
 .color-menu-item:hover {
   background: rgb(255 255 255 / 10%);
+}
+
+.color-menu-item:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .color-menu-item:focus-visible {
@@ -815,6 +839,59 @@ button {
 
   .workspace.is-portrait .history-list {
     flex-direction: row;
+  }
+
+  /* The four right-hand controls fold into the More menu, so the contextual
+     tools keep the bar and never run into them. Only the buttons hide: their
+     popovers stay in the page and open as sheets from the bar's right edge. */
+  .action-bar {
+    gap: 4px;
+    padding: 0 8px;
+  }
+
+  .action-bar > #orientation-button,
+  .action-bar > .border-menu-wrap > #border-button,
+  .action-bar > .color-menu-wrap > #margin-color-button,
+  .action-bar > .action-divider,
+  .action-bar > .save-menu-wrap > #save-button {
+    display: none;
+  }
+
+  .bar-more-wrap {
+    display: flex;
+  }
+
+  .action-bar-tools {
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .action-bar-tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  .create-actions {
+    gap: 2px;
+    padding-right: 4px;
+  }
+
+  /* A popover opened from the hidden controls (or from a More row) anchors to
+     the bar instead of a zero-width wrapper, so it stays on screen. Fixed
+     positioning also escapes the scrolling tool strip's clip. */
+  .save-menu,
+  .border-menu,
+  .color-menu,
+  .gradient-style-menu,
+  .gradient-menu,
+  .fill-menu,
+  .text-menu {
+    position: fixed;
+    top: calc(var(--bar-h) + 8px);
+    right: 8px;
+    left: auto;
+    max-width: calc(100vw - 16px);
   }
 }
 

@@ -15,6 +15,10 @@ const I18n = (() => {
       'orientation.toggle': 'Toggle row or column layout',
       'orientation.toRow': 'Switch to row layout',
       'orientation.toColumn': 'Switch to column layout',
+      'more.button': 'More actions',
+      'more.menu': 'More actions',
+      'more.orientation': 'Row or column layout',
+      'more.save': 'Save or export',
 
       'border.change': 'Change border thickness',
       'border.title': 'Border thickness',
@@ -336,6 +340,10 @@ const I18n = (() => {
       'orientation.toggle': 'Zeilen- oder Spaltenlayout umschalten',
       'orientation.toRow': 'Zum Zeilenlayout wechseln',
       'orientation.toColumn': 'Zum Spaltenlayout wechseln',
+      'more.button': 'Weitere Aktionen',
+      'more.menu': 'Weitere Aktionen',
+      'more.orientation': 'Zeilen- oder Spaltenlayout',
+      'more.save': 'Speichern oder exportieren',
 
       'border.change': 'Rahmenstärke ändern',
       'border.title': 'Rahmenstärke',
