@@ -122,18 +122,22 @@ const I18n = (() => {
       'history.selectBox':
         'Select a photo box first, then click a saved photo.',
 
-      'format.title': 'Select format:',
+      'format.title': 'New collage:',
+      'format.stepFormat': 'Format',
+      'format.stepOrientation': 'Orientation',
+      'format.orientation.portrait': 'Portrait',
+      'format.orientation.landscape': 'Landscape',
+      'format.start': 'Start collage',
+      'format.summary': '{label} · {orientation} · {w} × {h} px',
       'format.import': 'Import project',
       'format.importButton': 'Import a JSON collage project',
       'format.aria': '{label}, {w} × {h} pixels',
       'format.selected':
         '{label} format selected, {w} by {h} pixels.',
-      'format.selectedNamed':
-        '{label} {name} format selected, {w} by {h} pixels.',
-      'format.name.status': 'Status',
       'format.name.banner': 'Banner',
       'format.name.portrait': 'Portrait',
       'format.name.square': 'Square',
+      'format.name.photo': 'Photo',
 
       'add.group.top': 'Add row above the canvas',
       'add.group.bottom': 'Add row below the canvas',
@@ -449,16 +453,21 @@ const I18n = (() => {
       'history.selectBox':
         'Wähle zuerst ein Bildfeld aus und klicke dann auf ein gespeichertes Foto.',
 
-      'format.title': 'Format auswählen:',
+      'format.title': 'Neue Collage:',
+      'format.stepFormat': 'Format',
+      'format.stepOrientation': 'Ausrichtung',
+      'format.orientation.portrait': 'Hochformat',
+      'format.orientation.landscape': 'Querformat',
+      'format.start': 'Collage starten',
+      'format.summary': '{label} · {orientation} · {w} × {h} px',
       'format.import': 'Projekt importieren',
       'format.importButton': 'JSON-Collage-Projekt importieren',
       'format.aria': '{label}, {w} × {h} Pixel',
       'format.selected': '{label} ausgewählt, {w} × {h} Pixel.',
-      'format.selectedNamed': '{label} {name} ausgewählt, {w} × {h} Pixel.',
-      'format.name.status': 'Status',
       'format.name.banner': 'Banner',
       'format.name.portrait': 'Hochformat',
       'format.name.square': 'Quadrat',
+      'format.name.photo': 'Foto',
 
       'add.group.top': 'Zeile über der Arbeitsfläche hinzufügen',
       'add.group.bottom': 'Zeile unter der Arbeitsfläche hinzufügen',

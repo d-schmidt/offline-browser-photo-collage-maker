@@ -4,8 +4,13 @@
 // sharp and the longer side follows from the aspect ratio.
 const SHORT_SIDE = 1080;
 
-const formatSize = (ratioW, ratioH) => {
-  const landscape = ratioW > ratioH;
+/**
+ * Canvas size for an aspect ratio in a chosen orientation. Portrait keeps the
+ * 1080 px short side vertical, landscape turns the same ratio on its side, and
+ * a square ratio ignores the choice.
+ */
+const formatSize = (ratioW, ratioH, orientation = 'portrait') => {
+  const landscape = orientation === 'landscape';
   const longSide = Math.round(
     (SHORT_SIDE * Math.max(ratioW, ratioH)) / Math.min(ratioW, ratioH),
   );
@@ -15,6 +20,9 @@ const formatSize = (ratioW, ratioH) => {
   };
 };
 
+const normalizeOrientation = (orientation) =>
+  orientation === 'landscape' ? 'landscape' : 'portrait';
+
 const createFormat = (id, ratioW, ratioH, label, nameKey, icon) =>
   Object.freeze({
     id,
@@ -23,17 +31,47 @@ const createFormat = (id, ratioW, ratioH, label, nameKey, icon) =>
     label,
     nameKey,
     icon,
-    ...formatSize(ratioW, ratioH),
+    ...formatSize(ratioW, ratioH, 'portrait'),
   });
 
 /** Canvas formats offered on the start screen, in display order. */
 const FORMATS = Object.freeze([
-  createFormat('9x16', 9, 16, '9:16', 'format.name.status', 'format9x16'),
   createFormat('16x9', 16, 9, '16:9', 'format.name.banner', 'format16x9'),
   createFormat('7x9', 7, 9, '7:9', 'format.name.portrait', 'format7x9'),
   createFormat('5x4', 5, 4, '5:4', '', 'format5x4'),
   createFormat('1x1', 1, 1, '1:1', 'format.name.square', 'format1x1'),
+  createFormat('10x15', 10, 15, '10:15', 'format.name.photo', 'format10x15'),
+  createFormat('a5', 148, 210, 'DIN A5', '', 'formatA5'),
 ]);
+
+/** The two canvas orientations offered below the format row. */
+const ORIENTATIONS = Object.freeze([
+  Object.freeze({
+    id: 'portrait',
+    labelKey: 'format.orientation.portrait',
+    icon: 'orientationPortrait',
+  }),
+  Object.freeze({
+    id: 'landscape',
+    labelKey: 'format.orientation.landscape',
+    icon: 'orientationLandscape',
+  }),
+]);
+
+/** A format with its canvas size resolved for the chosen orientation. */
+const formatFor = (format, orientation) => {
+  const shape = normalizeOrientation(orientation);
+  return Object.freeze({
+    id: format.id,
+    ratioW: format.ratioW,
+    ratioH: format.ratioH,
+    label: format.label,
+    nameKey: format.nameKey,
+    icon: format.icon,
+    orientation: shape,
+    ...formatSize(format.ratioW, format.ratioH, shape),
+  });
+};
 
 // Logical layout metrics. These mirror the CSS custom properties in
 // styles.css; the editor always computes in these fixed pixels and the canvas
@@ -724,6 +762,9 @@ const Layout = (() => {
     zoomRange,
     maxZoom,
     minZoom: 1,
+    formatSize,
+    formatFor,
+    orientations: ORIENTATIONS,
     setCanvasSize,
     setBorderThickness,
     get canvasW() {

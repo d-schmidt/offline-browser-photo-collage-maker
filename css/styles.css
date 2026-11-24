@@ -688,7 +688,8 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 18px;
+  width: 100%;
   max-width: 100%;
   max-height: 100%;
   overflow-y: auto;
@@ -701,11 +702,40 @@ button {
   font-weight: 600;
 }
 
+/* The start screen is a two-step form: the format row, then the orientation
+   row, with the start button committing both choices. */
+.format-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.format-step-title {
+  margin: 0;
+  color: #9c9c9c;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .format-options {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 12px;
+  width: min(100%, 920px);
+}
+
+.orientation-options {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .format-button {
@@ -714,6 +744,7 @@ button {
   align-items: center;
   gap: 6px;
   width: 140px;
+  min-width: 0;
   padding: 18px 12px;
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 10px;
@@ -725,6 +756,10 @@ button {
     border-color 120ms ease;
 }
 
+.format-options .format-button {
+  width: auto;
+}
+
 .format-button:hover {
   border-color: rgb(255 255 255 / 32%);
   background: #303030;
@@ -733,6 +768,17 @@ button {
 .format-button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.format-button.is-selected {
+  border-color: var(--accent);
+  background: #26313a;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.format-button.is-selected:hover {
+  border-color: var(--accent);
+  background: #2b3944;
 }
 
 .format-button .icon {
@@ -748,6 +794,7 @@ button {
 }
 
 .format-name {
+  min-height: 1.2em;
   color: #c2c2c2;
   font-size: 13px;
   line-height: 1.2;
@@ -759,8 +806,47 @@ button {
   line-height: 1.2;
 }
 
-/* Project import sits below the five format cards as a quieter secondary
-   action, with the same icon sizing as the other 24 px buttons. */
+/* The effective canvas size, e.g. 16:9 Banner in Portrait at 1080 × 1920 px. */
+.format-summary {
+  margin: -4px 0 0;
+  color: #a4a4a4;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.format-start-button {
+  min-width: 220px;
+  padding: 14px 28px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.format-start-button:hover {
+  background: #3196ef;
+}
+
+.format-start-button:active {
+  background: #1976d2;
+  transform: translateY(1px);
+}
+
+.format-start-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Project import sits below the Start button as a quieter secondary action,
+   with the same icon sizing as the other 24 px buttons. */
 .format-import-button {
   display: inline-flex;
   align-items: center;
@@ -810,7 +896,10 @@ button {
   }
 
   .format-options {
-    gap: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-flow: row;
+    gap: 8px;
+    width: 100%;
   }
 
   .format-button {
@@ -821,6 +910,20 @@ button {
   .format-button .icon {
     width: 32px;
     height: 32px;
+  }
+
+  .format-summary {
+    margin-top: -2px;
+    font-size: 12px;
+  }
+
+  .format-start-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .format-size {
+    font-size: 11px;
   }
 
   /* Small screens keep the shelf along the bottom, even for a portrait canvas. */
@@ -892,6 +995,13 @@ button {
     right: 8px;
     left: auto;
     max-width: calc(100vw - 16px);
+  }
+}
+
+/* Very narrow phones fit three format cards per row instead of four. */
+@media (max-width: 360px) {
+  .format-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

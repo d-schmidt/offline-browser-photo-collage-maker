@@ -99,6 +99,7 @@
   const fileInput = document.getElementById('file-input');
   const projectInput = document.getElementById('project-input');
   const formatImportButton = document.getElementById('format-import-button');
+  const formatStartButton = document.getElementById('format-start-button');
   const zoomHandle = document.getElementById('zoom-handle');
   const rotateHandle = document.getElementById('rotate-handle');
   const formatScreen = document.getElementById('format-screen');
@@ -114,6 +115,12 @@
   let textDialogId = null;
   let fitFrame = 0;
   let editing = false;
+  // Start-screen choices: an aspect format plus the canvas orientation. The
+  // defaults are 16:9 in portrait, so the start button is usable immediately.
+  let startFormatId = '16x9';
+  let startOrientation = 'portrait';
+  // The effective format last applied to the canvas, orientation included.
+  let activeFormat = null;
   let layout = Layout.compute(State.rows, State.orientation);
   let rowDrag = null;
   let boxDrag = null;
@@ -1737,14 +1744,12 @@
     }
   };
 
-  /** The start-screen format matching the live canvas size, for project files. */
+  /** The effective canvas format, orientation included, for project files. */
   const currentFormat = () =>
-    FORMATS.find(
-      (format) =>
-        format.canvasW === Layout.canvasW && format.canvasH === Layout.canvasH,
-    ) || {
+    activeFormat || {
       id: '',
       label: `${Layout.canvasW} × ${Layout.canvasH}`,
+      orientation: Layout.canvasW > Layout.canvasH ? 'landscape' : 'portrait',
       canvasW: Layout.canvasW,
       canvasH: Layout.canvasH,
     };
@@ -1960,6 +1965,7 @@
    * the deleted-photo shelf. Shared by the start screen and project imports.
    */
   const applyFormatLayout = (format) => {
+    activeFormat = format;
     Layout.setCanvasSize(format.canvasW, format.canvasH);
     document.documentElement.style.setProperty(
       '--canvas-w',
@@ -1979,6 +1985,57 @@
     workspace.classList.toggle('is-portrait', portrait);
   };
 
+  /** The selected aspect format with its orientation resolved. */
+  const startShape = () =>
+    Layout.formatFor(
+      FORMATS.find((format) => format.id === startFormatId) || FORMATS[0],
+      startOrientation,
+    );
+
+  /**
+   * Redraw both start-screen rows so the selected cards and every format's
+   * effective pixel size follow the current choice. Rebuilding the cards loses
+   * focus, so the caller names the control that should keep it.
+   */
+  const renderStartScreen = (focus = null) => {
+    const shape = startShape();
+    const name = shape.nameKey ? I18n.t(shape.nameKey) : '';
+    const orientationName = I18n.t(
+      shape.orientation === 'landscape'
+        ? 'format.orientation.landscape'
+        : 'format.orientation.portrait',
+    );
+
+    Render.paintStartScreen({
+      formats: FORMATS,
+      orientations: Layout.orientations,
+      formatId: startFormatId,
+      orientationId: startOrientation,
+      summary: I18n.t('format.summary', {
+        label: name ? `${shape.label} ${name}` : shape.label,
+        orientation: orientationName,
+        w: shape.canvasW,
+        h: shape.canvasH,
+      }),
+      onChooseFormat: (format) => {
+        startFormatId = format.id;
+        renderStartScreen({ format: format.id });
+      },
+      onChooseOrientation: (orientation) => {
+        startOrientation = orientation.id;
+        renderStartScreen({ orientation: orientation.id });
+      },
+    });
+
+    if (focus) {
+      const selector = focus.format
+        ? `#format-options [data-format="${focus.format}"]`
+        : `#orientation-options [data-orientation="${focus.orientation}"]`;
+      const target = document.querySelector(selector);
+      if (target) target.focus({ preventScroll: true });
+    }
+  };
+
   /** Reveal the editor after a format choice or a project import. */
   const showEditor = () => {
     formatScreen.hidden = true;
@@ -1988,9 +2045,9 @@
   };
 
   /**
-   * Start the editor with the chosen format. The canvas keeps its logical
-   * pixel size; only the CSS variables and the scale change, so the same
-   * weight-based layout reflows into the new shape.
+   * Start the editor with the chosen format and orientation. The canvas keeps
+   * its logical pixel size; only the CSS variables and the scale change, so
+   * the same weight-based layout reflows into the new shape.
    */
   const chooseFormat = (format) => {
     if (editing) return;
@@ -2000,9 +2057,9 @@
     // The spots bitmap is cropped to the canvas, so it follows the format.
     applyCanvasPaint();
 
-    // Portrait and square formats start with rows; landscape formats start
-    // with the transposed columns. The starting canvas is empty, so no
-    // structure turn is needed.
+    // The starting row/column mode follows the effective canvas orientation:
+    // portrait and square start with rows, landscape with columns. The
+    // starting canvas is empty, so no structure turn is needed.
     State.setOrientation(
       format.canvasW > format.canvasH ? 'column' : 'row',
       false,
@@ -2013,10 +2070,14 @@
     fitCanvas();
     Render.focusCanvas();
     const name = format.nameKey ? I18n.t(format.nameKey) : '';
+    const orientationName = I18n.t(
+      format.orientation === 'landscape'
+        ? 'format.orientation.landscape'
+        : 'format.orientation.portrait',
+    );
     Render.announce(
-      I18n.t(name ? 'format.selectedNamed' : 'format.selected', {
-        label: format.label,
-        name,
+      I18n.t('format.selected', {
+        label: `${format.label}${name ? ` ${name}` : ''} ${orientationName}`,
         w: format.canvasW,
         h: format.canvasH,
       }),
@@ -3915,6 +3976,9 @@
   // import applies the format stored in the file.
   formatImportButton.addEventListener('click', () => projectInput.click());
 
+  // The two rows only select; this button commits the choice and starts editing.
+  formatStartButton.addEventListener('click', () => chooseFormat(startShape()));
+
   // --- text dialog --------------------------------------------------------
 
   // Everything except the textarea and its two buttons cancels: the overlay,
@@ -4004,9 +4068,11 @@
   syncHistoryBar();
   applyCanvasPaint();
   applyBorderThickness();
-  Render.paintFormats(FORMATS, chooseFormat);
+  renderStartScreen();
   refresh();
 
-  const firstFormat = document.querySelector('#format-options .format-button');
-  if (firstFormat) firstFormat.focus({ preventScroll: true });
+  const selectedFormat = document.querySelector(
+    '#format-options .format-button.is-selected',
+  );
+  if (selectedFormat) selectedFormat.focus({ preventScroll: true });
 })();

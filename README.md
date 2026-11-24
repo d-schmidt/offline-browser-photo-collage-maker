@@ -17,12 +17,16 @@ otherwise.
 
 ## What it does today
 
-- Starts with a format chooser: **9:16 Status** (1080 × 1920), **16:9 Banner**
-  (1920 × 1080), **7:9 Portrait** (1080 × 1389), **5:4** (1350 × 1080), and
-  **1:1 Square** (1080 × 1080). Every format keeps 1080 px on its shorter side.
-  Below the choices, an **Import project** button opens a saved JSON file and
-  continues the collage in its stored format.
-- After choosing, two groups appear, each holding one empty photo box. Empty boxes show a centered add-photo icon over their translucent gray fill: on a white canvas that still reads as the same solid gray as before, while a gradient margin shows faintly through. Portrait and square formats start with rows; landscape formats start with columns.
+- Starts with a two-step start screen: a **Format** row with **16:9 Banner**,
+  **7:9 Portrait**, **5:4**, **1:1 Square**, **10:15 Photo**, and **DIN A5**,
+  then an **Orientation** row with **Portrait** and **Landscape**.
+  The format cards show the pixel size the orientation produces, a summary line
+  names the effective canvas, and **Start collage** begins the editor. 16:9 and
+  Portrait are pre-selected. Every canvas keeps 1080 px on its shorter side;
+  orientation turns the same ratio, so 16:9 Portrait is 1080 × 1920. Below the
+  Start button, an **Import project** button opens a saved JSON file and
+  continues the collage in its stored format and orientation.
+- After Start, two groups appear, each holding one empty photo box. Empty boxes show a centered add-photo icon over their translucent gray fill: on a white canvas that still reads as the same solid gray as before, while a gradient margin shows faintly through. Portrait and square canvases start with rows; landscape canvases start with columns.
 - The permanent **row/column button** in the action bar switches the layout. Column mode is the same model turned on its side: columns run left to right, boxes stack inside them, and every divider and lock constraint follows the columns.
 - **+ above/below the canvas** adds a row; **+ on either side of a row** adds a box to it. In column mode the buttons swap: **+ left/right** adds a column and **+ above/below a column** adds a box.
 - Drag the white gap between two boxes in a group to trade width (row mode) or height (column mode); a blue line and the matching resize cursor show the handle.
@@ -47,20 +51,21 @@ otherwise.
   box, or switching row/column mode removes the undo.
 - The last ten deleted, removed, or replaced photos are kept in the browser (deduplicated
   and downscaled, so they survive a reload). They appear as square thumbnails
-  in a second bar — on the left for a portrait format on a wide screen, and
-  along the bottom for landscape and square formats or any small screen. Select
+  in a second bar — on the left for a portrait canvas on a wide screen, and
+  along the bottom for landscape and square canvases or any small screen. Select
   a box, then click a thumbnail to put that photo into it. The delete button at
   the end of the bar empties the shelf and removes the stored copies from the
   browser. The shelf never changes the layout on its own.
 - The canvas (1080 px on its shorter side, longer side set by the chosen
-  format) scales to fit the window without changing its layout.
+  format and orientation) scales to fit the window without changing its layout.
 - **Margin color** in the action bar opens a menu with **Fill** and **Gradient**: Fill recolors the canvas padding and gaps, while Gradient offers top-to-bottom, left-to-right, radial, and random-spots paints with two editable colors. The canvas starts with the **Warm Stone** preset as a top-to-bottom gradient (`#f5f2eb` → `#dfd6c7`). While a gradient is active, both the margin menu and the color panel show 20 presets in a 4 × 5 grid; each chip previews its two colors diagonally, names itself (and its description) on hover, and applies both stops in one click. The export uses whatever is on screen.
 - **Border thickness** in the action bar opens a slider from 0 to 100 px that sets the canvas padding and every gap together. The default 5 px keeps the classic look (10 px between boxes and at the canvas edge); 0 removes all margins so the photos touch and the margin color disappears. The export uses the same thickness.
 - **Save** opens a menu for JPEG or PNG. Both download a file at the chosen canvas size named `collage-yyyy-MM-dd-HH-mm.jpg` or `.png` using the local save time; JPEG uses 85% quality. The export matches the on-screen layout in either mode.
 - Below a divider in the same menu, **JSON Export** downloads the whole work in progress as `collage-yyyy-MM-dd-HH-mm.json`, with every photo embedded at its original resolution plus the layout, margin paint, styles, text, positions, and framing. **JSON Import** restores that file exactly; an unreadable file leaves the current collage untouched. Project files get large when they contain large photos, so keep them as working files rather than sharing them.
 
-Keyboard: on the start screen, `Tab` moves between formats and `Enter` or
-`Space` starts the editor. While editing, `Tab` moves through controls, arrow keys move box selection,
+Keyboard: on the start screen, `Tab` moves between the format cards, the
+orientation cards, Start, and Import; `Enter` or `Space` picks a card or presses
+the focused button. While editing, `Tab` moves through controls, arrow keys move box selection,
 `Delete`/`Backspace` deletes the selected box (or only its photo or text, when it has
 one), `Enter`/`Space` opens the image
 picker (or the text editor for a text box), and `Escape` clears the selection. With the zoom circle focused, the

@@ -118,6 +118,9 @@ const Project = (() => {
       format: {
         id: format.id,
         label: format.label,
+        orientation:
+          format.orientation ||
+          (format.canvasW > format.canvasH ? 'landscape' : 'portrait'),
         canvasW: format.canvasW,
         canvasH: format.canvasH,
       },
@@ -193,36 +196,50 @@ const Project = (() => {
   };
 
   /**
-   * A project's format. Known start-screen formats win so their label and id
-   * stay canonical; a foreign-but-valid size is accepted as it is.
+   * A project's format. New files name both the ratio and the orientation, so
+   * the known format list decides the effective size; older files keep their
+   * stored pixels, and a foreign-but-valid size is accepted as it is.
    */
   const normalizeFormat = (raw) => {
     const format = raw && typeof raw === 'object' ? raw : {};
     const known = FORMATS.find((candidate) => candidate.id === format.id);
-    if (known) {
-      return {
-        id: known.id,
-        label: known.label,
-        canvasW: known.canvasW,
-        canvasH: known.canvasH,
-      };
-    }
+    const orientation =
+      format.orientation === 'portrait' || format.orientation === 'landscape'
+        ? format.orientation
+        : null;
     const width = Math.round(Number(format.canvasW));
     const height = Math.round(Number(format.canvasH));
-    const valid =
+    const validSize =
       Number.isFinite(width) &&
       Number.isFinite(height) &&
       width >= 100 &&
       height >= 100 &&
       width <= 10000 &&
       height <= 10000;
-    if (!valid) throw new Error(I18n.t('save.importInvalid'));
-    return {
-      id: typeof format.id === 'string' ? format.id : '',
-      label: typeof format.label === 'string' ? format.label : '',
-      canvasW: width,
-      canvasH: height,
-    };
+
+    if (known && orientation) return Layout.formatFor(known, orientation);
+
+    if (validSize) {
+      return {
+        id: known ? known.id : typeof format.id === 'string' ? format.id : '',
+        label: known
+          ? known.label
+          : typeof format.label === 'string'
+            ? format.label
+            : '',
+        orientation:
+          width > height
+            ? 'landscape'
+            : width < height
+              ? 'portrait'
+              : 'portrait',
+        canvasW: width,
+        canvasH: height,
+      };
+    }
+
+    if (known) return Layout.formatFor(known, 'portrait');
+    throw new Error(I18n.t('save.importInvalid'));
   };
 
   /**

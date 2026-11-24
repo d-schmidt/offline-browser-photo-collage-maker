@@ -39,7 +39,6 @@ const ICONS = Object.freeze({
   undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibility: 'assets/visibility_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibilityOff: 'assets/visibility_off_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
-  format9x16: 'assets/crop_9_16_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format16x9: 'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   formatBold:
     'assets/format_bold_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -50,6 +49,13 @@ const ICONS = Object.freeze({
   format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format5x4: 'assets/crop_5_4_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format1x1: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  format10x15:
+    'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  formatA5: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  orientationPortrait:
+    'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  orientationLandscape:
+    'assets/crop_16_9_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
 });
 
 const Render = (() => {
@@ -1133,16 +1139,34 @@ const Render = (() => {
     paintImageChrome();
   };
 
-  /** Start-screen buttons: one per canvas format, sized from the format list. */
-  const paintFormats = (formats, onChoose) => {
-    const container = document.getElementById('format-options');
-    const fragment = document.createDocumentFragment();
+  /**
+   * Start screen: one row of aspect-format cards and one row of orientation
+   * cards, both single-choice. Format cards show the pixel size the current
+   * orientation produces, so the effective canvas is visible before starting.
+   */
+  const paintStartScreen = ({
+    formats,
+    orientations,
+    formatId,
+    orientationId,
+    summary,
+    onChooseFormat,
+    onChooseOrientation,
+  }) => {
+    const formatContainer = document.getElementById('format-options');
+    const orientationContainer = document.getElementById('orientation-options');
+    const summaryElement = document.getElementById('format-summary');
+    const formatFragment = document.createDocumentFragment();
 
     for (const format of formats) {
+      const selected = format.id === formatId;
+      const shape = Layout.formatFor(format, orientationId);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'format-button';
       button.dataset.format = format.id;
+      button.setAttribute('aria-pressed', String(selected));
+      if (selected) button.classList.add('is-selected');
 
       const name = format.nameKey ? I18n.t(format.nameKey) : '';
       const label = name ? `${format.label} ${name}` : format.label;
@@ -1150,34 +1174,69 @@ const Render = (() => {
         'aria-label',
         I18n.t('format.aria', {
           label,
-          w: format.canvasW,
-          h: format.canvasH,
+          w: shape.canvasW,
+          h: shape.canvasH,
         }),
       );
-      button.append(iconElement(format.icon));
+      button.title = label;
+      const formatIcon = iconElement(format.icon);
+      // A format's glyph keeps its ratio family; turn it when the chosen
+      // orientation differs from the ratio's natural one.
+      if (
+        format.ratioW !== format.ratioH &&
+        (format.ratioW > format.ratioH) !==
+          (shape.orientation === 'landscape')
+      ) {
+        formatIcon.classList.add('is-rotated-ccw');
+      }
+      button.append(formatIcon);
 
       const ratio = document.createElement('span');
       ratio.className = 'format-ratio';
       ratio.textContent = format.label;
       button.append(ratio);
 
-      if (name) {
-        const nameElement = document.createElement('span');
-        nameElement.className = 'format-name';
-        nameElement.textContent = name;
-        button.append(nameElement);
-      }
+      const nameElement = document.createElement('span');
+      nameElement.className = 'format-name';
+      nameElement.textContent = name;
+      button.append(nameElement);
 
       const size = document.createElement('span');
       size.className = 'format-size';
-      size.textContent = `${format.canvasW} × ${format.canvasH}`;
+      size.textContent = `${shape.canvasW} × ${shape.canvasH}`;
       button.append(size);
 
-      button.addEventListener('click', () => onChoose(format));
-      fragment.append(button);
+      button.addEventListener('click', () => onChooseFormat(format));
+      formatFragment.append(button);
     }
 
-    container.replaceChildren(fragment);
+    formatContainer.replaceChildren(formatFragment);
+
+    const orientationFragment = document.createDocumentFragment();
+    for (const orientation of orientations) {
+      const selected = orientation.id === orientationId;
+      const name = I18n.t(orientation.labelKey);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'format-button orientation-button';
+      button.dataset.orientation = orientation.id;
+      button.setAttribute('aria-pressed', String(selected));
+      if (selected) button.classList.add('is-selected');
+      button.setAttribute('aria-label', name);
+      button.title = name;
+      button.append(iconElement(orientation.icon));
+
+      const nameElement = document.createElement('span');
+      nameElement.className = 'format-ratio';
+      nameElement.textContent = name;
+      button.append(nameElement);
+
+      button.addEventListener('click', () => onChooseOrientation(orientation));
+      orientationFragment.append(button);
+    }
+
+    orientationContainer.replaceChildren(orientationFragment);
+    summaryElement.textContent = summary;
   };
 
   /** The orientation toggle shows the current mode and acts on the next one. */
@@ -1406,7 +1465,7 @@ const Render = (() => {
   return {
     init,
     paint,
-    paintFormats,
+    paintStartScreen,
     paintHistory,
     paintSelection,
     updateGeometry,

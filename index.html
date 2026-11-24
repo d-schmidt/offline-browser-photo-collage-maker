@@ -468,8 +468,23 @@
   <div class="workspace" id="workspace">
     <main class="editor-area" id="editor-area">
       <section class="format-screen" id="format-screen" aria-labelledby="format-title">
-        <h1 class="format-title" id="format-title" data-i18n="format.title">Select format:</h1>
-        <div class="format-options" id="format-options" role="group" aria-labelledby="format-title"></div>
+        <h1 class="format-title" id="format-title" data-i18n="format.title">New collage:</h1>
+
+        <div class="format-step">
+          <h2 class="format-step-title" id="format-step-format" data-i18n="format.stepFormat">Format</h2>
+          <div class="format-options" id="format-options" role="group" aria-labelledby="format-step-format"></div>
+        </div>
+
+        <div class="format-step">
+          <h2 class="format-step-title" id="format-step-orientation" data-i18n="format.stepOrientation">Orientation</h2>
+          <div class="orientation-options" id="orientation-options" role="group" aria-labelledby="format-step-orientation"></div>
+        </div>
+
+        <p class="format-summary" id="format-summary" aria-live="polite"></p>
+        <button class="format-start-button" id="format-start-button" type="button" data-i18n="format.start">
+          Start collage
+        </button>
+
         <button
           class="format-import-button"
           id="format-import-button"
