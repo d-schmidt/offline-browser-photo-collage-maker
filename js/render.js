@@ -20,6 +20,7 @@ const ICONS = Object.freeze({
     'assets/brand_family_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   colorFill: 'assets/format_color_fill_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   colors: 'assets/colors_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  textFormat: 'assets/text_format_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   gradient: 'assets/gradient_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   shuffle: 'assets/shuffle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   vignette: 'assets/vignette_2_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
