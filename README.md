@@ -18,7 +18,7 @@ otherwise.
 ## What it does today
 
 - Starts with a two-step start screen: a **Format** row with **16:9 Banner**,
-  **7:9 Portrait**, **5:4**, **1:1 Square**, **10:15 Photo**, and **DIN A5**,
+  **5:4**, **1:1 Square**, **10:15 Photo**, and **DIN A5**,
   then an **Orientation** row with **Portrait** and **Landscape**.
   The format cards show the pixel size the orientation produces, a summary line
   names the effective canvas, and **Start collage** begins the editor. 16:9 and

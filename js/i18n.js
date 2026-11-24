@@ -135,7 +135,6 @@ const I18n = (() => {
       'format.selected':
         '{label} format selected, {w} by {h} pixels.',
       'format.name.banner': 'Banner',
-      'format.name.portrait': 'Portrait',
       'format.name.square': 'Square',
       'format.name.photo': 'Photo',
 
@@ -465,7 +464,6 @@ const I18n = (() => {
       'format.aria': '{label}, {w} × {h} Pixel',
       'format.selected': '{label} ausgewählt, {w} × {h} Pixel.',
       'format.name.banner': 'Banner',
-      'format.name.portrait': 'Hochformat',
       'format.name.square': 'Quadrat',
       'format.name.photo': 'Foto',
 

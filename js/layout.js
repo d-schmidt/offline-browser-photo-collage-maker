@@ -37,7 +37,6 @@ const createFormat = (id, ratioW, ratioH, label, nameKey, icon) =>
 /** Canvas formats offered on the start screen, in display order. */
 const FORMATS = Object.freeze([
   createFormat('16x9', 16, 9, '16:9', 'format.name.banner', 'format16x9'),
-  createFormat('7x9', 7, 9, '7:9', 'format.name.portrait', 'format7x9'),
   createFormat('5x4', 5, 4, '5:4', '', 'format5x4'),
   createFormat('1x1', 1, 1, '1:1', 'format.name.square', 'format1x1'),
   createFormat('10x15', 10, 15, '10:15', 'format.name.photo', 'format10x15'),

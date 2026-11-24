@@ -46,7 +46,6 @@ const ICONS = Object.freeze({
     'assets/format_italic_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   formatUnderlined:
     'assets/format_underlined_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
-  format7x9: 'assets/crop_portrait_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format5x4: 'assets/crop_5_4_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format1x1: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   format10x15:
