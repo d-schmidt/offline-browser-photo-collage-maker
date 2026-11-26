@@ -16,6 +16,10 @@ const State = (() => {
   // The default paint of an empty grid cell: the gray that reads as #d9d9d9
   // over a white canvas, at 80% opacity. A box can override both values.
   const PLACEHOLDER_FILL = Object.freeze({ color: '#cfcfcf', opacity: 0.8 });
+  // A friendly default curve that reads clearly on the 1080 px canvas. The
+  // slider can go up to a full dramatic rounding.
+  const DEFAULT_RADIUS = 60;
+  const MAX_RADIUS = 200;
   let selectedBoxId = null;
   let selectedFreeId = null;
   let canvasColor = '#ffffff';
@@ -53,6 +57,9 @@ const State = (() => {
     tint: null,
     // Null until the empty cell is recolored; the defaults live in CSS.
     fill: null,
+    // Corner rounding in logical pixels. The renderer only draws it while the
+    // box has a visible surface (a photo, a text backdrop, or a recolored cell).
+    radius: 0,
   });
 
   const createRow = (weight) => ({
@@ -161,6 +168,9 @@ const State = (() => {
       background: text,
       // Empty-cell color and opacity; null keeps the shared placeholder values.
       fill: null,
+      // Corner rounding in logical pixels, shown only while the box has a
+      // visible surface: a photo, a text backdrop, or a recolored empty cell.
+      radius: 0,
       image: null,
       // Text content and its last-used styling.
       text: '',
@@ -629,7 +639,9 @@ const State = (() => {
   /** A multi-box row always keeps at least one box free to absorb the rest. */
   const canLockBox = (boxId) => {
     const found = findBox(boxId);
-    if (!found || !found.box.image) return false;
+    // Square and circle shapes work on an empty cell too; only the image
+    // ratio lock needs a photo, and canAspectLock enforces that separately.
+    if (!found) return false;
     if (found.box.lock) return true;
     if (found.row.boxes.length === 1) return true;
 
@@ -683,7 +695,7 @@ const State = (() => {
     }
   };
 
-  /** Set or release one of the exclusive width locks on a box. */
+  /** Set or release one of the exclusive shape locks on a box. */
   const setBoxLock = (boxId, mode, ratio = null) => {
     const found = findBox(boxId);
     if (!found) return false;
@@ -695,7 +707,9 @@ const State = (() => {
       return true;
     }
 
-    if (mode !== 'square' && mode !== 'aspect') return false;
+    if (mode !== 'square' && mode !== 'aspect' && mode !== 'circle') {
+      return false;
+    }
     if (!Number.isFinite(ratio) || ratio <= 0) return false;
 
     if (mode === 'aspect') {
@@ -711,8 +725,9 @@ const State = (() => {
     }
 
     if (!canLockBox(boxId)) return false;
-    found.box.lock = 'square';
-    found.box.ratio = ratio;
+    // A circle is drawn in a square box, so it shares the square's 1:1 ratio.
+    found.box.lock = mode;
+    found.box.ratio = 1;
     found.box.lockSeq = 0;
     return true;
   };
@@ -933,6 +948,26 @@ const State = (() => {
       color: color.toLowerCase(),
       opacity: Math.min(1, Math.max(0, alpha)),
     };
+    return true;
+  };
+
+  /** Corner rounding in logical pixels; 0 removes it again. */
+  const normalizeRadius = (value) =>
+    Math.min(MAX_RADIUS, Math.max(0, Math.round(Number(value) || 0)));
+
+  const setBoxRadius = (boxId, radius) => {
+    const found = findBox(boxId);
+    if (!found || !Number.isFinite(Number(radius))) return false;
+    const next = normalizeRadius(radius);
+    found.box.radius = next;
+    return true;
+  };
+
+  const setFreeRadius = (freeId, radius) => {
+    const found = findFreeBox(freeId);
+    if (!found || !Number.isFinite(Number(radius))) return false;
+    const next = normalizeRadius(radius);
+    found.box.radius = next;
     return true;
   };
 
@@ -1159,19 +1194,22 @@ const State = (() => {
         box.rotation = normalizeAngle(numberOr(rawBox.rotation, 0));
         box.tint = colorOr(rawBox.tint, null);
         box.fill = fillOr(rawBox.fill);
+        box.radius = clamp(Math.round(numberOr(rawBox.radius, 0)), 0, MAX_RADIUS);
         const lock =
-          rawBox.lock === 'square' || rawBox.lock === 'aspect'
+          rawBox.lock === 'square' ||
+          rawBox.lock === 'circle' ||
+          rawBox.lock === 'aspect'
             ? rawBox.lock
             : null;
         const ratio = numberOr(rawBox.ratio, 0);
-        if (lock && image) {
+        if (lock && (image || lock !== 'aspect')) {
           box.lock = lock;
           box.ratio =
-            lock === 'square'
-              ? 1
-              : ratio > 0
+            lock === 'aspect'
+              ? ratio > 0
                 ? ratio
-                : imageAspect(image);
+                : imageAspect(image)
+              : 1;
           box.lockSeq = Math.max(0, Math.round(numberOr(rawBox.lockSeq, 0)));
         }
         row.boxes.push(box);
@@ -1219,6 +1257,7 @@ const State = (() => {
       box.square = rawBox.square === true;
       box.tint = colorOr(rawBox.tint, null);
       box.fill = fillOr(rawBox.fill);
+      box.radius = clamp(Math.round(numberOr(rawBox.radius, 0)), 0, MAX_RADIUS);
       box.image = kind === 'photo' ? imageOr(rawBox.image) : null;
 
       if (kind === 'text') {
@@ -1309,8 +1348,11 @@ const State = (() => {
     setCanvasColor,
     setCanvasGradient,
     setBoxFill,
+    setBoxRadius,
     setBoxTint,
     placeholderFill: PLACEHOLDER_FILL,
+    defaultRadius: DEFAULT_RADIUS,
+    maxRadius: MAX_RADIUS,
     canvasColorAt,
     setBorderThickness,
     setOrientation,
@@ -1337,6 +1379,7 @@ const State = (() => {
     setFreeBorder,
     setFreeBackground,
     setFreeFill,
+    setFreeRadius,
     setFreeTint,
     setFreeRotation,
     snapRotation,

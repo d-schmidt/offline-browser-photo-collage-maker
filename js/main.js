@@ -43,6 +43,9 @@
   const fillColorInput = document.getElementById('fill-color-input');
   const fillOpacity = document.getElementById('fill-opacity');
   const fillOpacityValue = document.getElementById('fill-opacity-value');
+  const lockMenuWrap = document.getElementById('lock-menu-wrap');
+  const lockButton = document.getElementById('lock-button');
+  const lockMenu = document.getElementById('lock-menu');
   const tintMenuWrap = document.getElementById('tint-menu-wrap');
   const tintButton = document.getElementById('tint-button');
   const tintMenu = document.getElementById('tint-menu');
@@ -50,6 +53,11 @@
   const tintColorChip = document.getElementById('tint-color-chip');
   const tintClearRow = document.getElementById('tint-clear-row');
   const tintColorInput = document.getElementById('tint-color-input');
+  const cornerMenuWrap = document.getElementById('corner-menu-wrap');
+  const cornerButton = document.getElementById('corner-button');
+  const cornerMenu = document.getElementById('corner-menu');
+  const cornerRange = document.getElementById('corner-range');
+  const cornerValue = document.getElementById('corner-value');
   const rowsLayer = document.getElementById('rows');
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
@@ -143,6 +151,7 @@
   let spotsQueued = false;
   let fillFrame = 0;
   let tintFrame = 0;
+  let cornerFrame = 0;
   let textFillFrame = 0;
   let textOutlineFrame = 0;
   let fontSelectionToken = 0;
@@ -752,9 +761,14 @@
 
   const toggleBoxLock = (boxId, mode) => {
     const found = State.findBox(boxId);
-    if (!found || !found.box.image) return;
+    if (!found) return;
     const { box, row } = found;
-    const action = mode === 'square' ? 'lock-square' : 'lock-aspect';
+
+    // "None" and the already-active shape both mean release.
+    if (mode === 'none') {
+      if (!box.lock) return;
+      mode = box.lock;
+    }
 
     if (box.lock === mode) {
       // A lone aspect-locked group is sized by its cross axis; freeze that
@@ -775,7 +789,6 @@
         State.setRowWeights(row.id, sizes);
       }
       refresh();
-      focusAction(action);
       Render.announce(I18n.t('announce.lockReleased'));
       return;
     }
@@ -786,9 +799,15 @@
       return;
     }
 
-    if (mode === 'aspect' && !State.canAspectLock(boxId)) {
-      Render.announce(I18n.t('announce.needRatio', { group }));
-      return;
+    if (mode === 'aspect') {
+      if (!box.image) {
+        Render.announce(I18n.t('lock.emptyAspect'));
+        return;
+      }
+      if (!State.canAspectLock(boxId)) {
+        Render.announce(I18n.t('announce.needRatio', { group }));
+        return;
+      }
     }
 
     let ratio = 1;
@@ -799,9 +818,14 @@
 
     if (!State.setBoxLock(boxId, mode, ratio)) return;
     refresh();
-    focusAction(action);
     Render.announce(
-      I18n.t(mode === 'square' ? 'announce.squareOn' : 'announce.aspectOn'),
+      I18n.t(
+        mode === 'square'
+          ? 'announce.squareOn'
+          : mode === 'circle'
+            ? 'announce.circleOn'
+            : 'announce.aspectOn',
+      ),
     );
   };
 
@@ -968,6 +992,7 @@
     closeColorMenu();
     closeGradientStyleMenu();
     closeGradientMenu();
+    closeLockMenu();
     syncMoreMenu();
     moreMenuOpen = true;
     moreMenu.hidden = false;
@@ -991,6 +1016,7 @@
     closeBorderMenu();
     closeColorMenu();
     closeGradientMenu();
+    closeLockMenu();
     saveMenuOpen = true;
     saveMenu.hidden = false;
     saveButton.setAttribute('aria-expanded', 'true');
@@ -1013,6 +1039,7 @@
     closeSaveMenu();
     closeColorMenu();
     closeGradientMenu();
+    closeLockMenu();
     borderMenuOpen = true;
     borderMenu.hidden = false;
     borderButton.setAttribute('aria-expanded', 'true');
@@ -1137,6 +1164,7 @@
     closeBorderMenu();
     closeGradientStyleMenu();
     closeGradientMenu();
+    closeLockMenu();
     syncColorMenu();
     colorMenuOpen = true;
     colorMenu.hidden = false;
@@ -1174,6 +1202,7 @@
     closeSaveMenu();
     closeBorderMenu();
     closeGradientMenu();
+    closeLockMenu();
     if (gradientStyleMenuOpen) return;
     paintGradientStyleMenu();
     gradientStyleMenuOpen = true;
@@ -1266,6 +1295,7 @@
     closeMoreMenu();
     closeSaveMenu();
     closeBorderMenu();
+    closeLockMenu();
     if (!gradientMenuOpen) {
       syncGradientInputs();
       gradientMenuOpen = true;
@@ -1337,6 +1367,7 @@
     closeColorMenu();
     closeGradientStyleMenu();
     closeGradientMenu();
+    closeLockMenu();
     syncFillMenu();
     fillMenu.hidden = false;
     fillButton.setAttribute('aria-expanded', 'true');
@@ -1348,6 +1379,52 @@
     fillMenu.hidden = true;
     fillButton.setAttribute('aria-expanded', 'false');
     if (restoreFocus) fillButton.focus({ preventScroll: true });
+  };
+
+  // --- box shape locks ----------------------------------------------------
+
+  /** The selected grid box, the only kind that carries a shape menu. */
+  const lockTarget = () => {
+    const found = State.findBox(State.selectedBoxId);
+    return found ? found.box : null;
+  };
+
+  const lockMenuItems = () =>
+    Array.from(lockMenu.querySelectorAll('[data-lock]')).filter(
+      (item) => !item.disabled,
+    );
+
+  const openLockMenu = () => {
+    if (!lockTarget()) return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    closeFillMenu();
+    closeTintMenu();
+    closeCornerMenu();
+    closeFontMenu();
+    closeTextColorMenu();
+    lockMenu.hidden = false;
+    lockButton.setAttribute('aria-expanded', 'true');
+    // Open on the active lock, or on the first item that can be chosen.
+    const current =
+      lockMenu.querySelector('[data-lock][aria-checked="true"]:not(:disabled)') ||
+      lockMenuItems()[0];
+    if (current) current.focus({ preventScroll: true });
+  };
+
+  const closeLockMenu = (restoreFocus = false) => {
+    if (lockMenu.hidden) return;
+    lockMenu.hidden = true;
+    lockButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) lockButton.focus({ preventScroll: true });
+  };
+
+  const toggleLockMenu = () => {
+    if (lockMenu.hidden) openLockMenu();
+    else closeLockMenu(true);
   };
 
   /** Store one changed value and repaint the cell once per frame. */
@@ -1410,6 +1487,7 @@
     closeGradientStyleMenu();
     closeGradientMenu();
     closeFillMenu();
+    closeLockMenu();
     syncTintMenu();
     tintMenu.hidden = false;
     tintButton.setAttribute('aria-expanded', 'true');
@@ -1450,6 +1528,119 @@
         color: box.tint,
       }),
     );
+  };
+
+  // --- corner radius ------------------------------------------------------
+
+  /** The selected image or text box, whichever layer it lives on. */
+  const cornerTarget = () => {
+    const found = State.selectedFreeId
+      ? State.findFreeBox(State.selectedFreeId)
+      : State.findBox(State.selectedBoxId);
+    return found ? found.box : null;
+  };
+
+  /**
+   * Rounding needs a visible surface. A text box only qualifies while its
+   * backdrop is on; an image box only with a photo or a recolored empty cell.
+   */
+  const cornerAllowed = (box) => {
+    if (!box) return false;
+    if (box.kind === 'text') return box.background !== false;
+    // The circle lock owns the shape, so rounding is disabled until it is
+    // released; the stored radius survives that state.
+    if (box.lock === 'circle') return false;
+    return Boolean(box.image) || Boolean(box.fill);
+  };
+
+  const syncCornerMenu = () => {
+    const box = cornerTarget();
+    if (!box) return;
+    const pixels = Math.round(box.radius || 0);
+    cornerRange.value = String(pixels);
+    cornerValue.textContent = I18n.t('border.value', { n: pixels });
+    cornerRange.setAttribute(
+      'aria-valuetext',
+      I18n.t('corner.pixels', { n: pixels }),
+    );
+  };
+
+  const openCornerMenu = () => {
+    const box = cornerTarget();
+    if (!box || !cornerAllowed(box)) return;
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    closeFillMenu();
+    closeTintMenu();
+    closeLockMenu();
+    syncCornerMenu();
+    cornerMenu.hidden = false;
+    cornerButton.setAttribute('aria-expanded', 'true');
+    cornerRange.focus({ preventScroll: true });
+  };
+
+  const closeCornerMenu = (restoreFocus = false) => {
+    if (cornerMenu.hidden) return;
+    cornerMenu.hidden = true;
+    cornerButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) cornerButton.focus({ preventScroll: true });
+  };
+
+  /** Store the radius and repaint the selected box once per frame. */
+  const applyCornerRadius = (value) => {
+    const box = cornerTarget();
+    if (!box || !cornerAllowed(box)) return;
+    const pixels = Math.min(
+      State.maxRadius,
+      Math.max(0, Math.round(Number(value) || 0)),
+    );
+    const saved = State.selectedFreeId
+      ? State.setFreeRadius(box.id, pixels)
+      : State.setBoxRadius(box.id, pixels);
+    if (!saved) return;
+    cornerRange.value = String(pixels);
+    cornerValue.textContent = I18n.t('border.value', { n: pixels });
+    cornerButton.classList.toggle('is-active', pixels > 0);
+    cornerButton.setAttribute('aria-pressed', String(pixels > 0));
+    if (cornerFrame) return;
+    cornerFrame = requestAnimationFrame(() => {
+      cornerFrame = 0;
+      refresh();
+      syncCornerMenu();
+    });
+  };
+
+  const announceCorner = () => {
+    const box = cornerTarget();
+    if (!box) return;
+    const pixels = Math.round(box.radius || 0);
+    Render.announce(
+      pixels > 0
+        ? I18n.t('announce.cornerRadius', { n: pixels })
+        : I18n.t('announce.cornerRadiusOff'),
+    );
+  };
+
+  /**
+   * The button shows the slider. A zero radius first switches to the friendly
+   * default, so one click gives a visibly rounded box; dragging the slider
+   * back to zero turns rounding off without closing it.
+   */
+  const toggleCornerMenu = () => {
+    const box = cornerTarget();
+    if (!box || !cornerAllowed(box)) return;
+    if (!cornerMenu.hidden && (box.radius || 0) > 0) {
+      closeCornerMenu(true);
+      return;
+    }
+    if (!(box.radius > 0)) {
+      applyCornerRadius(State.defaultRadius);
+      syncCornerMenu();
+    }
+    openCornerMenu();
   };
 
   // --- text styling menus -------------------------------------------------
@@ -1502,6 +1693,7 @@
     closeGradientStyleMenu();
     closeGradientMenu();
     closeFillMenu();
+    closeLockMenu();
     closeTextColorMenu();
     syncFontMenu();
     fontMenu.hidden = false;
@@ -1611,6 +1803,7 @@
     closeGradientMenu();
     closeFillMenu();
     closeFontMenu();
+    closeLockMenu();
     syncTextColorMenu();
     textColorMenu.hidden = false;
     textColorButton.setAttribute('aria-expanded', 'true');
@@ -3228,8 +3421,14 @@
     if (!fillMenu.hidden && !fillMenuWrap.contains(event.target)) {
       closeFillMenu();
     }
+    if (!lockMenu.hidden && !lockMenuWrap.contains(event.target)) {
+      closeLockMenu();
+    }
     if (!tintMenu.hidden && !tintMenuWrap.contains(event.target)) {
       closeTintMenu();
+    }
+    if (!cornerMenu.hidden && !cornerMenuWrap.contains(event.target)) {
+      closeCornerMenu();
     }
     if (!fontMenu.hidden && !fontMenuWrap.contains(event.target)) {
       closeFontMenu();
@@ -3403,6 +3602,53 @@
     }
   });
 
+  lockButton.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      openLockMenu();
+    }
+  });
+
+  lockMenu.addEventListener('click', (event) => {
+    const item = event.target.closest('[data-lock]');
+    if (!item || item.disabled || !State.selectedBoxId) return;
+    toggleBoxLock(State.selectedBoxId, item.dataset.lock);
+    // The menu stays open for another shape; keep focus on the chosen item
+    // even when the repaint changed its pressed state.
+    item.focus({ preventScroll: true });
+  });
+
+  lockMenuWrap.addEventListener('keydown', (event) => {
+    if (lockMenu.hidden) return;
+    const items = lockMenuItems();
+    if (items.length === 0) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeLockMenu(true);
+      } else if (event.key === 'Tab') {
+        closeLockMenu();
+      }
+      return;
+    }
+    const current = items.indexOf(document.activeElement);
+    let next = -1;
+    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
+    else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeLockMenu(true);
+      return;
+    } else if (event.key === 'Tab') {
+      closeLockMenu();
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
+  });
+
   tintButton.addEventListener('click', () => {
     if (tintMenu.hidden) openTintMenu();
     else closeTintMenu(true);
@@ -3434,6 +3680,23 @@
       closeTintMenu(true);
     } else if (event.key === 'Tab') {
       closeTintMenu();
+    }
+  });
+
+  cornerRange.addEventListener('input', () => {
+    applyCornerRadius(Number(cornerRange.value));
+  });
+
+  cornerRange.max = String(State.maxRadius);
+  cornerRange.addEventListener('change', announceCorner);
+
+  cornerMenuWrap.addEventListener('keydown', (event) => {
+    if (cornerMenu.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeCornerMenu(true);
+    } else if (event.key === 'Tab') {
+      closeCornerMenu();
     }
   });
 
@@ -3904,6 +4167,16 @@
     const button = event.target.closest('button[data-action]');
     if (!button) return;
 
+    if (button.dataset.action === 'corner-radius') {
+      toggleCornerMenu();
+      return;
+    }
+
+    if (button.dataset.action === 'lock-menu') {
+      toggleLockMenu();
+      return;
+    }
+
     if (State.selectedFreeId) {
       if (button.dataset.action === 'delete-box') deleteSelected();
       else if (button.dataset.action === 'edit-text') {
@@ -3925,8 +4198,6 @@
 
     if (button.dataset.action === 'delete-box') deleteSelected();
     else if (button.dataset.action === 'select-image') openPicker(boxId);
-    else if (button.dataset.action === 'lock-square') toggleBoxLock(boxId, 'square');
-    else if (button.dataset.action === 'lock-aspect') toggleBoxLock(boxId, 'aspect');
     else if (button.dataset.action === 'toggle-visibility') {
       toggleBoxVisibility(boxId);
     }

@@ -230,6 +230,72 @@
           </button>
         </div>
       </div>
+      <!-- Square, image-ratio, and circle locks share one shape menu. It is a
+           persistent wrapper so picking a lock keeps the menu open. -->
+      <div class="fill-menu-wrap" id="lock-menu-wrap" hidden>
+        <button
+          class="icon-button"
+          id="lock-button"
+          type="button"
+          data-icon="lockAspect"
+          data-action="lock-menu"
+          aria-label="Box shape"
+          data-i18n-aria-label="lock.menu"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-controls="lock-menu"
+          aria-pressed="false"
+        ></button>
+        <div
+          class="fill-menu lock-menu"
+          id="lock-menu"
+          role="menu"
+          aria-label="Box shape"
+          data-i18n-aria-label="lock.menu"
+          hidden
+        >
+          <button
+            class="color-menu-item"
+            type="button"
+            role="menuitemradio"
+            data-lock="square"
+            data-icon="lockSquare"
+            aria-checked="false"
+          >
+            <span data-i18n="lock.square">Square</span>
+          </button>
+          <button
+            class="color-menu-item"
+            type="button"
+            role="menuitemradio"
+            data-lock="aspect"
+            data-icon="lockAspect"
+            aria-checked="false"
+          >
+            <span data-i18n="lock.aspect">Image ratio</span>
+          </button>
+          <button
+            class="color-menu-item"
+            type="button"
+            role="menuitemradio"
+            data-lock="circle"
+            data-icon="lockCircle"
+            aria-checked="false"
+          >
+            <span data-i18n="lock.circle">Circle</span>
+          </button>
+          <button
+            class="color-menu-item"
+            type="button"
+            role="menuitemradio"
+            data-lock="none"
+            data-icon="lockNone"
+            aria-checked="false"
+          >
+            <span data-i18n="lock.none">None</span>
+          </button>
+        </div>
+      </div>
       <div class="fill-menu-wrap" id="fill-menu-wrap" hidden>
         <button
           class="icon-button"
@@ -266,6 +332,43 @@
             max="100"
             step="1"
             value="80"
+          >
+        </div>
+      </div>
+      <div class="fill-menu-wrap" id="corner-menu-wrap" hidden>
+        <button
+          class="icon-button"
+          id="corner-button"
+          type="button"
+          data-icon="roundedCorner"
+          data-action="corner-radius"
+          aria-label="Corner radius"
+          data-i18n-aria-label="action.radius"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="corner-menu"
+          aria-pressed="false"
+        ></button>
+        <div
+          class="fill-menu"
+          id="corner-menu"
+          role="dialog"
+          aria-label="Corner radius"
+          data-i18n-aria-label="corner.title"
+          hidden
+        >
+          <div class="border-menu-head">
+            <label class="border-menu-label" for="corner-range" data-i18n="corner.title">Corner radius</label>
+            <output class="border-menu-value" id="corner-value" for="corner-range">0 px</output>
+          </div>
+          <input
+            class="border-range"
+            id="corner-range"
+            type="range"
+            min="0"
+            max="200"
+            step="1"
+            value="0"
           >
         </div>
       </div>

@@ -445,6 +445,20 @@ button {
   padding: 4px;
 }
 
+/* The shape menu lists the three exclusive locks in one short popover. */
+#lock-menu {
+  width: 200px;
+  padding: 4px;
+}
+
+.lock-menu .color-menu-item[aria-checked='true'] {
+  background: rgb(255 255 255 / 12%);
+}
+
+.lock-menu .color-menu-item[aria-checked='true'] .icon {
+  opacity: 1;
+}
+
 /* The two stop pickers reuse the base menu's item look: a chip on the left,
    the label beside it, and the same hover/focus treatment. */
 .gradient-menu {
@@ -1125,38 +1139,57 @@ button {
   display: block;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  /* The photo/cell surface clips itself, so the selection and focus rings on
+     this element stay rectangular even for rounded or circular boxes. */
+  overflow: visible;
   border: 0;
   border-radius: 0;
-  background: var(--placeholder-fill);
+  background: transparent;
   cursor: pointer;
   appearance: none;
+}
+
+/* The visible content surface: photo, placeholder, or recolored cell. Its
+   radius/circle clip never reaches the rectangular selection outline. */
+.box-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 0;
+  background: var(--placeholder-fill);
+  pointer-events: none;
   transition: background-color 120ms ease;
 }
 
-.box.has-image {
+.box.has-image .box-surface {
   background: none;
 }
 
 /* A recolored empty cell paints its own color, so the hover hint comes from a
    slight dim instead of the shared gray. */
-.box.has-fill:hover {
+.box.has-fill:hover .box-surface {
   filter: brightness(0.94);
 }
 
-.box:hover {
+.box:hover .box-surface {
   background: rgb(195 195 195 / 80%);
 }
 
-.box.has-image:hover {
+.box.has-image:hover .box-surface {
   background: none;
 }
 
 /* A hidden photo keeps its box and its space but shows the canvas/margin
    paint, so it reads as a transparent cut-out rather than an empty box. */
-.box.is-hidden,
-.box.is-hidden:hover {
+.box.is-hidden .box-surface,
+.box.is-hidden:hover .box-surface {
   background: transparent;
+}
+
+/* A circle-locked cell and its photo are clipped to a true circle; the shape
+   supersedes the corner radius, which stays stored but disabled. */
+.box.is-circle .box-surface {
+  border-radius: 50%;
 }
 
 .box:focus-visible {
@@ -1243,12 +1276,15 @@ button {
   position: absolute;
   inset: 0;
   display: block;
-  background: var(--placeholder);
-  opacity: 0.35;
   pointer-events: none;
+  opacity: 0.35;
 }
 
-.free-ghost.has-image .free-ghost-body {
+.free-ghost-body .free-content {
+  background: var(--placeholder);
+}
+
+.free-ghost.has-image .free-ghost-body .free-content {
   background: none;
 }
 
@@ -1271,13 +1307,28 @@ button {
   display: block;
   padding: 0;
   border: 0;
-  /* The same translucent gray as an empty grid cell. */
-  background: var(--placeholder-fill);
+  background: none;
   cursor: move;
   touch-action: none;
   user-select: none;
   transform-origin: center center;
   pointer-events: auto;
+}
+
+/* The inner surface carries a free-form box's photo, text, or placeholder. It
+   is clipped to the corner radius while the paint frame stays a square ring
+   around it. */
+.free-content {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--free-radius, 0px);
+  background: var(--placeholder-fill);
+  pointer-events: none;
+}
+
+.free-box.has-image .free-content {
+  background: none;
 }
 
 .free-box.has-image {
@@ -1358,11 +1409,11 @@ button {
   }
 }
 
-.free-box:hover {
+.free-box:hover .free-content {
   background: rgb(195 195 195 / 80%);
 }
 
-.free-box.has-image:hover {
+.free-box.has-image:hover .free-content {
   background: none;
 }
 

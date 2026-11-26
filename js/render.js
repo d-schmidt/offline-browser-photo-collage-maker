@@ -29,6 +29,8 @@ const ICONS = Object.freeze({
   invertColors:
     'assets/invert_colors_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockAspect: 'assets/image_aspect_ratio_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  lockCircle: 'assets/circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  lockNone: 'assets/close_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   moreVert: 'assets/more_vert_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -36,6 +38,8 @@ const ICONS = Object.freeze({
   rotateLeft: 'assets/rotate_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   rotateSnap:
     'assets/rotate_90_degrees_ccw_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
+  roundedCorner:
+    'assets/rounded_corner_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   zoomOutMap: 'assets/zoom_out_map_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   undo: 'assets/undo_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   visibility: 'assets/visibility_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
@@ -231,6 +235,22 @@ const Render = (() => {
     return `rgba(${channel(1)}, ${channel(3)}, ${channel(5)}, ${fill.opacity})`;
   };
 
+  /**
+   * Corner rounding is only meaningful on a visible surface: a photo, a text
+   * backdrop, or a recolored empty cell. The default gray placeholder stays
+   * square, and the action button is disabled there.
+   */
+  const gridRadius = (layoutBox) =>
+    layoutBox.image || layoutBox.fill ? layoutBox.radius || 0 : 0;
+
+  const freeRadius = (box) => {
+    const visibleSurface =
+      box.kind === 'text'
+        ? box.background !== false
+        : Boolean(box.image) || Boolean(box.fill);
+    return visibleSurface ? box.radius || 0 : 0;
+  };
+
   const buildBox = (layoutBox, number, selectedId) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -244,15 +264,27 @@ const Render = (() => {
     const hasImage = Boolean(layoutBox.image);
     const visible = layoutBox.visible !== false;
     const locked = Boolean(layoutBox.locked);
+    const circle = layoutBox.lock === 'circle';
     button.classList.toggle('has-image', hasImage);
     button.classList.toggle('is-hidden', !visible);
     button.classList.toggle('has-lock', locked);
+    button.classList.toggle('is-circle', circle);
     button.classList.toggle('has-fill', Boolean(layoutBox.fill) && visible);
     button.classList.toggle('is-selected', layoutBox.id === selectedId);
+
+    // The rounded/circular cell lives on an inner surface, so the button keeps
+    // its square silhouette for the selection and focus outlines.
+    const surface = document.createElement('div');
+    surface.className = 'box-surface';
+    surface.setAttribute('aria-hidden', 'true');
+    button.append(surface);
+
+    const radius = visible ? gridRadius(layoutBox) : 0;
+    if (radius > 0 && !circle) surface.style.borderRadius = `${radius}px`;
     // A recolored empty cell paints its own color over the default gray. A
     // hidden cell stays a transparent cut-out, so it keeps no inline paint.
     if (!hasImage && visible && layoutBox.fill) {
-      button.style.backgroundColor = emptyFillColor(layoutBox.fill);
+      surface.style.backgroundColor = emptyFillColor(layoutBox.fill);
     }
     button.setAttribute('aria-pressed', String(layoutBox.id === selectedId));
     const label = !visible
@@ -280,7 +312,7 @@ const Render = (() => {
         layoutBox.offsetY,
         layoutBox.rotation,
       );
-      button.append(image);
+      surface.append(image);
     } else if (!hasImage && visible && !layoutBox.fill) {
       const placeholder = new Image(64, 64);
       placeholder.className = 'box-placeholder';
@@ -288,7 +320,7 @@ const Render = (() => {
       placeholder.alt = '';
       placeholder.draggable = false;
       placeholder.setAttribute('aria-hidden', 'true');
-      button.append(placeholder);
+      surface.append(placeholder);
     }
 
     return button;
@@ -307,6 +339,9 @@ const Render = (() => {
     element.style.height = `${height}px`;
     element.style.transform = `translate(-50%, -50%) rotate(${box.rotation}deg)`;
     element.style.setProperty('--free-border', `${border}px`);
+    // The corner radius belongs to the inner content, so the paint frame keeps
+    // its own square silhouette while a photo or backdrop turns rounded.
+    element.style.setProperty('--free-radius', `${freeRadius(box)}px`);
     element.classList.toggle('has-border', border > 0);
     // The ring samples a solid fallback for the overhang, while its paint child
     // counter-rotates so the canvas image stays aligned when the box turns.
@@ -382,14 +417,26 @@ const Render = (() => {
   /** Fill a free-form box (or its ghost copy) with its content or placeholder. */
   const freeContent = (box, container, ghost = false) => {
     const isText = box.kind === 'text';
+    // The inner surface clips to the rounded corners; the paint frame stays a
+    // separate square ring outside it.
+    const content = document.createElement('div');
+    content.className = 'free-content';
+
     if (isText) {
       // A text box's background flag shows or hides the gray backdrop; a photo
       // box uses the same flag for the canvas paint behind transparency. The
       // ghost only previews the text, so it never re-tints the backdrop.
-      if (ghost || box.background === false) container.style.background = 'none';
-    } else if (box.background) {
-      container.append(buildFreeBackground());
+      if (box.fill && box.background !== false) {
+        content.style.backgroundColor = emptyFillColor(box.fill);
+      }
+      if (ghost || box.background === false) content.style.background = 'none';
+    } else {
+      if (box.background) content.append(buildFreeBackground());
+      if (!box.image && box.fill) {
+        content.style.backgroundColor = emptyFillColor(box.fill);
+      }
     }
+
     if (box.image) {
       const image = document.createElement('img');
       image.className = 'free-box-image';
@@ -398,22 +445,26 @@ const Render = (() => {
       image.draggable = false;
       const tint = tintFilter(box.id, box.tint);
       if (tint) image.style.filter = tint;
-      container.append(image);
+      content.append(image);
+      container.append(content);
       return;
     }
     if (isText && box.text) {
-      container.append(buildFreeText(box));
+      content.append(buildFreeText(box));
+      container.append(content);
       return;
     }
     // A recolored empty cell hides the add-photo hint just like a grid cell.
-    if (box.fill) return;
-    const placeholder = new Image(64, 64);
-    placeholder.className = 'box-placeholder';
-    placeholder.src = isText ? ICONS.editNote : ICONS.addPhoto;
-    placeholder.alt = '';
-    placeholder.draggable = false;
-    placeholder.setAttribute('aria-hidden', 'true');
-    container.append(placeholder);
+    if (!box.fill) {
+      const placeholder = new Image(64, 64);
+      placeholder.className = 'box-placeholder';
+      placeholder.src = isText ? ICONS.editNote : ICONS.addPhoto;
+      placeholder.alt = '';
+      placeholder.draggable = false;
+      placeholder.setAttribute('aria-hidden', 'true');
+      content.append(placeholder);
+    }
+    container.append(content);
   };
 
   /**
@@ -478,15 +529,6 @@ const Render = (() => {
     element.classList.toggle('has-image', hasImage);
     element.classList.toggle('has-text', isText && Boolean(box.text));
     element.classList.toggle('is-text-box', isText);
-    // A recolored empty free-form box paints its own color and opacity. Text
-    // boxes use the same fill for their backdrop, and only while it is shown.
-    if (
-      !hasImage &&
-      box.fill &&
-      (!isText || box.background !== false)
-    ) {
-      element.style.backgroundColor = emptyFillColor(box.fill);
-    }
     const label = isText
       ? I18n.t(box.text ? 'textBox.label' : 'textBox.labelEmpty', { n: number })
       : hasImage
@@ -613,7 +655,9 @@ const Render = (() => {
         child !== refs.fillWrap &&
         child !== refs.fontWrap &&
         child !== refs.textColorWrap &&
-        child !== refs.tintWrap
+        child !== refs.tintWrap &&
+        child !== refs.lockWrap &&
+        child !== refs.cornerWrap
       ) {
         child.remove();
       }
@@ -666,6 +710,56 @@ const Render = (() => {
     showTextControls(
       isTextSelected,
       isTextSelected ? selectedFree.box.id : null,
+    );
+    // The shape menu belongs to a grid box; free-form boxes have their own
+    // square crop instead. Square and circle work on an empty cell, while the
+    // image-ratio item needs a photo.
+    const lockBox =
+      selectedFill && !state.selectedFreeId && selectedFill.box.kind !== 'text'
+        ? selectedFill.box
+        : null;
+    const canSquare = lockBox ? state.canLockBox(lockBox.id) : false;
+    const canAspect = lockBox ? state.canAspectLock(lockBox.id) : false;
+    const lockGroup = I18n.t(
+      state.orientation === 'column' ? 'group.column' : 'group.row',
+    );
+    const lockLimitHint =
+      lockBox && !canSquare
+        ? I18n.t('hint.unlocked', { group: lockGroup })
+        : null;
+    const lockRatioHint =
+      lockBox && lockBox.image && canSquare && !canAspect
+        ? I18n.t('hint.ratio', { group: lockGroup })
+        : null;
+    showLockControls(
+      lockBox,
+      canSquare,
+      canAspect,
+      lockLimitHint,
+      lockRatioHint,
+    );
+    // Any selected image or text box gets the corner-radius action. Its slider
+    // is disabled until the box has a surface that can actually be rounded,
+    // and a circle lock owns the shape, so rounding hands over to it.
+    const cornerBox = selectedFill ? selectedFill.box : null;
+    const cornerText = Boolean(cornerBox && cornerBox.kind === 'text');
+    const cornerCircle = Boolean(
+      cornerBox && cornerBox.kind !== 'text' && cornerBox.lock === 'circle',
+    );
+    const cornerEnabled = cornerBox
+      ? cornerCircle
+        ? false
+        : cornerText
+          ? cornerBox.background !== false
+          : Boolean(cornerBox.image) || Boolean(cornerBox.fill)
+      : false;
+    showCornerControls(
+      Boolean(cornerBox),
+      cornerBox ? cornerBox.id : null,
+      cornerEnabled,
+      cornerBox ? cornerBox.radius || 0 : 0,
+      cornerText,
+      cornerCircle,
     );
     if (!hasSelection) {
       setActionTools([]);
@@ -770,41 +864,6 @@ const Render = (() => {
     const found = state.findBox(state.selectedBoxId);
     const box = found ? found.box : null;
     const hasImage = Boolean(box && box.image);
-    const lock = box ? box.lock : null;
-    const canSquare = box ? state.canLockBox(box.id) : false;
-    const canAspect = box ? state.canAspectLock(box.id) : false;
-    const group = I18n.t(
-      state.orientation === 'column' ? 'group.column' : 'group.row',
-    );
-    const limitHint =
-      hasImage && !canSquare
-        ? I18n.t('hint.unlocked', { group })
-        : null;
-    const ratioHint =
-      hasImage && canSquare && !canAspect
-        ? I18n.t('hint.ratio', { group })
-        : null;
-
-    const square = toolButton(
-      'lock-square',
-      I18n.t('action.lockSquare'),
-      'lockSquare',
-    );
-    square.disabled = !canSquare;
-    square.setAttribute('aria-pressed', String(lock === 'square'));
-    square.classList.toggle('is-active', lock === 'square');
-    if (limitHint) square.title = limitHint;
-
-    const aspect = toolButton(
-      'lock-aspect',
-      I18n.t('action.lockAspect'),
-      'lockAspect',
-    );
-    aspect.disabled = !canAspect;
-    aspect.setAttribute('aria-pressed', String(lock === 'aspect'));
-    aspect.classList.toggle('is-active', lock === 'aspect');
-    if (limitHint) aspect.title = limitHint;
-    else if (ratioHint) aspect.title = ratioHint;
 
     const visible = box ? box.visible !== false : true;
     const visibility = toolButton(
@@ -813,6 +872,9 @@ const Render = (() => {
       visible ? 'visibility' : 'visibilityOff',
     );
     visibility.setAttribute('aria-pressed', String(visible));
+    // The crossed-eye state is the active one: the cell is hidden, so the
+    // button turns red like every other engaged action.
+    visibility.classList.toggle('is-active', !visible);
     visibility.title = I18n.t(
       hasImage
         ? visible
@@ -823,22 +885,21 @@ const Render = (() => {
           : 'action.showBox',
     );
 
-    // A box without a photo has no ratio to lock, so the two lock buttons stay
-    // hidden rather than disabled and appear as soon as a photo is loaded.
-    const framing = hasImage ? [square, aspect, visibility] : [visibility];
     // The same button removes the whole box only while it is empty; with a
     // photo it lifts the photo and leaves the empty cell behind.
     const deleteLabel = I18n.t(
       hasImage ? 'action.removePhoto' : 'action.delete',
     );
 
+    // Hide/Show sits with the other image-box actions, before the divider.
     setActionTools(
       [
         toolButton('delete-box', deleteLabel, 'delete'),
         toolButton('select-image', I18n.t('action.selectImage'), 'image'),
+        visibility,
         actionSeparator(),
       ],
-      framing,
+      [],
     );
   };
 
@@ -876,6 +937,78 @@ const Render = (() => {
   };
 
   /**
+   * The shape menu follows the selected grid box. Its trigger uses the image
+   * ratio mark, and the three items are mutually exclusive: square, the photo's
+   * own ratio, and a circle. The image-ratio item stays disabled without a
+   * photo, while square and circle also work on an empty cell.
+   */
+  const showLockControls = (
+    box,
+    canSquare,
+    canAspect,
+    limitHint = null,
+    ratioHint = null,
+  ) => {
+    const available = Boolean(box);
+    refs.lockWrap.hidden = !available;
+    const boxId = available ? box.id : null;
+    const sameBox = available && boxId === refs.lockBoxId;
+    refs.lockBoxId = boxId;
+    const lock = available ? box.lock : null;
+    const hasImage = Boolean(available && box.image);
+
+    refs.lockButton.classList.toggle('is-active', Boolean(lock));
+    refs.lockButton.setAttribute('aria-pressed', String(Boolean(lock)));
+    // The trigger shows the active shape's mark, so the current lock is visible
+    // without opening the menu; with no lock it keeps the image-ratio mark.
+    const triggerIcon = refs.lockButton.querySelector('.icon');
+    if (triggerIcon) {
+      const iconName =
+        lock === 'square'
+          ? 'lockSquare'
+          : lock === 'circle'
+            ? 'lockCircle'
+            : 'lockAspect';
+      if (triggerIcon.getAttribute('src') !== ICONS[iconName]) {
+        triggerIcon.setAttribute('src', ICONS[iconName]);
+      }
+    }
+    // When the n − 1 cap or a missing photo leaves nothing to choose, the
+    // trigger itself reads as unavailable instead of opening an empty menu.
+    refs.lockButton.disabled = available && !canSquare && !canAspect;
+    refs.lockButton.title =
+      available && refs.lockButton.disabled
+        ? limitHint || ratioHint || I18n.t('lock.menu')
+        : I18n.t('lock.menu');
+
+    const square = refs.lockMenu.querySelector('[data-lock="square"]');
+    const aspect = refs.lockMenu.querySelector('[data-lock="aspect"]');
+    const circle = refs.lockMenu.querySelector('[data-lock="circle"]');
+    const none = refs.lockMenu.querySelector('[data-lock="none"]');
+
+    square.disabled = !canSquare;
+    square.setAttribute('aria-checked', String(lock === 'square'));
+    square.title = limitHint || I18n.t('action.lockSquare');
+
+    aspect.disabled = !canAspect;
+    aspect.setAttribute('aria-checked', String(lock === 'aspect'));
+    aspect.title = !hasImage
+      ? I18n.t('lock.emptyAspect')
+      : limitHint || ratioHint || I18n.t('action.lockAspect');
+
+    circle.disabled = !canSquare;
+    circle.setAttribute('aria-checked', String(lock === 'circle'));
+    circle.title = limitHint || I18n.t('action.lockCircle');
+
+    none.setAttribute('aria-checked', String(!lock));
+    none.title = I18n.t('lock.none');
+
+    if (sameBox) return;
+    refs.lockMenu.hidden = true;
+    refs.lockButton.setAttribute('aria-expanded', 'false');
+  };
+
+  /**
    * The colorize menu only exists for a photo box. Moving to another box or to
    * an empty cell closes it, and the button reads as active while a tint is
    * applied, so the color is never left describing a previous photo.
@@ -888,6 +1021,42 @@ const Render = (() => {
     if (sameBox) return;
     refs.tintMenu.hidden = true;
     refs.tintButton.setAttribute('aria-expanded', 'false');
+  };
+
+  /**
+   * The corner-radius popover follows the selected image or text box. It stays
+   * open while the same eligible box is repainted, but closes when the surface
+   * that could show rounding is gone (a plain empty cell or a text box with no
+   * backdrop).
+   */
+  const showCornerControls = (
+    available,
+    boxId = null,
+    enabled = false,
+    radius = 0,
+    text = false,
+    circle = false,
+  ) => {
+    refs.cornerWrap.hidden = !available;
+    refs.cornerButton.disabled = !available || !enabled;
+    const active = available && enabled && radius > 0;
+    refs.cornerButton.classList.toggle('is-active', active);
+    refs.cornerButton.setAttribute('aria-pressed', String(active));
+    refs.cornerButton.title =
+      available && !enabled
+        ? I18n.t(
+            circle
+              ? 'action.radiusDisabledCircle'
+              : text
+                ? 'action.radiusDisabledText'
+                : 'action.radiusDisabledEmpty',
+          )
+        : I18n.t('action.radius');
+    const sameBox = available && enabled && boxId === refs.cornerBoxId;
+    refs.cornerBoxId = available && enabled ? boxId : null;
+    if (sameBox) return;
+    refs.cornerMenu.hidden = true;
+    refs.cornerButton.setAttribute('aria-expanded', 'false');
   };
 
   const selectedPhotoTarget = () => {
@@ -1341,9 +1510,15 @@ const Render = (() => {
     refs.fillWrap = document.getElementById('fill-menu-wrap');
     refs.fillMenu = document.getElementById('fill-menu');
     refs.fillButton = document.getElementById('fill-button');
+    refs.lockWrap = document.getElementById('lock-menu-wrap');
+    refs.lockMenu = document.getElementById('lock-menu');
+    refs.lockButton = document.getElementById('lock-button');
     refs.tintWrap = document.getElementById('tint-menu-wrap');
     refs.tintMenu = document.getElementById('tint-menu');
     refs.tintButton = document.getElementById('tint-button');
+    refs.cornerWrap = document.getElementById('corner-menu-wrap');
+    refs.cornerMenu = document.getElementById('corner-menu');
+    refs.cornerButton = document.getElementById('corner-button');
     refs.fontWrap = document.getElementById('font-menu-wrap');
     refs.fontMenu = document.getElementById('font-menu');
     refs.fontButton = document.getElementById('font-button');

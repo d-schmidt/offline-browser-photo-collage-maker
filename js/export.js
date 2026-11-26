@@ -50,6 +50,34 @@ const Export = (() => {
       date.getDate(),
     )}-${pad(date.getHours())}-${pad(date.getMinutes())}.${extension}`;
 
+  /** A rounded-rectangle path, clamped to half the shorter side like CSS. */
+  const roundRectPath = (ctx, x, y, width, height, radius) => {
+    const r = Math.max(0, Math.min(radius || 0, width / 2, height / 2));
+    ctx.beginPath();
+    if (r <= 0) {
+      ctx.rect(x, y, width, height);
+      return;
+    }
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+  };
+
+  /** Rounding only applies while a box has a visible surface to round. */
+  const gridRadius = (box) =>
+    box.image || box.fill ? Number(box.radius) || 0 : 0;
+
+  const freeRadius = (box) => {
+    const visibleSurface =
+      box.kind === 'text'
+        ? box.background !== false
+        : Boolean(box.image) || Boolean(box.fill);
+    return visibleSurface ? Number(box.radius) || 0 : 0;
+  };
+
   const drawPhoto = (ctx, image, box, pageX, pageY) => {
     const source = {
       width: image.naturalWidth || image.width,
@@ -133,7 +161,7 @@ const Export = (() => {
   };
 
   /** Outlined text lines inside the border of a free-form text box. */
-  const drawFreeText = (ctx, box, left, top, width, height, border) => {
+  const drawFreeText = (ctx, box, left, top, width, height, border, radius = 0) => {
     const innerW = width - 2 * border;
     const innerH = height - 2 * border;
     if (!box.text || innerW <= 0 || innerH <= 0) return;
@@ -143,8 +171,15 @@ const Export = (() => {
     const outline = Layout.textOutlineWidth(box);
     const paddingX = size * Layout.textPaddingX;
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(left + border, top + border, innerW, innerH);
+    // The editor clips the words through the rounded inner surface.
+    roundRectPath(
+      ctx,
+      left + border,
+      top + border,
+      innerW,
+      innerH,
+      Math.min(radius, innerW / 2, innerH / 2),
+    );
     ctx.clip();
     ctx.font = Layout.textFont(box, size);
     ctx.textAlign = align;
@@ -213,15 +248,23 @@ const Export = (() => {
     const left = -width / 2;
     const top = -height / 2;
     const border = Layout.freeBorder(box);
+    const radius = freeRadius(box);
     ctx.save();
     ctx.translate(box.x, box.y);
     ctx.rotate(((box.rotation || 0) * Math.PI) / 180);
+    const innerW = width - 2 * border;
+    const innerH = height - 2 * border;
     if (box.kind === 'text') {
       // The gray backdrop is the text box's background flag; the words sit on
-      // it inside the optional frame.
+      // it inside the optional frame. Rounding clips both the backdrop and the
+      // words through the same inner surface the editor uses.
       if (box.background !== false) {
+        ctx.save();
+        roundRectPath(ctx, left + border, top + border, innerW, innerH, radius);
+        ctx.clip();
         ctx.fillStyle = box.fill ? boxFillStyle(box.fill) : PLACEHOLDER;
-        ctx.fillRect(left, top, width, height);
+        ctx.fillRect(left + border, top + border, innerW, innerH);
+        ctx.restore();
       }
       if (border > 0) {
         drawFreeFrame(
@@ -232,7 +275,16 @@ const Export = (() => {
           border,
         );
       }
-      drawFreeText(ctx, box, left, top, width, height, border);
+      drawFreeText(
+        ctx,
+        box,
+        left,
+        top,
+        width,
+        height,
+        border,
+        radius,
+      );
       ctx.restore();
       return;
     }
@@ -247,13 +299,12 @@ const Export = (() => {
           border,
         );
       }
+      ctx.save();
+      roundRectPath(ctx, left + border, top + border, innerW, innerH, radius);
+      ctx.clip();
       ctx.fillStyle = box.fill ? boxFillStyle(box.fill) : PLACEHOLDER;
-      ctx.fillRect(
-        left + border,
-        top + border,
-        width - 2 * border,
-        height - 2 * border,
-      );
+      ctx.fillRect(left + border, top + border, innerW, innerH);
+      ctx.restore();
       ctx.restore();
       return;
     }
@@ -266,16 +317,20 @@ const Export = (() => {
         border,
       );
     }
-    const innerW = width - 2 * border;
-    const innerH = height - 2 * border;
-    if (box.background && innerW > 0 && innerH > 0) {
+    if (innerW <= 0 || innerH <= 0) {
+      ctx.restore();
+      return;
+    }
+    // The photo and an optional paint fill share the rounded inner clip, so a
+    // transparent corner shows the paint without a square backing behind it.
+    ctx.save();
+    roundRectPath(ctx, left + border, top + border, innerW, innerH, radius);
+    ctx.clip();
+    if (box.background) {
       // Fill the area behind the photo with the canvas paint, so transparent
       // pixels show the background instead of the grid. Reset the rotation
       // while drawing so a gradient or spots pattern stays canvas-aligned.
       ctx.save();
-      ctx.beginPath();
-      ctx.rect(left + border, top + border, innerW, innerH);
-      ctx.clip();
       ctx.fillStyle = frameColor;
       ctx.fillRect(left + border, top + border, innerW, innerH);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -285,7 +340,7 @@ const Export = (() => {
     const source = box.tint ? tintedPhoto(image, box.tint) : image;
     const sourceW = source.naturalWidth || source.width;
     const sourceH = source.naturalHeight || source.height;
-    if (innerW > 0 && innerH > 0 && sourceW > 0 && sourceH > 0) {
+    if (sourceW > 0 && sourceH > 0) {
       // The editor fills the photo with `object-fit: cover`; mirror that crop.
       const cover = Math.max(innerW / sourceW, innerH / sourceH);
       const cropW = innerW / cover;
@@ -302,6 +357,7 @@ const Export = (() => {
         innerH,
       );
     }
+    ctx.restore();
     ctx.restore();
   };
 
@@ -401,12 +457,33 @@ const Export = (() => {
         if (box.visible === false) continue;
 
         const image = box.image ? images.get(box.id) : null;
+        const radius = gridRadius(box);
+        ctx.save();
+        if (box.lock === 'circle') {
+          // A circle lock clips the cell and its photo to a true circle. The
+          // layout makes the box square, so the ellipse fills it edge to edge.
+          ctx.beginPath();
+          ctx.ellipse(
+            x + box.w / 2,
+            y + box.h / 2,
+            box.w / 2,
+            box.h / 2,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.clip();
+        } else if (radius > 0) {
+          roundRectPath(ctx, x, y, box.w, box.h, radius);
+          ctx.clip();
+        }
         if (image) {
           drawPhoto(ctx, image, box, x, y);
         } else {
           ctx.fillStyle = box.fill ? boxFillStyle(box.fill) : PLACEHOLDER;
           ctx.fillRect(x, y, box.w, box.h);
         }
+        ctx.restore();
       }
     }
 

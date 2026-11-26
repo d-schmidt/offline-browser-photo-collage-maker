@@ -66,6 +66,7 @@ const Project = (() => {
     rotation: box.rotation,
     tint: box.tint,
     fill: box.fill ? { color: box.fill.color, opacity: box.fill.opacity } : null,
+    radius: box.radius || 0,
     image: box.image ? await encodeImage(box.image) : null,
   });
 
@@ -81,6 +82,7 @@ const Project = (() => {
     border: box.border !== false,
     background: box.background !== false,
     fill: box.fill ? { color: box.fill.color, opacity: box.fill.opacity } : null,
+    radius: box.radius || 0,
     text: box.kind === 'text' ? box.text : '',
     font: box.font,
     color: box.color,
