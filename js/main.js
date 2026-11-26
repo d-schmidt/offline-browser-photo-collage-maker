@@ -4342,8 +4342,7 @@
   renderStartScreen();
   refresh();
 
-  const selectedFormat = document.querySelector(
-    '#format-options .format-button.is-selected',
-  );
-  if (selectedFormat) selectedFormat.focus({ preventScroll: true });
+  // Leave the page unfocused on load so the pre-selected cards show only
+  // their selection borders. Tab still reaches the format cards first and
+  // draws the usual keyboard ring from there on.
 })();
