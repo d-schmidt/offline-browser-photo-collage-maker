@@ -139,6 +139,10 @@
   let freeScaleDrag = null;
   let freeRotateDrag = null;
   let ignoreCanvasClickUntil = 0;
+  // A click that dismisses an open menu must not also clear the selection: the
+  // first click only closes the menu, a second click on the background is the
+  // one that deselects.
+  let menuDismissedOnPointerDown = false;
   let saveMenuOpen = false;
   let moreMenuOpen = false;
   let borderMenuOpen = false;
@@ -157,6 +161,21 @@
   let fontSelectionToken = 0;
   // The most recent deletion, kept alive for the one-step undo button.
   let pendingDelete = null;
+
+  /** Whether any action-bar popover or menu is currently open. */
+  const anyMenuOpen = () =>
+    saveMenuOpen ||
+    moreMenuOpen ||
+    borderMenuOpen ||
+    colorMenuOpen ||
+    gradientStyleMenuOpen ||
+    gradientMenuOpen ||
+    !fillMenu.hidden ||
+    !lockMenu.hidden ||
+    !tintMenu.hidden ||
+    !cornerMenu.hidden ||
+    !fontMenu.hidden ||
+    !textColorMenu.hidden;
 
   // Boundary grab bands are measured in screen pixels so they stay finger
   // sized however far the 1080 px canvas is scaled down. Touch gets a wider
@@ -3403,6 +3422,9 @@
   });
 
   document.addEventListener('pointerdown', (event) => {
+    // Remember this before anything closes: a click that dismisses a menu is
+    // consumed by it, so the selection survives until the next background click.
+    menuDismissedOnPointerDown = anyMenuOpen();
     if (moreMenuOpen && !moreMenuWrap.contains(event.target)) {
       closeMoreMenu();
     }
@@ -4072,6 +4094,8 @@
       }
       return;
     }
+    // The click that closed a menu does not also clear the selection.
+    if (menuDismissedOnPointerDown) return;
     deselect();
   });
 
@@ -4232,6 +4256,8 @@
     ) {
       return;
     }
+    // The click that closed a menu does not also clear the selection.
+    if (menuDismissedOnPointerDown) return;
     deselect();
   });
 
