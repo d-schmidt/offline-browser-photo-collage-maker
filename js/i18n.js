@@ -15,16 +15,15 @@ const I18n = (() => {
       'orientation.toggle': 'Toggle row or column layout',
       'orientation.toRow': 'Switch to row layout',
       'orientation.toColumn': 'Switch to column layout',
-      'more.button': 'More actions',
-      'more.menu': 'More actions',
-      'more.orientation': 'Row or column layout',
-      'more.save': 'Save or export',
+      'canvas.settings': 'Canvas settings',
 
       'border.change': 'Change border thickness',
       'border.title': 'Border thickness',
       'border.value': '{n} px',
       'border.pixels': '{n} pixels',
       'corner.title': 'Corner radius',
+      'corner.canvasTitle': 'Canvas corner radius',
+      'corner.remove': 'Remove',
       'corner.pixels': '{n} pixels',
 
       'margin.change': 'Change margin color or gradient',
@@ -252,6 +251,7 @@ const I18n = (() => {
       'action.background': 'Fill photo background',
       'action.tint': 'Colorize photo',
       'action.radius': 'Corner radius',
+      'action.canvasRadius': 'Round all box corners',
       'action.radiusDisabledText':
         'Turn the text background on to round the corners',
       'action.radiusDisabledEmpty':
@@ -299,6 +299,8 @@ const I18n = (() => {
       'announce.tintOff': 'Photo color removed.',
       'announce.cornerRadius': 'Corner radius {n} pixels.',
       'announce.cornerRadiusOff': 'Corner radius off.',
+      'announce.canvasCornerRadius': 'Corner radius {n} pixels on all boxes.',
+      'announce.canvasCornerRadiusOff': 'Corner radius removed from all boxes.',
       'announce.gradient': 'Margin gradient from {top} to {bottom}.',
       'announce.gradientStyle': 'Gradient style: {style}.',
       'announce.preset': 'Preset {name} applied.',
@@ -317,6 +319,8 @@ const I18n = (() => {
       'announce.freeRotationReset': 'Free-form box rotation reset.',
       'announce.freeSquareOn': 'Free-form photo box {n} cropped to a square.',
       'announce.freeSquareOff': 'Free-form photo box {n} matches its photo ratio.',
+      'announce.freeCircleOn': 'Free-form photo box {n} locked to a circle.',
+      'announce.freeRatioOn': 'Free-form photo box {n} matches its photo ratio.',
       'announce.freeBorderOn': 'Border shown on free-form photo box {n}.',
       'announce.freeBorderOff': 'Border hidden on free-form photo box {n}.',
       'announce.freeBackgroundOn':
@@ -362,16 +366,15 @@ const I18n = (() => {
       'orientation.toggle': 'Zeilen- oder Spaltenlayout umschalten',
       'orientation.toRow': 'Zum Zeilenlayout wechseln',
       'orientation.toColumn': 'Zum Spaltenlayout wechseln',
-      'more.button': 'Weitere Aktionen',
-      'more.menu': 'Weitere Aktionen',
-      'more.orientation': 'Zeilen- oder Spaltenlayout',
-      'more.save': 'Speichern oder exportieren',
+      'canvas.settings': 'Arbeitsflächen-Einstellungen',
 
       'border.change': 'Rahmenstärke ändern',
       'border.title': 'Rahmenstärke',
       'border.value': '{n} px',
       'border.pixels': '{n} Pixel',
       'corner.title': 'Eckenradius',
+      'corner.canvasTitle': 'Eckenradius der Arbeitsfläche',
+      'corner.remove': 'Entfernen',
       'corner.pixels': '{n} Pixel',
 
       'margin.change': 'Randfarbe oder Verlauf ändern',
@@ -600,6 +603,7 @@ const I18n = (() => {
       'action.background': 'Hintergrund des Fotos füllen',
       'action.tint': 'Foto einfärben',
       'action.radius': 'Eckenradius',
+      'action.canvasRadius': 'Alle Ecken abrunden',
       'action.radiusDisabledText':
         'Texthintergrund einschalten, um die Ecken abzurunden',
       'action.radiusDisabledEmpty':
@@ -648,6 +652,10 @@ const I18n = (() => {
       'announce.tintOff': 'Fotofarbe entfernt.',
       'announce.cornerRadius': 'Eckenradius {n} Pixel.',
       'announce.cornerRadiusOff': 'Eckenradius aus.',
+      'announce.canvasCornerRadius':
+        'Eckenradius {n} Pixel auf allen Feldern.',
+      'announce.canvasCornerRadiusOff':
+        'Eckenradius auf allen Feldern entfernt.',
       'announce.gradient': 'Randverlauf von {top} nach {bottom}.',
       'announce.gradientStyle': 'Verlaufsstil: {style}.',
       'announce.preset': 'Vorlage {name} angewendet.',
@@ -666,6 +674,8 @@ const I18n = (() => {
       'announce.freeRotationReset': 'Drehung des freien Bildfelds zurückgesetzt.',
       'announce.freeSquareOn': 'Freies Bildfeld {n} quadratisch zugeschnitten.',
       'announce.freeSquareOff': 'Freies Bildfeld {n} übernimmt das Fotoformat.',
+      'announce.freeCircleOn': 'Freies Bildfeld {n} auf einen Kreis gesperrt.',
+      'announce.freeRatioOn': 'Freies Bildfeld {n} übernimmt das Fotoformat.',
       'announce.freeBorderOn': 'Rahmen für freies Bildfeld {n} eingeblendet.',
       'announce.freeBorderOff': 'Rahmen für freies Bildfeld {n} ausgeblendet.',
       'announce.freeBackgroundOn':

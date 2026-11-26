@@ -12,12 +12,15 @@
   const saveButton = document.getElementById('save-button');
   const saveMenuWrap = document.getElementById('save-menu-wrap');
   const saveMenu = document.getElementById('save-menu');
-  const moreButton = document.getElementById('bar-more-button');
-  const moreMenuWrap = document.getElementById('bar-more-wrap');
-  const moreMenu = document.getElementById('bar-more-menu');
-  const moreOrientationLabel = document.getElementById('more-orientation-label');
-  const moreBorderValue = document.getElementById('more-border-value');
-  const moreSaveRow = document.getElementById('more-save-row');
+  const canvasActions = document.getElementById('canvas-actions');
+  const canvasCornerMenuWrap = document.getElementById(
+    'canvas-corner-menu-wrap',
+  );
+  const canvasCornerButton = document.getElementById('canvas-corner-button');
+  const canvasCornerMenu = document.getElementById('canvas-corner-menu');
+  const canvasCornerRange = document.getElementById('canvas-corner-range');
+  const canvasCornerValue = document.getElementById('canvas-corner-value');
+  const canvasCornerRemove = document.getElementById('canvas-corner-remove');
   const orientationButton = document.getElementById('orientation-button');
   const borderButton = document.getElementById('border-button');
   const borderMenuWrap = document.getElementById('border-menu-wrap');
@@ -58,6 +61,7 @@
   const cornerMenu = document.getElementById('corner-menu');
   const cornerRange = document.getElementById('corner-range');
   const cornerValue = document.getElementById('corner-value');
+  const cornerRemove = document.getElementById('corner-remove');
   const rowsLayer = document.getElementById('rows');
   const freeLayer = document.getElementById('free-layer');
   const addFreeButton = document.getElementById('add-free-button');
@@ -144,7 +148,6 @@
   // one that deselects.
   let menuDismissedOnPointerDown = false;
   let saveMenuOpen = false;
-  let moreMenuOpen = false;
   let borderMenuOpen = false;
   let colorMenuOpen = false;
   let gradientStyleMenuOpen = false;
@@ -156,6 +159,7 @@
   let fillFrame = 0;
   let tintFrame = 0;
   let cornerFrame = 0;
+  let canvasCornerFrame = 0;
   let textFillFrame = 0;
   let textOutlineFrame = 0;
   let fontSelectionToken = 0;
@@ -165,7 +169,6 @@
   /** Whether any action-bar popover or menu is currently open. */
   const anyMenuOpen = () =>
     saveMenuOpen ||
-    moreMenuOpen ||
     borderMenuOpen ||
     colorMenuOpen ||
     gradientStyleMenuOpen ||
@@ -174,6 +177,7 @@
     !lockMenu.hidden ||
     !tintMenu.hidden ||
     !cornerMenu.hidden ||
+    !canvasCornerMenu.hidden ||
     !fontMenu.hidden ||
     !textColorMenu.hidden;
 
@@ -192,6 +196,7 @@
     // Padding and gaps come from state, so sync the layout before computing.
     Layout.setBorderThickness(State.borderThickness);
     layout = Layout.compute(State.rows, State.orientation);
+    syncCanvasSettings();
     Render.paint(State, layout);
   };
 
@@ -388,6 +393,7 @@
 
   const selectAndFocus = (boxId) => {
     if (!State.select(boxId)) return;
+    syncCanvasSettings();
     Render.paintSelection(State);
     Render.focusBox(boxId);
     Render.announce(I18n.t('announce.selected', { n: boxNumber(boxId) }));
@@ -395,6 +401,7 @@
 
   const selectFreeAndFocus = (freeId) => {
     if (!State.selectFree(freeId)) return;
+    syncCanvasSettings();
     Render.paintSelection(State);
     Render.focusFreeBox(freeId);
     Render.announce(
@@ -405,6 +412,7 @@
   const deselect = () => {
     if (!State.selectedBoxId && !State.selectedFreeId) return;
     State.clearSelection();
+    syncCanvasSettings();
     Render.paintSelection(State);
     Render.focusCanvas();
     Render.announce(I18n.t('announce.deselected'));
@@ -868,20 +876,29 @@
   };
 
   /**
-   * Crop a free-form box to a square, or restore its photo's own ratio. The
-   * area (and so the visual weight) stays put either way.
+   * Set a free-form photo's shape from the shared menu. The photo's own ratio is
+   * the default; square and circle keep the area while changing the ratio.
    */
-  const toggleFreeSquare = (freeId) => {
+  const applyFreeShape = (freeId, shape) => {
     const found = State.findFreeBox(freeId);
-    if (!found || !found.box.image) return;
-    const next = !found.box.square;
-    if (!State.setFreeSquare(freeId, next)) return;
+    if (!found || found.box.kind === 'text' || !found.box.image) return;
+    const current =
+      found.box.shape === 'square' || found.box.shape === 'circle'
+        ? found.box.shape
+        : 'ratio';
+    if (current === shape) return;
+    if (!State.setFreeShape(freeId, shape)) return;
     refresh();
-    focusAction('crop-square');
+    const n = freeBoxNumber(freeId);
     Render.announce(
-      I18n.t(next ? 'announce.freeSquareOn' : 'announce.freeSquareOff', {
-        n: freeBoxNumber(freeId),
-      }),
+      I18n.t(
+        shape === 'square'
+          ? 'announce.freeSquareOn'
+          : shape === 'circle'
+            ? 'announce.freeCircleOn'
+            : 'announce.freeRatioOn',
+        { n },
+      ),
     );
   };
 
@@ -973,65 +990,14 @@
   const saveMenuItems = () =>
     Array.from(saveMenu.querySelectorAll('[role="menuitem"]'));
 
-  // Phones fold the right-hand controls into the More menu, which is why the
-  // original triggers can be display:none when a popover closes.
-  const phoneQuery = window.matchMedia('(max-width: 700px)');
-
-  /** Return focus to the control that owns a popover, or to More on phones. */
+  /** Return focus to the control that owns a popover. */
   const focusBarControl = (button) => {
-    const target = phoneQuery.matches ? moreButton : button;
-    target.focus({ preventScroll: true });
-  };
-
-  const moreMenuItems = () =>
-    Array.from(moreMenu.querySelectorAll('[role="menuitem"]')).filter(
-      (item) => !item.disabled,
-    );
-
-  /** Label the overflow rows with the action they would take right now. */
-  const syncMoreMenu = () => {
-    const column = isColumnMode();
-    moreOrientationLabel.textContent = I18n.t(
-      column ? 'orientation.toRow' : 'orientation.toColumn',
-    );
-    // Mirror the toolbar's mode mark: the row icon is the dashboard tile
-    // turned on its side.
-    const modeIcon = moreOrientationLabel.parentElement.querySelector('.icon');
-    if (modeIcon) modeIcon.classList.toggle('is-rotated-ccw', !column);
-    moreBorderValue.textContent = I18n.t('border.value', {
-      n: State.borderThickness,
-    });
-    moreSaveRow.disabled = saveButton.disabled;
-  };
-
-  const openMoreMenu = (focusLast = false) => {
-    if (moreMenuOpen) return;
-    closeSaveMenu();
-    closeBorderMenu();
-    closeColorMenu();
-    closeGradientStyleMenu();
-    closeGradientMenu();
-    closeLockMenu();
-    syncMoreMenu();
-    moreMenuOpen = true;
-    moreMenu.hidden = false;
-    moreButton.setAttribute('aria-expanded', 'true');
-    const items = moreMenuItems();
-    const item = focusLast ? items[items.length - 1] : items[0];
-    if (item) item.focus({ preventScroll: true });
-  };
-
-  const closeMoreMenu = (restoreFocus = false) => {
-    if (!moreMenuOpen) return;
-    moreMenuOpen = false;
-    moreMenu.hidden = true;
-    moreButton.setAttribute('aria-expanded', 'false');
-    if (restoreFocus) moreButton.focus({ preventScroll: true });
+    button.focus({ preventScroll: true });
   };
 
   const openSaveMenu = (focusLast = false) => {
     if (saveMenuOpen || saveButton.disabled) return;
-    closeMoreMenu();
+    closeCanvasCornerMenu();
     closeBorderMenu();
     closeColorMenu();
     closeGradientMenu();
@@ -1054,7 +1020,7 @@
 
   const openBorderMenu = () => {
     if (borderMenuOpen) return;
-    closeMoreMenu();
+    closeCanvasCornerMenu();
     closeSaveMenu();
     closeColorMenu();
     closeGradientMenu();
@@ -1178,7 +1144,7 @@
 
   const openColorMenu = (focusLast = false) => {
     if (colorMenuOpen) return;
-    closeMoreMenu();
+    closeCanvasCornerMenu();
     closeSaveMenu();
     closeBorderMenu();
     closeGradientStyleMenu();
@@ -1217,7 +1183,7 @@
 
   const openGradientStyleMenu = () => {
     closeColorMenu();
-    closeMoreMenu();
+    closeCanvasCornerMenu();
     closeSaveMenu();
     closeBorderMenu();
     closeGradientMenu();
@@ -1311,7 +1277,7 @@
   const openGradientMenu = (pick = null) => {
     closeColorMenu();
     closeGradientStyleMenu();
-    closeMoreMenu();
+    closeCanvasCornerMenu();
     closeSaveMenu();
     closeBorderMenu();
     closeLockMenu();
@@ -1402,15 +1368,17 @@
 
   // --- box shape locks ----------------------------------------------------
 
-  /** The selected grid box, the only kind that carries a shape menu. */
+  /** The selected grid box or free-form photo box carrying the shape menu. */
   const lockTarget = () => {
+    const free = State.findFreeBox(State.selectedFreeId);
+    if (free && free.box.kind !== 'text' && free.box.image) return free.box;
     const found = State.findBox(State.selectedBoxId);
     return found ? found.box : null;
   };
 
   const lockMenuItems = () =>
     Array.from(lockMenu.querySelectorAll('[data-lock]')).filter(
-      (item) => !item.disabled,
+      (item) => !item.disabled && !item.hidden,
     );
 
   const openLockMenu = () => {
@@ -1568,7 +1536,7 @@
     if (box.kind === 'text') return box.background !== false;
     // The circle lock owns the shape, so rounding is disabled until it is
     // released; the stored radius survives that state.
-    if (box.lock === 'circle') return false;
+    if (box.lock === 'circle' || box.shape === 'circle') return false;
     return Boolean(box.image) || Boolean(box.fill);
   };
 
@@ -1660,6 +1628,107 @@
       syncCornerMenu();
     }
     openCornerMenu();
+  };
+
+  // --- canvas-wide corner radius -----------------------------------------
+
+  const syncCanvasCornerState = () => {
+    const pixels = Math.round(State.canvasRadius || 0);
+    canvasCornerButton.classList.toggle('is-active', pixels > 0);
+    canvasCornerButton.setAttribute('aria-pressed', String(pixels > 0));
+  };
+
+  const syncCanvasCornerMenu = () => {
+    const pixels = Math.round(State.canvasRadius || 0);
+    canvasCornerRange.value = String(pixels);
+    canvasCornerValue.textContent = I18n.t('border.value', { n: pixels });
+    canvasCornerRange.setAttribute(
+      'aria-valuetext',
+      I18n.t('corner.pixels', { n: pixels }),
+    );
+    syncCanvasCornerState();
+  };
+
+  const openCanvasCornerMenu = () => {
+    closeSaveMenu();
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    closeFillMenu();
+    closeTintMenu();
+    closeLockMenu();
+    closeCornerMenu();
+    closeFontMenu();
+    closeTextColorMenu();
+    syncCanvasCornerMenu();
+    canvasCornerMenu.hidden = false;
+    canvasCornerButton.setAttribute('aria-expanded', 'true');
+    canvasCornerRange.focus({ preventScroll: true });
+  };
+
+  const closeCanvasCornerMenu = (restoreFocus = false) => {
+    if (canvasCornerMenu.hidden) return;
+    canvasCornerMenu.hidden = true;
+    canvasCornerButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) canvasCornerButton.focus({ preventScroll: true });
+  };
+
+  /** Store the radius on every box and repaint once per frame. */
+  const applyCanvasCorner = (value) => {
+    const pixels = Math.min(
+      State.maxRadius,
+      Math.max(0, Math.round(Number(value) || 0)),
+    );
+    if (!State.setCanvasRadius(pixels)) return;
+    syncCanvasCornerMenu();
+    if (canvasCornerFrame) return;
+    canvasCornerFrame = requestAnimationFrame(() => {
+      canvasCornerFrame = 0;
+      refresh();
+      syncCanvasCornerMenu();
+    });
+  };
+
+  const announceCanvasCorner = () => {
+    const pixels = Math.round(State.canvasRadius || 0);
+    Render.announce(
+      pixels > 0
+        ? I18n.t('announce.canvasCornerRadius', { n: pixels })
+        : I18n.t('announce.canvasCornerRadiusOff'),
+    );
+  };
+
+  /**
+   * One click rounds every box at the friendly default; the popover then lets
+   * the value be fine-tuned or removed. The button reads red while a non-zero
+   * canvas radius is active.
+   */
+  const toggleCanvasCornerMenu = () => {
+    if (!canvasCornerMenu.hidden && (State.canvasRadius || 0) > 0) {
+      closeCanvasCornerMenu(true);
+      return;
+    }
+    if (!(State.canvasRadius > 0)) {
+      applyCanvasCorner(State.defaultRadius);
+      syncCanvasCornerMenu();
+    }
+    openCanvasCornerMenu();
+  };
+
+  /**
+   * The canvas settings only belong on the empty bar. Selecting any box folds
+   * them away, closing their popovers so they cannot reappear stale later.
+   */
+  const syncCanvasSettings = () => {
+    const hasSelection = Boolean(State.selectedBoxId || State.selectedFreeId);
+    canvasActions.hidden = hasSelection;
+    if (!hasSelection) return;
+    closeBorderMenu();
+    closeColorMenu();
+    closeGradientStyleMenu();
+    closeGradientMenu();
+    closeCanvasCornerMenu();
   };
 
   // --- text styling menus -------------------------------------------------
@@ -2708,6 +2777,7 @@
     // gesture. paintSelection updates chrome in place, so the element stays.
     if (State.selectedFreeId !== found.box.id) {
       State.selectFree(found.box.id);
+      syncCanvasSettings();
       Render.paintSelection(State);
     }
     Render.focusFreeBox(found.box.id);
@@ -3365,69 +3435,10 @@
     items[next].focus({ preventScroll: true });
   });
 
-  moreButton.addEventListener('click', () => {
-    if (moreMenuOpen) closeMoreMenu(true);
-    else openMoreMenu();
-  });
-
-  moreButton.addEventListener('keydown', (event) => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      openMoreMenu(event.key === 'ArrowUp');
-    } else if (event.key === 'Escape' && moreMenuOpen) {
-      event.preventDefault();
-      closeMoreMenu();
-    }
-  });
-
-  moreMenu.addEventListener('click', (event) => {
-    const item = event.target.closest('button[data-more]');
-    if (!item || item.disabled) return;
-    if (item.dataset.more === 'orientation') {
-      closeMoreMenu(true);
-      toggleOrientation();
-    } else if (item.dataset.more === 'border') {
-      openBorderMenu();
-    } else if (item.dataset.more === 'margin') {
-      openColorMenu();
-    } else if (item.dataset.more === 'save') {
-      openSaveMenu();
-    }
-  });
-
-  moreMenu.addEventListener('keydown', (event) => {
-    const items = moreMenuItems();
-    if (items.length === 0) return;
-
-    const current = items.indexOf(document.activeElement);
-    let next = -1;
-    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
-    else if (event.key === 'ArrowUp') {
-      next = (current - 1 + items.length) % items.length;
-    } else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = items.length - 1;
-    else if (event.key === 'Escape') {
-      event.preventDefault();
-      closeMoreMenu(true);
-      return;
-    } else if (event.key === 'Tab') {
-      closeMoreMenu();
-      return;
-    } else {
-      return;
-    }
-
-    event.preventDefault();
-    items[next].focus({ preventScroll: true });
-  });
-
   document.addEventListener('pointerdown', (event) => {
     // Remember this before anything closes: a click that dismisses a menu is
     // consumed by it, so the selection survives until the next background click.
     menuDismissedOnPointerDown = anyMenuOpen();
-    if (moreMenuOpen && !moreMenuWrap.contains(event.target)) {
-      closeMoreMenu();
-    }
     if (saveMenuOpen && !saveMenuWrap.contains(event.target)) closeSaveMenu();
     if (borderMenuOpen && !borderMenuWrap.contains(event.target)) {
       closeBorderMenu();
@@ -3451,6 +3462,9 @@
     }
     if (!cornerMenu.hidden && !cornerMenuWrap.contains(event.target)) {
       closeCornerMenu();
+    }
+    if (!canvasCornerMenu.hidden && !canvasCornerMenuWrap.contains(event.target)) {
+      closeCanvasCornerMenu();
     }
     if (!fontMenu.hidden && !fontMenuWrap.contains(event.target)) {
       closeFontMenu();
@@ -3633,8 +3647,18 @@
 
   lockMenu.addEventListener('click', (event) => {
     const item = event.target.closest('[data-lock]');
-    if (!item || item.disabled || !State.selectedBoxId) return;
-    toggleBoxLock(State.selectedBoxId, item.dataset.lock);
+    if (!item || item.disabled) return;
+    if (State.selectedFreeId) {
+      const found = State.findFreeBox(State.selectedFreeId);
+      if (!found || found.box.kind === 'text' || !found.box.image) return;
+      if (item.dataset.lock === 'none') return;
+      const shape = item.dataset.lock === 'aspect' ? 'ratio' : item.dataset.lock;
+      applyFreeShape(State.selectedFreeId, shape);
+    } else if (State.selectedBoxId) {
+      toggleBoxLock(State.selectedBoxId, item.dataset.lock);
+    } else {
+      return;
+    }
     // The menu stays open for another shape; keep focus on the chosen item
     // even when the repaint changed its pressed state.
     item.focus({ preventScroll: true });
@@ -3712,6 +3736,11 @@
   cornerRange.max = String(State.maxRadius);
   cornerRange.addEventListener('change', announceCorner);
 
+  cornerRemove.addEventListener('click', () => {
+    applyCornerRadius(0);
+    announceCorner();
+  });
+
   cornerMenuWrap.addEventListener('keydown', (event) => {
     if (cornerMenu.hidden) return;
     if (event.key === 'Escape') {
@@ -3719,6 +3748,33 @@
       closeCornerMenu(true);
     } else if (event.key === 'Tab') {
       closeCornerMenu();
+    }
+  });
+
+  canvasCornerRange.max = String(State.maxRadius);
+  canvasCornerRange.addEventListener('input', () => {
+    applyCanvasCorner(Number(canvasCornerRange.value));
+  });
+  canvasCornerRange.addEventListener('change', announceCanvasCorner);
+
+  canvasCornerRemove.addEventListener('click', () => {
+    applyCanvasCorner(0);
+    announceCanvasCorner();
+  });
+
+  canvasCornerMenuWrap.addEventListener('keydown', (event) => {
+    if (canvasCornerMenu.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeCanvasCornerMenu(true);
+    } else if (event.key === 'Tab') {
+      closeCanvasCornerMenu();
+    }
+  });
+
+  canvasCornerMenuWrap.addEventListener('focusout', (event) => {
+    if (!canvasCornerMenuWrap.contains(event.relatedTarget)) {
+      closeCanvasCornerMenu();
     }
   });
 
@@ -4008,6 +4064,7 @@
     if (!element) return;
     if (State.selectedFreeId !== element.dataset.freeId) {
       State.selectFree(element.dataset.freeId);
+      syncCanvasSettings();
       Render.paintSelection(State);
     }
   });
@@ -4020,6 +4077,7 @@
     const freeId = element.dataset.freeId;
     if (State.selectedFreeId !== freeId) {
       State.selectFree(freeId);
+      syncCanvasSettings();
       Render.paintSelection(State);
     }
     openFreeEditor(freeId);
@@ -4087,6 +4145,7 @@
     if (box) {
       const boxId = box.dataset.boxId;
       if (State.selectedBoxId !== boxId && State.select(boxId)) {
+        syncCanvasSettings();
         Render.paintSelection(State);
         Render.announce(
           I18n.t('announce.selected', { n: boxNumber(boxId) }),
@@ -4196,6 +4255,11 @@
       return;
     }
 
+    if (button.dataset.action === 'canvas-corner-radius') {
+      toggleCanvasCornerMenu();
+      return;
+    }
+
     if (button.dataset.action === 'lock-menu') {
       toggleLockMenu();
       return;
@@ -4207,8 +4271,6 @@
         openTextDialog(State.selectedFreeId);
       } else if (button.dataset.action === 'select-image') {
         openFreePicker(State.selectedFreeId);
-      } else if (button.dataset.action === 'crop-square') {
-        toggleFreeSquare(State.selectedFreeId);
       } else if (button.dataset.action === 'free-border') {
         toggleFreeBorder(State.selectedFreeId);
       } else if (button.dataset.action === 'free-background') {

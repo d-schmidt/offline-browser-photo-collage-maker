@@ -35,6 +35,10 @@ const State = (() => {
     'spots',
   ]);
   let borderThickness = METRICS.pad;
+  // Canvas-wide corner radius. It applies to every existing box and becomes the
+  // starting radius for every box created afterwards. Individual boxes may
+  // still be rounded differently from the button in their own menu.
+  let canvasRadius = 0;
   let orientation = 'row';
   let sequence = 0;
   let lockSequence = 0;
@@ -59,7 +63,7 @@ const State = (() => {
     fill: null,
     // Corner rounding in logical pixels. The renderer only draws it while the
     // box has a visible surface (a photo, a text backdrop, or a recolored cell).
-    radius: 0,
+    radius: canvasRadius,
   });
 
   const createRow = (weight) => ({
@@ -156,8 +160,9 @@ const State = (() => {
       // brings its own ratio.
       aspect: 1,
       rotation: 0,
-      // Set by the square crop action: keep 1:1 instead of the photo ratio.
-      square: false,
+      // Free-form photo shape: the photo's own ratio by default, or a square
+      // or circle crop. Text boxes keep the photo ratio slot unused.
+      shape: 'ratio',
       // Duotone photo color; null keeps the photo's own colors.
       tint: null,
       // Photos keep the usual margin frame unless it is switched off; a text
@@ -170,7 +175,7 @@ const State = (() => {
       fill: null,
       // Corner rounding in logical pixels, shown only while the box has a
       // visible surface: a photo, a text backdrop, or a recolored empty cell.
-      radius: 0,
+      radius: canvasRadius,
       image: null,
       // Text content and its last-used styling.
       text: '',
@@ -350,8 +355,13 @@ const State = (() => {
     found.box.tint = null;
     // Keep the box area while its ratio follows the photo, so swapping a
     // landscape for a portrait photo does not make the box jump in size. An
-    // active square crop outranks the new photo's own ratio.
-    resizeFreeToAspect(found.box, found.box.square ? 1 : imageAspect(image));
+    // active square or circle crop outranks the new photo's own ratio.
+    resizeFreeToAspect(
+      found.box,
+      found.box.shape === 'square' || found.box.shape === 'circle'
+        ? 1
+        : imageAspect(image),
+    );
     return true;
   };
 
@@ -366,7 +376,7 @@ const State = (() => {
     Images.release(found.box.image);
     found.box.image = null;
     found.box.background = false;
-    found.box.square = false;
+    found.box.shape = 'ratio';
     found.box.tint = null;
     found.box.rotation = 0;
     resizeFreeToAspect(found.box, 1);
@@ -374,16 +384,18 @@ const State = (() => {
   };
 
   /**
-   * Crop a free-form box to a square, or return it to its photo's own ratio.
-   * Only a box with a photo can be cropped; an empty box is already square.
+   * Set a free-form photo's shape: its own ratio (the default), a square, or a
+   * circle. The area stays put while the ratio changes.
    */
-  const setFreeSquare = (freeId, square) => {
+  const setFreeShape = (freeId, shape) => {
     const found = findFreeBox(freeId);
-    if (!found || !found.box.image) return false;
-    found.box.square = Boolean(square);
+    if (!found || isTextBox(found.box) || !found.box.image) return false;
+    const next =
+      shape === 'square' || shape === 'circle' ? shape : 'ratio';
+    found.box.shape = next;
     resizeFreeToAspect(
       found.box,
-      found.box.square ? 1 : imageAspect(found.box.image),
+      next === 'ratio' ? imageAspect(found.box.image) : 1,
     );
     return true;
   };
@@ -972,6 +984,22 @@ const State = (() => {
   };
 
   /**
+   * Canvas-wide corner radius: round every existing box at once and remember
+   * the value so boxes added later start with it. Zero removes the rounding
+   * from every box again. Individual boxes can still be changed afterwards.
+   */
+  const setCanvasRadius = (radius) => {
+    if (!Number.isFinite(Number(radius))) return false;
+    const next = normalizeRadius(radius);
+    canvasRadius = next;
+    for (const row of rows) {
+      for (const box of row.boxes) box.radius = next;
+    }
+    for (const box of freeBoxes) box.radius = next;
+    return true;
+  };
+
+  /**
    * Recolor a photo to one duotone color: dark pixels take the picked color and
    * bright pixels stay white, so a black-and-white QR code reads white and red.
    * `null` restores the original colors. The tint belongs to the photo and is
@@ -1160,6 +1188,11 @@ const State = (() => {
       0,
       METRICS.maxBorder,
     );
+    canvasRadius = clamp(
+      Math.round(numberOr(project.cornerRadius, 0)),
+      0,
+      MAX_RADIUS,
+    );
     orientation = project.orientation === 'column' ? 'column' : 'row';
 
     const defaults =
@@ -1254,7 +1287,14 @@ const State = (() => {
       // saved width is clamped.
       box.width = clampFreeWidth(box, positiveOr(rawBox.width, box.width));
       box.rotation = normalizeAngle(numberOr(rawBox.rotation, 0));
-      box.square = rawBox.square === true;
+      // New files store the shape directly; older files only knew the square
+      // crop flag, and everything else was the photo's own ratio.
+      box.shape =
+        rawBox.shape === 'square' || rawBox.shape === 'circle'
+          ? rawBox.shape
+          : rawBox.square === true
+            ? 'square'
+            : 'ratio';
       box.tint = colorOr(rawBox.tint, null);
       box.fill = fillOr(rawBox.fill);
       box.radius = clamp(Math.round(numberOr(rawBox.radius, 0)), 0, MAX_RADIUS);
@@ -1317,6 +1357,9 @@ const State = (() => {
     get borderThickness() {
       return borderThickness;
     },
+    get canvasRadius() {
+      return canvasRadius;
+    },
     get orientation() {
       return orientation;
     },
@@ -1349,6 +1392,7 @@ const State = (() => {
     setCanvasGradient,
     setBoxFill,
     setBoxRadius,
+    setCanvasRadius,
     setBoxTint,
     placeholderFill: PLACEHOLDER_FILL,
     defaultRadius: DEFAULT_RADIUS,
@@ -1372,7 +1416,7 @@ const State = (() => {
     setFreeTextColor,
     setFreeTextOutline,
     setFreeTextOutlineWidth,
-    setFreeSquare,
+    setFreeShape,
     setFreePosition,
     setFreeScale,
     setFreeExtents,

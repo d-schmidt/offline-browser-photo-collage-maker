@@ -77,7 +77,9 @@ const Project = (() => {
     width: box.width,
     aspect: box.aspect,
     rotation: box.rotation,
-    square: box.square,
+    shape: box.shape || 'ratio',
+    // Older readers only understand the square crop flag.
+    square: box.shape === 'square',
     tint: box.tint,
     border: box.border !== false,
     background: box.background !== false,
@@ -128,6 +130,7 @@ const Project = (() => {
       },
       orientation: state.orientation,
       borderThickness: state.borderThickness,
+      cornerRadius: state.canvasRadius,
       canvas: {
         mode: state.canvasMode,
         color: state.canvasColor,
@@ -320,6 +323,7 @@ const Project = (() => {
         canvas,
         orientation: data.orientation,
         borderThickness: data.borderThickness,
+        cornerRadius: data.cornerRadius,
         textDefaults: data.textDefaults,
         rows,
         freeBoxes,

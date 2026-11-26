@@ -42,6 +42,190 @@
         data-i18n-aria-label="text.add"
       ></button>
     </div>
+    <div
+      class="canvas-actions"
+      id="canvas-actions"
+      role="group"
+      aria-label="Canvas settings"
+      data-i18n-aria-label="canvas.settings"
+    >
+      <span class="action-divider" aria-hidden="true"></span>
+      <button
+        class="icon-button"
+        id="orientation-button"
+        type="button"
+        aria-label="Toggle row or column layout"
+        data-i18n-aria-label="orientation.toggle"
+        aria-pressed="false"
+      ></button>
+      <div class="border-menu-wrap" id="border-menu-wrap">
+        <button
+          class="icon-button"
+          id="border-button"
+          type="button"
+          data-icon="borderWeight"
+          aria-label="Change border thickness"
+          data-i18n-aria-label="border.change"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="border-menu"
+        ></button>
+        <div
+          class="border-menu"
+          id="border-menu"
+          role="dialog"
+          aria-label="Border thickness"
+          data-i18n-aria-label="border.title"
+          hidden
+        >
+          <div class="border-menu-head">
+            <label class="border-menu-label" for="border-range" data-i18n="border.title">Border thickness</label>
+            <output class="border-menu-value" id="border-value" for="border-range">5 px</output>
+          </div>
+          <input
+            class="border-range"
+            id="border-range"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value="5"
+          >
+        </div>
+      </div>
+      <div class="color-menu-wrap" id="color-menu-wrap">
+        <button
+          class="icon-button"
+          id="margin-color-button"
+          type="button"
+          data-icon="colorFill"
+          aria-label="Change margin color or gradient"
+          data-i18n-aria-label="margin.change"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-controls="color-menu"
+        ></button>
+        <div
+          class="color-menu"
+          id="color-menu"
+          role="menu"
+          aria-label="Margin paint"
+          data-i18n-aria-label="margin.menu"
+          hidden
+        >
+          <button class="color-menu-item" type="button" role="menuitem" data-paint="fill" data-icon="colors">
+            <span data-i18n="margin.fill">Fill</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-paint="gradient" data-icon="gradient">
+            <span data-i18n="margin.gradient">Gradient</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-stop="top" hidden>
+            <span class="color-menu-chip" data-gradient-chip="top"></span>
+            <span data-i18n="margin.gradientFirst">First color</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-stop="bottom" hidden>
+            <span class="color-menu-chip" data-gradient-chip="bottom"></span>
+            <span data-i18n="margin.gradientSecond">Second color</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-shuffle id="shuffle-spots" data-icon="shuffle" hidden>
+            <span data-i18n="margin.shuffle">Shuffle spots</span>
+          </button>
+          <div
+            class="color-presets"
+            id="color-presets"
+            role="group"
+            aria-label="Color presets"
+            data-i18n-aria-label="margin.presets"
+            hidden
+          ></div>
+        </div>
+        <div
+          class="gradient-style-menu"
+          id="gradient-style-menu"
+          role="menu"
+          aria-label="Gradient style"
+          data-i18n-aria-label="margin.gradientStyle"
+          hidden
+        >
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="vertical" data-icon="gradient">
+            <span data-i18n="gradient.style.vertical">Top to bottom</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="horizontal" data-icon="gradient" data-rotate="ccw">
+            <span data-i18n="gradient.style.horizontal">Left to right</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="radial" data-icon="vignette">
+            <span data-i18n="gradient.style.radial">Radial</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="spots" data-icon="blur">
+            <span data-i18n="gradient.style.spots">Random spots</span>
+          </button>
+        </div>
+        <div
+          class="gradient-menu"
+          id="gradient-menu"
+          role="group"
+          aria-label="Gradient colors"
+          data-i18n-aria-label="margin.gradientTitle"
+          hidden
+        >
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-pick="top">
+            <span class="color-menu-chip" data-gradient-swatch-chip="top"></span>
+            <span data-i18n="margin.gradientFirst">First color</span>
+          </button>
+          <button class="color-menu-item" type="button" role="menuitem" data-gradient-pick="bottom">
+            <span class="color-menu-chip" data-gradient-swatch-chip="bottom"></span>
+            <span data-i18n="margin.gradientSecond">Second color</span>
+          </button>
+          <div
+            class="color-presets"
+            id="gradient-presets"
+            role="group"
+            aria-label="Color presets"
+            data-i18n-aria-label="margin.presets"
+          ></div>
+        </div>
+      </div>
+      <div class="fill-menu-wrap" id="canvas-corner-menu-wrap">
+        <button
+          class="icon-button"
+          id="canvas-corner-button"
+          type="button"
+          data-icon="roundedCorner"
+          data-action="canvas-corner-radius"
+          aria-label="Round all box corners"
+          data-i18n-aria-label="action.canvasRadius"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="canvas-corner-menu"
+          aria-pressed="false"
+        ></button>
+        <div
+          class="fill-menu"
+          id="canvas-corner-menu"
+          role="dialog"
+          aria-label="Canvas corner radius"
+          data-i18n-aria-label="corner.canvasTitle"
+          hidden
+        >
+          <div class="border-menu-head">
+            <label class="border-menu-label" for="canvas-corner-range" data-i18n="corner.canvasTitle">Corner radius</label>
+            <output class="border-menu-value" id="canvas-corner-value" for="canvas-corner-range">0 px</output>
+          </div>
+          <input
+            class="border-range"
+            id="canvas-corner-range"
+            type="range"
+            min="0"
+            max="200"
+            step="1"
+            value="0"
+          >
+          <button class="corner-remove-button" id="canvas-corner-remove" type="button" data-i18n="corner.remove">
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="action-bar-tools" id="selection-actions">
       <!-- Text styling menus live in persistent wrappers so a repaint while a
            native color picker is open does not close them. They sit after the
@@ -370,142 +554,10 @@
             step="1"
             value="0"
           >
+          <button class="corner-remove-button" id="corner-remove" type="button" data-i18n="corner.remove">
+            Remove
+          </button>
         </div>
-      </div>
-    </div>
-    <button
-      class="icon-button"
-      id="orientation-button"
-      type="button"
-      aria-label="Toggle row or column layout"
-      data-i18n-aria-label="orientation.toggle"
-      aria-pressed="false"
-    ></button>
-    <div class="border-menu-wrap" id="border-menu-wrap">
-      <button
-        class="icon-button"
-        id="border-button"
-        type="button"
-        data-icon="borderWeight"
-        aria-label="Change border thickness"
-        data-i18n-aria-label="border.change"
-        aria-haspopup="dialog"
-        aria-expanded="false"
-        aria-controls="border-menu"
-      ></button>
-      <div
-        class="border-menu"
-        id="border-menu"
-        role="dialog"
-        aria-label="Border thickness"
-        data-i18n-aria-label="border.title"
-        hidden
-      >
-        <div class="border-menu-head">
-          <label class="border-menu-label" for="border-range" data-i18n="border.title">Border thickness</label>
-          <output class="border-menu-value" id="border-value" for="border-range">5 px</output>
-        </div>
-        <input
-          class="border-range"
-          id="border-range"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value="5"
-        >
-      </div>
-    </div>
-    <div class="color-menu-wrap" id="color-menu-wrap">
-      <button
-        class="icon-button"
-        id="margin-color-button"
-        type="button"
-        data-icon="colorFill"
-        aria-label="Change margin color or gradient"
-        data-i18n-aria-label="margin.change"
-        aria-haspopup="menu"
-        aria-expanded="false"
-        aria-controls="color-menu"
-      ></button>
-      <div
-        class="color-menu"
-        id="color-menu"
-        role="menu"
-        aria-label="Margin paint"
-        data-i18n-aria-label="margin.menu"
-        hidden
-      >
-        <button class="color-menu-item" type="button" role="menuitem" data-paint="fill" data-icon="colors">
-          <span data-i18n="margin.fill">Fill</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-paint="gradient" data-icon="gradient">
-          <span data-i18n="margin.gradient">Gradient</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-stop="top" hidden>
-          <span class="color-menu-chip" data-gradient-chip="top"></span>
-          <span data-i18n="margin.gradientFirst">First color</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-stop="bottom" hidden>
-          <span class="color-menu-chip" data-gradient-chip="bottom"></span>
-          <span data-i18n="margin.gradientSecond">Second color</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-shuffle id="shuffle-spots" data-icon="shuffle" hidden>
-          <span data-i18n="margin.shuffle">Shuffle spots</span>
-        </button>
-        <div
-          class="color-presets"
-          id="color-presets"
-          role="group"
-          aria-label="Color presets"
-          data-i18n-aria-label="margin.presets"
-          hidden
-        ></div>
-      </div>
-      <div
-        class="gradient-style-menu"
-        id="gradient-style-menu"
-        role="menu"
-        aria-label="Gradient style"
-        data-i18n-aria-label="margin.gradientStyle"
-        hidden
-      >
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="vertical" data-icon="gradient">
-          <span data-i18n="gradient.style.vertical">Top to bottom</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="horizontal" data-icon="gradient" data-rotate="ccw">
-          <span data-i18n="gradient.style.horizontal">Left to right</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="radial" data-icon="vignette">
-          <span data-i18n="gradient.style.radial">Radial</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-style="spots" data-icon="blur">
-          <span data-i18n="gradient.style.spots">Random spots</span>
-        </button>
-      </div>
-      <div
-        class="gradient-menu"
-        id="gradient-menu"
-        role="group"
-        aria-label="Gradient colors"
-        data-i18n-aria-label="margin.gradientTitle"
-        hidden
-      >
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-pick="top">
-          <span class="color-menu-chip" data-gradient-swatch-chip="top"></span>
-          <span data-i18n="margin.gradientFirst">First color</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" data-gradient-pick="bottom">
-          <span class="color-menu-chip" data-gradient-swatch-chip="bottom"></span>
-          <span data-i18n="margin.gradientSecond">Second color</span>
-        </button>
-        <div
-          class="color-presets"
-          id="gradient-presets"
-          role="group"
-          aria-label="Color presets"
-          data-i18n-aria-label="margin.presets"
-        ></div>
       </div>
     </div>
     <span class="action-divider" aria-hidden="true"></span>
@@ -527,43 +579,6 @@
         <div class="save-menu-divider" role="separator"></div>
         <button class="save-menu-item is-muted" type="button" role="menuitem" tabindex="-1" data-project="export" data-i18n="save.jsonExport">JSON Export</button>
         <button class="save-menu-item is-muted" type="button" role="menuitem" tabindex="-1" data-project="import" data-i18n="save.jsonImport">JSON Import</button>
-      </div>
-    </div>
-    <!-- Phones fold the four right-hand controls into this menu, so the
-         contextual tools never run into them. -->
-    <div class="bar-more-wrap" id="bar-more-wrap">
-      <button
-        class="icon-button"
-        id="bar-more-button"
-        type="button"
-        data-icon="moreVert"
-        aria-label="More actions"
-        data-i18n-aria-label="more.button"
-        aria-haspopup="menu"
-        aria-expanded="false"
-        aria-controls="bar-more-menu"
-      ></button>
-      <div
-        class="save-menu bar-more-menu"
-        id="bar-more-menu"
-        role="menu"
-        aria-label="More actions"
-        data-i18n-aria-label="more.menu"
-        hidden
-      >
-        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="orientation" data-icon="mode">
-          <span id="more-orientation-label" data-i18n="more.orientation">Row or column layout</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="border" data-icon="borderWeight">
-          <span data-i18n="border.title">Border thickness</span>
-          <span class="more-menu-value" id="more-border-value">5 px</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="margin" data-icon="colorFill">
-          <span data-i18n="margin.label">Margin color</span>
-        </button>
-        <button class="color-menu-item" type="button" role="menuitem" tabindex="-1" data-more="save" id="more-save-row" data-icon="download">
-          <span data-i18n="more.save">Save or export</span>
-        </button>
       </div>
     </div>
   </header>

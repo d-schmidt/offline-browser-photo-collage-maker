@@ -50,10 +50,9 @@ const Export = (() => {
       date.getDate(),
     )}-${pad(date.getHours())}-${pad(date.getMinutes())}.${extension}`;
 
-  /** A rounded-rectangle path, clamped to half the shorter side like CSS. */
-  const roundRectPath = (ctx, x, y, width, height, radius) => {
+  /** Trace a rounded rectangle into the current path without beginning it. */
+  const traceRoundRect = (ctx, x, y, width, height, radius) => {
     const r = Math.max(0, Math.min(radius || 0, width / 2, height / 2));
-    ctx.beginPath();
     if (r <= 0) {
       ctx.rect(x, y, width, height);
       return;
@@ -66,11 +65,22 @@ const Export = (() => {
     ctx.closePath();
   };
 
+  /** A rounded-rectangle path, clamped to half the shorter side like CSS. */
+  const roundRectPath = (ctx, x, y, width, height, radius) => {
+    ctx.beginPath();
+    traceRoundRect(ctx, x, y, width, height, radius);
+  };
+
   /** Rounding only applies while a box has a visible surface to round. */
   const gridRadius = (box) =>
     box.image || box.fill ? Number(box.radius) || 0 : 0;
 
   const freeRadius = (box) => {
+    // A circle crop clamps to half the shorter inner side, yielding a true
+    // circle for the square box the shape menu keeps.
+    if (box.kind !== 'text' && box.shape === 'circle') {
+      return Number.MAX_SAFE_INTEGER;
+    }
     const visibleSurface =
       box.kind === 'text'
         ? box.background !== false
@@ -114,17 +124,48 @@ const Export = (() => {
   /**
    * Ring of canvas paint around a free-form box, drawn in its rotated space and
    * then canvas-aligned. The sampled color fills the part over the canvas edge.
+   * The inner radius follows the photo's rounded or circular shape.
    */
-  const drawFreeFrame = (ctx, paint, frameColor, rect, border) => {
+  const drawFreeFrame = (
+    ctx,
+    paint,
+    frameColor,
+    rect,
+    border,
+    innerRadius = 0,
+  ) => {
+    const innerW = rect.width - 2 * border;
+    const innerH = rect.height - 2 * border;
+    if (innerW <= 0 || innerH <= 0) return;
+    // The ring overlaps the photo edge by a hair so canvas/JPEG antialiasing
+    // cannot leave a colored fringe on the border.
+    const overlap = Math.min(
+      2.5,
+      Math.max(1.25, border * 0.25),
+      innerW / 2 - 0.01,
+      innerH / 2 - 0.01,
+    );
+    const holeX = rect.left + border + overlap;
+    const holeY = rect.top + border + overlap;
+    const holeW = innerW - 2 * overlap;
+    const holeH = innerH - 2 * overlap;
+    const innerR = Math.min(
+      innerRadius - overlap,
+      holeW / 2,
+      holeH / 2,
+    );
+    const outerR = Math.min(innerR + border + overlap, rect.width / 2, rect.height / 2);
     ctx.save();
     ctx.beginPath();
-    ctx.rect(rect.left, rect.top, rect.width, rect.height);
-    ctx.rect(
-      rect.left + border,
-      rect.top + border,
-      rect.width - 2 * border,
-      rect.height - 2 * border,
+    traceRoundRect(
+      ctx,
+      rect.left,
+      rect.top,
+      rect.width,
+      rect.height,
+      outerR,
     );
+    traceRoundRect(ctx, holeX, holeY, holeW, holeH, innerR);
     ctx.clip('evenodd');
     ctx.fillStyle = frameColor;
     ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
@@ -266,15 +307,6 @@ const Export = (() => {
         ctx.fillRect(left + border, top + border, innerW, innerH);
         ctx.restore();
       }
-      if (border > 0) {
-        drawFreeFrame(
-          ctx,
-          paint,
-          frameColor,
-          { left, top, width, height },
-          border,
-        );
-      }
       drawFreeText(
         ctx,
         box,
@@ -285,11 +317,6 @@ const Export = (() => {
         border,
         radius,
       );
-      ctx.restore();
-      return;
-    }
-    if (!image) {
-      // An empty box is framed like a photo, with the placeholder inside it.
       if (border > 0) {
         drawFreeFrame(
           ctx,
@@ -297,25 +324,32 @@ const Export = (() => {
           frameColor,
           { left, top, width, height },
           border,
+          radius,
         );
       }
+      ctx.restore();
+      return;
+    }
+    if (!image) {
+      // An empty box is framed like a photo, with the placeholder inside it.
       ctx.save();
       roundRectPath(ctx, left + border, top + border, innerW, innerH, radius);
       ctx.clip();
       ctx.fillStyle = box.fill ? boxFillStyle(box.fill) : PLACEHOLDER;
       ctx.fillRect(left + border, top + border, innerW, innerH);
       ctx.restore();
+      if (border > 0) {
+        drawFreeFrame(
+          ctx,
+          paint,
+          frameColor,
+          { left, top, width, height },
+          border,
+          radius,
+        );
+      }
       ctx.restore();
       return;
-    }
-    if (border > 0) {
-      drawFreeFrame(
-        ctx,
-        paint,
-        frameColor,
-        { left, top, width, height },
-        border,
-      );
     }
     if (innerW <= 0 || innerH <= 0) {
       ctx.restore();
@@ -358,6 +392,16 @@ const Export = (() => {
       );
     }
     ctx.restore();
+    if (border > 0) {
+      drawFreeFrame(
+        ctx,
+        paint,
+        frameColor,
+        { left, top, width, height },
+        border,
+        radius,
+      );
+    }
     ctx.restore();
   };
 

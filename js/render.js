@@ -33,7 +33,6 @@ const ICONS = Object.freeze({
   lockNone: 'assets/close_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   lockSquare: 'assets/crop_square_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   mode: 'assets/space_dashboard_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
-  moreVert: 'assets/more_vert_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   borderWeight: 'assets/line_weight_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   rotateLeft: 'assets/rotate_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg',
   rotateSnap:
@@ -251,6 +250,12 @@ const Render = (() => {
     return visibleSurface ? box.radius || 0 : 0;
   };
 
+  /** Square and circle crops mark the free-form box as locked (red chrome). */
+  const freeShapeLocked = (box) =>
+    box.kind !== 'text' &&
+    Boolean(box.image) &&
+    (box.shape === 'square' || box.shape === 'circle');
+
   const buildBox = (layoutBox, number, selectedId) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -326,6 +331,58 @@ const Render = (() => {
     return button;
   };
 
+  /** SVG path data for a rounded rectangle, clamped like CSS border-radius. */
+  const roundedRectPathData = (x, y, width, height, radius) => {
+    const r = Math.max(0, Math.min(radius || 0, width / 2, height / 2));
+    if (r <= 0.01) {
+      return `M${x} ${y}H${x + width}V${y + height}H${x}Z`;
+    }
+    return (
+      `M${x + r} ${y}H${x + width - r}` +
+      `A${r} ${r} 0 0 1 ${x + width} ${y + r}` +
+      `V${y + height - r}` +
+      `A${r} ${r} 0 0 1 ${x + width - r} ${y + height}` +
+      `H${x + r}` +
+      `A${r} ${r} 0 0 1 ${x} ${y + height - r}` +
+      `V${y + r}` +
+      `A${r} ${r} 0 0 1 ${x + r} ${y}Z`
+    );
+  };
+
+  /**
+   * A mask image that turns the canvas-paint frame into a ring whose inner
+   * edge follows the photo's rounded corners or circle.
+   */
+  const freeFrameMaskImage = (box, border) => {
+    const outerW = box.width;
+    const outerH = box.width / (box.aspect || 1);
+    const innerW = outerW - 2 * border;
+    const innerH = outerH - 2 * border;
+    if (innerW <= 0 || innerH <= 0) return '';
+    const circle = box.kind !== 'text' && box.shape === 'circle';
+    const innerR = circle
+      ? Math.min(innerW, innerH) / 2
+      : Math.min(freeRadius(box), innerW / 2, innerH / 2);
+    if (innerR <= 0.01) return '';
+    // Pull the hole a hair into the photo; the overlay rim covers the rest of
+    // the antialiased edge in the frame color.
+    const overlap = Math.min(0.75, innerW / 2 - 0.01);
+    const holeX = border + overlap;
+    const holeW = innerW - 2 * overlap;
+    const holeH = innerH - 2 * overlap;
+    const holeR = Math.max(0, innerR - overlap);
+    const outerR = Math.min(innerR + border, outerW / 2, outerH / 2);
+    const d =
+      roundedRectPathData(0, 0, outerW, outerH, outerR) +
+      roundedRectPathData(holeX, holeX, holeW, holeH, holeR);
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${outerW}" height="${outerH}"` +
+      ` viewBox="0 0 ${outerW} ${outerH}" preserveAspectRatio="none"` +
+      ` shape-rendering="geometricPrecision">` +
+      `<path fill="#fff" fill-rule="evenodd" d="${d}"/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  };
+
   /**
    * Geometry for a free-form box. It is absolutely positioned by its centre
    * and rotated around that centre, so moving and scaling stay intuitive.
@@ -340,12 +397,73 @@ const Render = (() => {
     element.style.transform = `translate(-50%, -50%) rotate(${box.rotation}deg)`;
     element.style.setProperty('--free-border', `${border}px`);
     // The corner radius belongs to the inner content, so the paint frame keeps
-    // its own square silhouette while a photo or backdrop turns rounded.
-    element.style.setProperty('--free-radius', `${freeRadius(box)}px`);
+    // its own square silhouette while a photo or backdrop turns rounded. A
+    // circle crop owns the surface and becomes a true circle.
+    const circle = box.kind !== 'text' && box.shape === 'circle';
+    const radius = freeRadius(box);
+    element.style.setProperty(
+      '--free-radius',
+      circle ? '50%' : `${radius}px`,
+    );
+    // Clip the inner surface with the same shape as a path, not only the
+    // border-radius overflow. This keeps the photo's edge crisp when the
+    // canvas is scaled down in the editor preview.
+    const content = element.querySelector('.free-content');
+    if (content) {
+      content.style.clipPath = circle
+        ? 'circle(50%)'
+        : radius > 0
+          ? `inset(0 round ${radius}px)`
+          : '';
+    }
+    element.style.setProperty(
+      '--free-outer-radius',
+      circle ? '50%' : radius > 0 ? `${radius + border}px` : '0px',
+    );
+    // Clip the solid copy itself to the outer shape so no descendant pixel can
+    // paint in the square corners outside a circle or rounded frame. The ghost
+    // control layer stays unclipped so its rectangular selection border shows.
+    const clip =
+      circle
+        ? 'circle(50%)'
+        : radius > 0
+          ? `inset(0 round ${radius + border}px)`
+          : '';
+    element.style.clipPath =
+      element.classList.contains('free-ghost') ? '' : clip;
+    const ghostBody = element.querySelector('.free-ghost-body');
+    if (ghostBody) ghostBody.style.clipPath = clip;
     element.classList.toggle('has-border', border > 0);
+    element.classList.toggle(
+      'has-shaped-frame',
+      border > 0 && (circle || radius > 0),
+    );
+    element.classList.toggle('has-lock', freeShapeLocked(box));
     // The ring samples a solid fallback for the overhang, while its paint child
     // counter-rotates so the canvas image stays aligned when the box turns.
     element.style.setProperty('--free-frame', State.canvasColorAt(box.x, box.y));
+    const frameMask = border > 0 ? freeFrameMaskImage(box, border) : '';
+    element.querySelectorAll('.free-frame').forEach((frame) => {
+      if (frameMask) {
+        frame.style.webkitMaskImage = frameMask;
+        frame.style.maskImage = frameMask;
+        frame.style.webkitMaskSize = '100% 100%';
+        frame.style.maskSize = '100% 100%';
+        frame.style.webkitMaskRepeat = 'no-repeat';
+        frame.style.maskRepeat = 'no-repeat';
+        frame.style.webkitMaskSourceType = 'alpha';
+        frame.style.maskMode = 'alpha';
+      } else {
+        frame.style.webkitMaskImage = '';
+        frame.style.maskImage = '';
+        frame.style.webkitMaskSize = '';
+        frame.style.maskSize = '';
+        frame.style.webkitMaskRepeat = '';
+        frame.style.maskRepeat = '';
+        frame.style.webkitMaskSourceType = '';
+        frame.style.maskMode = '';
+      }
+    });
     const boxLeft = box.x - box.width / 2;
     const boxTop = box.y - height / 2;
     const alignPaint = (paint, offset) => {
@@ -675,6 +793,12 @@ const Render = (() => {
     // selected box replaces them with its contextual tools.
     const hasSelection = Boolean(state.selectedBoxId || state.selectedFreeId);
     refs.createActions.hidden = hasSelection;
+    // Canvas settings belong to the empty bar, so the selected box gets the
+    // full left side for its contextual tools.
+    refs.canvasActions.hidden = hasSelection;
+    const canvasRounded = (state.canvasRadius || 0) > 0;
+    refs.canvasCornerButton.classList.toggle('is-active', canvasRounded);
+    refs.canvasCornerButton.setAttribute('aria-pressed', String(canvasRounded));
     // Availability is resolved before the branches so a repaint (for example
     // while the opacity slider moves) keeps an open menu open.
     const selectedFill = state.selectedFreeId
@@ -711,24 +835,35 @@ const Render = (() => {
       isTextSelected,
       isTextSelected ? selectedFree.box.id : null,
     );
-    // The shape menu belongs to a grid box; free-form boxes have their own
-    // square crop instead. Square and circle work on an empty cell, while the
-    // image-ratio item needs a photo.
-    const lockBox =
+    // The shape menu follows a grid box or a free-form photo. Free-form boxes
+    // have no capacity cap and no None: their default is the photo's own ratio.
+    const freeShapeBox =
+      selectedFree &&
+      selectedFree.box.kind !== 'text' &&
+      selectedFree.box.image
+        ? selectedFree.box
+        : null;
+    const gridLockBox =
       selectedFill && !state.selectedFreeId && selectedFill.box.kind !== 'text'
         ? selectedFill.box
         : null;
-    const canSquare = lockBox ? state.canLockBox(lockBox.id) : false;
-    const canAspect = lockBox ? state.canAspectLock(lockBox.id) : false;
+    const lockBox = gridLockBox || freeShapeBox;
+    const freeShape = Boolean(freeShapeBox);
+    const canSquare = gridLockBox
+      ? state.canLockBox(gridLockBox.id)
+      : freeShape;
+    const canAspect = gridLockBox
+      ? state.canAspectLock(gridLockBox.id)
+      : freeShape;
     const lockGroup = I18n.t(
       state.orientation === 'column' ? 'group.column' : 'group.row',
     );
     const lockLimitHint =
-      lockBox && !canSquare
+      gridLockBox && !canSquare
         ? I18n.t('hint.unlocked', { group: lockGroup })
         : null;
     const lockRatioHint =
-      lockBox && lockBox.image && canSquare && !canAspect
+      gridLockBox && gridLockBox.image && canSquare && !canAspect
         ? I18n.t('hint.ratio', { group: lockGroup })
         : null;
     showLockControls(
@@ -737,6 +872,7 @@ const Render = (() => {
       canAspect,
       lockLimitHint,
       lockRatioHint,
+      freeShape,
     );
     // Any selected image or text box gets the corner-radius action. Its slider
     // is disabled until the box has a surface that can actually be rounded,
@@ -744,7 +880,9 @@ const Render = (() => {
     const cornerBox = selectedFill ? selectedFill.box : null;
     const cornerText = Boolean(cornerBox && cornerBox.kind === 'text');
     const cornerCircle = Boolean(
-      cornerBox && cornerBox.kind !== 'text' && cornerBox.lock === 'circle',
+      cornerBox &&
+        cornerBox.kind !== 'text' &&
+        (cornerBox.lock === 'circle' || cornerBox.shape === 'circle'),
     );
     const cornerEnabled = cornerBox
       ? cornerCircle
@@ -815,21 +953,9 @@ const Render = (() => {
       border.setAttribute('aria-pressed', String(borderOn));
       border.classList.toggle('is-active', borderOn);
 
-      // There is no ratio to crop until a photo arrives, so the square-crop
-      // button joins the row with the image instead of sitting there disabled.
-      const framing = [];
-      if (hasImage) {
-        const square = toolButton(
-          'crop-square',
-          I18n.t('action.cropSquare'),
-          'lockSquare',
-        );
-        square.setAttribute('aria-pressed', String(Boolean(found.box.square)));
-        square.classList.toggle('is-active', Boolean(found.box.square));
-        if (found.box.square) square.title = I18n.t('action.matchPhoto');
-        framing.push(square);
-      }
-      framing.push(border);
+      // The shared shape menu follows the free-form photo and sits in the
+      // action bar before this framing group.
+      const framing = [border];
 
       // Only a photo with transparent pixels can show a fill behind it; an
       // opaque photo would hide the background completely.
@@ -948,6 +1074,7 @@ const Render = (() => {
     canAspect,
     limitHint = null,
     ratioHint = null,
+    free = false,
   ) => {
     const available = Boolean(box);
     refs.lockWrap.hidden = !available;
@@ -956,17 +1083,31 @@ const Render = (() => {
     refs.lockBoxId = boxId;
     const lock = available ? box.lock : null;
     const hasImage = Boolean(available && box.image);
+    // A free-form photo always has one shape selected, with its own ratio as
+    // the default; a grid box can also be unlocked (None).
+    const shape =
+      free && available
+        ? box.shape === 'square' || box.shape === 'circle'
+          ? box.shape
+          : 'ratio'
+        : lock;
+    const checked = free
+      ? shape === 'ratio'
+        ? 'aspect'
+        : shape
+      : lock;
+    const active = free ? shape !== 'ratio' : Boolean(lock);
 
-    refs.lockButton.classList.toggle('is-active', Boolean(lock));
-    refs.lockButton.setAttribute('aria-pressed', String(Boolean(lock)));
+    refs.lockButton.classList.toggle('is-active', active);
+    refs.lockButton.setAttribute('aria-pressed', String(active));
     // The trigger shows the active shape's mark, so the current lock is visible
     // without opening the menu; with no lock it keeps the image-ratio mark.
     const triggerIcon = refs.lockButton.querySelector('.icon');
     if (triggerIcon) {
       const iconName =
-        lock === 'square'
+        shape === 'square'
           ? 'lockSquare'
-          : lock === 'circle'
+          : shape === 'circle'
             ? 'lockCircle'
             : 'lockAspect';
       if (triggerIcon.getAttribute('src') !== ICONS[iconName]) {
@@ -975,7 +1116,9 @@ const Render = (() => {
     }
     // When the n − 1 cap or a missing photo leaves nothing to choose, the
     // trigger itself reads as unavailable instead of opening an empty menu.
-    refs.lockButton.disabled = available && !canSquare && !canAspect;
+    refs.lockButton.disabled = free
+      ? !available
+      : available && !canSquare && !canAspect;
     refs.lockButton.title =
       available && refs.lockButton.disabled
         ? limitHint || ratioHint || I18n.t('lock.menu')
@@ -986,21 +1129,23 @@ const Render = (() => {
     const circle = refs.lockMenu.querySelector('[data-lock="circle"]');
     const none = refs.lockMenu.querySelector('[data-lock="none"]');
 
-    square.disabled = !canSquare;
-    square.setAttribute('aria-checked', String(lock === 'square'));
+    square.disabled = free ? !available : !canSquare;
+    square.setAttribute('aria-checked', String(checked === 'square'));
     square.title = limitHint || I18n.t('action.lockSquare');
 
-    aspect.disabled = !canAspect;
-    aspect.setAttribute('aria-checked', String(lock === 'aspect'));
+    aspect.disabled = free ? !available : !canAspect;
+    aspect.setAttribute('aria-checked', String(checked === 'aspect'));
     aspect.title = !hasImage
       ? I18n.t('lock.emptyAspect')
       : limitHint || ratioHint || I18n.t('action.lockAspect');
 
-    circle.disabled = !canSquare;
-    circle.setAttribute('aria-checked', String(lock === 'circle'));
+    circle.disabled = free ? !available : !canSquare;
+    circle.setAttribute('aria-checked', String(checked === 'circle'));
     circle.title = limitHint || I18n.t('action.lockCircle');
 
-    none.setAttribute('aria-checked', String(!lock));
+    // Free-form photo boxes have no unlocked state, so None is grid-only.
+    none.hidden = free;
+    none.setAttribute('aria-checked', String(!free && !lock));
     none.title = I18n.t('lock.none');
 
     if (sameBox) return;
@@ -1486,6 +1631,8 @@ const Render = (() => {
 
   const init = () => {
     refs.createActions = document.getElementById('create-actions');
+    refs.canvasActions = document.getElementById('canvas-actions');
+    refs.canvasCornerButton = document.getElementById('canvas-corner-button');
     refs.selectionActions = document.getElementById('selection-actions');
     refs.canvas = document.getElementById('canvas');
     refs.rows = document.getElementById('rows');
